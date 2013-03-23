@@ -1,0 +1,44 @@
+allprojects {
+    repositories { mavenCentral() }
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'idea'
+
+    group = "com.netflix.suro" // TEMPLATE: Set to organization of project
+
+    dependencies {
+        compile 'com.netflix.archaius:archaius-core:0.5.6'
+        compile 'com.netflix.servo:servo-core:0.4.32'
+        compile 'com.netflix.governator:governator:1.1.1'
+        compile 'com.netflix.eureka:eureka-client:1.1.73'
+        compile 'com.netflix.ribbon:ribbon-core:0.1.5'
+        compile 'com.netflix.ribbon:ribbon-eureka:0.1.5'
+        compile 'log4j:log4j:1.2.17'
+
+        compile 'org.apache.thrift:libthrift:0.7.0'
+        compile 'org.slf4j:slf4j-api:1.6.4'
+        compile 'com.google.guava:guava:11.0.2'
+        compile 'joda-time:joda-time:2.2'
+        compile 'com.fasterxml.jackson.core:jackson-databind:2.1.4'
+        compile 'com.fasterxml.jackson.core:jackson-annotations:2.1.4'
+        compile 'com.fasterxml.jackson.core:jackson-core:2.1.4'
+
+        testCompile 'org.mockito:mockito-core:1.9.5'
+        testCompile 'junit:junit:4.+'
+    }
+}
+
+project(':suro-client') {
+}
+
+project(':suro-server') {
+    dependencies {
+        compile project(':suro-client')
+        compile 'org.apache.hadoop:hadoop-core:1.1.2'
+        compile 'net.java.dev.jets3t:jets3t:0.9.0'
+        compile 'com.fasterxml.jackson.datatype:jackson-datatype-guava:2.1.2'
+        compile 'com.fasterxml.jackson.datatype:jackson-datatype-joda:2.1.2'
+    }
+}
