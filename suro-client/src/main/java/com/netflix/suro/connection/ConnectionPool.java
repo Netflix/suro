@@ -1,7 +1,8 @@
 package com.netflix.suro.connection;
 
 import com.google.common.collect.Sets;
-import com.google.inject.Singleton;
+import com.google.inject.Inject;
+import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.loadbalancer.Server;
 import com.netflix.servo.annotations.DataSourceType;
@@ -21,10 +22,14 @@ import org.apache.thrift.transport.TTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import javax.annotation.PreDestroy;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.*;
 
-@Singleton
+@LazySingleton
 public class ConnectionPool {
     private static Logger logger = LoggerFactory.getLogger(ConnectionPool.class);
 
@@ -36,7 +41,9 @@ public class ConnectionPool {
 
     private ScheduledExecutorService connectionSweeper;
     private ExecutorService newConnectionBuilder;
+    private BlockingQueue<SuroConnection> connectionQueue = new LinkedBlockingQueue<SuroConnection>();
 
+    @Inject
     public ConnectionPool(ClientConfig config, ILoadBalancer lb) {
         this.config = config;
         this.lb = lb;
@@ -49,6 +56,7 @@ public class ConnectionPool {
         populateClients();
     }
 
+    @PreDestroy
     public void shutdown() {
         for (Map.Entry<Server, SuroConnection> entry : connections.entrySet()) {
             entry.getValue().disconnect();
@@ -70,7 +78,7 @@ public class ConnectionPool {
             SuroConnection client = new SuroConnection(server, config);
             try {
                 client.connect();
-                addClient(server, client);
+                addConnection(server, client);
                 logger.info(client + " is added to SuroClientPool");
             } catch (Exception e) {
                 logger.error("Error in connecting to " + client + " message: " + e.getMessage(), e);
@@ -84,7 +92,7 @@ public class ConnectionPool {
                 Set<Server> serversInDiscovery = new HashSet<Server>(lb.getServerList(true));
 
                 for (Server serverRemoved : Sets.difference(serversInClients, serversInDiscovery)) {
-                    removeClient(serverRemoved);
+                    removeConnection(serverRemoved);
                     logger.info(serverRemoved + " is removed from SuroClientPool");
                 }
             }
@@ -96,15 +104,24 @@ public class ConnectionPool {
                 TimeUnit.SECONDS);
     }
 
-    private void addClient(Server server, SuroConnection client) {
+    private void addConnection(Server server, SuroConnection client) {
         connections.put(server, client);
     }
 
-    private void removeClient(Server server) {
+    private void removeConnection(Server server) {
         connections.remove(server).disconnect();
     }
 
     public SuroConnection chooseConnection() {
+        SuroConnection connection = connectionQueue.poll();
+        if (connection == null) {
+            connection = chooseFromPool();
+        }
+
+        return connection;
+    }
+
+    private SuroConnection chooseFromPool() {
         SuroConnection connection = null;
         int count = 0;
 
@@ -131,7 +148,6 @@ public class ConnectionPool {
         if (connection != null) {
             connectionBeingUsed.add(connection.getServer());
         }
-
         return connection;
     }
 
@@ -143,7 +159,7 @@ public class ConnectionPool {
                     SuroConnection connection = new SuroConnection(server, config);
                     try {
                         connection.connect();
-                        addClient(server, connection);
+                        addConnection(server, connection);
                         logger.info(connection + " is added to ConnectionPool");
                     } catch (Exception e) {
                         logger.error("Error in connecting to " + connection + " message: " + e.getMessage(), e);
@@ -154,14 +170,36 @@ public class ConnectionPool {
         };
     }
 
-    public void endConnection(SuroConnection client) {
-        if (client != null) {
-            connectionBeingUsed.remove(client.getServer());
+    public void endConnection(SuroConnection connection) {
+        if (connection != null) {
+            if (shouldChangeClient(connection)) {
+                connection.initStat();
+                connectionBeingUsed.remove(connection.getServer());
+                connection = chooseFromPool();
+            }
+        }
+
+        if (connection != null) {
+            connectionQueue.offer(connection);
         }
     }
 
     public void markServerDown(SuroConnection client) {
         lb.markServerDown(client.getServer());
+    }
+
+    private boolean shouldChangeClient(SuroConnection connection) {
+        long now = System.currentTimeMillis();
+
+        long minimumTimeSpan = connection.getTimeUsed() + config.getMinimumReconnectTimeInterval();
+        if (minimumTimeSpan <= now) {
+            if (connection.getSentCount() >= config.getReconnectInterval() ||
+                    connection.getTimeUsed() + config.getReconnectTimeInterval() <= now) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static class SuroConnection {
@@ -170,6 +208,9 @@ public class ConnectionPool {
 
         private final Server server;
         private final ClientConfig config;
+
+        private int sentCount = 0;
+        private long timeUsed = 0;
 
         public SuroConnection(Server server, ClientConfig config) {
             this.server = server;
@@ -199,10 +240,28 @@ public class ConnectionPool {
         }
 
         public Result send(TMessageSet messageSet) throws TException {
+            ++sentCount;
+            if (sentCount == 1) {
+                timeUsed = System.currentTimeMillis();
+            }
+
             return client.process(messageSet);
         }
 
         public Server getServer() { return server; }
+
+        public int getSentCount() {
+            return sentCount;
+        }
+
+        public long getTimeUsed() {
+            return timeUsed;
+        }
+
+        public void initStat() {
+            sentCount = 0;
+            timeUsed = 0;
+        }
 
         @Override
         public String toString() {

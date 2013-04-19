@@ -1,13 +1,11 @@
-package com.netflix.suro.message;
+package com.netflix.suro.message.serde;
 
 public class StringSerDe implements SerDe<String> {
-    public static byte id() {
-        return 0;
-    }
+    public static final byte id = 0;
 
     @Override
     public byte getId() {
-        return 0;
+        return id;
     }
 
     @Override
@@ -18,5 +16,10 @@ public class StringSerDe implements SerDe<String> {
     @Override
     public byte[] serialize(String content) {
         return content.getBytes();
+    }
+
+    @Override
+    public String toString(byte[] message) {
+        return new String(message);
     }
 }

@@ -45,5 +45,19 @@ public class ServerConfig {
         return memoryQueueSize;
     }
 
+    public static final String MESSAGE_ROUTER_THREADS = "SuroServer.messageRounterThreads";
+    @Configuration(MESSAGE_ROUTER_THREADS)
+    private int messageRouterThreads = 2;
+    public int getMessageRouterThreads() {
+        return messageRouterThreads;
+    }
 
+    @Configuration("SuroServer.statusServerPort")
+    private int statusServerPort = 7103;
+    public int getStatusServerPort() {
+        return statusServerPort;
+    }
+
+    public int messageRouterDefaultPollTimeout = 500;
+    public int messageRouterMaxPollTimeout = 10000;
 }

@@ -10,8 +10,8 @@ import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Singleton
 public class ThriftServer {
@@ -23,14 +23,16 @@ public class ThriftServer {
 
     private final ServerConfig config;
     private final MessageQueue messageQueue;
+    private ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @Inject
-    public ThriftServer(ServerConfig config, MessageQueue messageQueue) throws Exception {
+    public ThriftServer(
+            ServerConfig config,
+            MessageQueue messageQueue) throws Exception {
         this.config = config;
         this.messageQueue = messageQueue;
     }
 
-    @PostConstruct
     public void start() throws TTransportException {
         transport = new CustomServerSocket(config);
         processor =  new SuroServer.Processor(messageQueue);
@@ -41,8 +43,17 @@ public class ThriftServer {
         serverArgs.maxReadBufferBytes = config.getThriftMaxReadBufferBytes();
 
         server = new THsHaServer(serverArgs);
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                server.serve();
+            }
+        });
+        while (isServing() == false) {
+            try { Thread.sleep(1000); } catch (InterruptedException e) {}
+        }
+
         logger.info("Server started on port:" + config.getPort());
-        server.serve();
     }
 
     public boolean isServing(){
@@ -53,9 +64,10 @@ public class ThriftServer {
         return server == null || server.isStopped();
     }
 
-    @PreDestroy
     public void shutdown() {
         try {
+            server.stop();
+            executor.shutdownNow();
             messageQueue.shutdown();
         } catch (TException e) {
             // ignore any exception when shutdown

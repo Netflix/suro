@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
-import com.netflix.suro.jackson.DefaultObjectMapper;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -25,7 +24,7 @@ public class TestPrefixFormatter {
                 "    \"prefix\": \"prefix\"\n" +
                 "}";
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = new ObjectMapper();
         RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>(){});
         assertEquals(formatter.get(), "prefix");
     }
@@ -39,7 +38,7 @@ public class TestPrefixFormatter {
                 "    \"stack\": \"normal\"\n" +
                 "}";
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = new ObjectMapper();
         mapper.setInjectableValues(new InjectableValues() {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
@@ -62,7 +61,7 @@ public class TestPrefixFormatter {
         injectables.put("region", "eu-west-1");
         injectables.put("stack", "gps");
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = new ObjectMapper();
         mapper.setInjectableValues(new InjectableValues() {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {

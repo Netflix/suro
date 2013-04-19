@@ -8,11 +8,12 @@ import org.junit.Test;
 import java.io.IOException;
 
 import static junit.framework.Assert.assertNull;
+import static junit.framework.Assert.fail;
 import static junit.framework.TestCase.assertEquals;
 
 public class TestQueueNotify {
     @Test
-    public void test() throws IOException {
+    public void testQueue() throws IOException {
         String desc = "{\n" +
                 "    \"type\": \"queue\"   \n" +
                 "}";
@@ -22,5 +23,10 @@ public class TestQueueNotify {
         queueNotify.send("message");
         assertEquals(queueNotify.recv(), "message");
         assertNull(queueNotify.recv());
+    }
+
+    @Test
+    public void testSQS() {
+        fail();
     }
 }

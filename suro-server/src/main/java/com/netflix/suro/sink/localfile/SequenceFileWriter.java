@@ -3,7 +3,7 @@ package com.netflix.suro.sink.localfile;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.SerDe;
+import com.netflix.suro.message.serde.SerDe;
 import org.apache.hadoop.io.SequenceFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

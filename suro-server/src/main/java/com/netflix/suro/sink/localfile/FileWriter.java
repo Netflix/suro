@@ -3,7 +3,7 @@ package com.netflix.suro.sink.localfile;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.SerDe;
+import com.netflix.suro.message.serde.SerDe;
 
 import java.io.IOException;
 

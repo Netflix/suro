@@ -6,11 +6,16 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
+import com.netflix.servo.monitor.DynamicCounter;
+import com.netflix.servo.monitor.MonitorConfig;
+import com.netflix.servo.monitor.Monitors;
+import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.SerDe;
+import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.nofify.Notify;
 import com.netflix.suro.queue.QueueManager;
 import com.netflix.suro.sink.Sink;
+import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
 import org.slf4j.Logger;
@@ -18,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class LocalFileSink implements Sink {
     static Logger log = LoggerFactory.getLogger(LocalFileSink.class);
@@ -27,7 +33,6 @@ public class LocalFileSink implements Sink {
     public static final String suffix = ".suro";
     public static final String done = ".done";
 
-    private final String name;
     private final String outputDir;
     private final FileWriter writer;
     private final long maxFileSize;
@@ -38,22 +43,25 @@ public class LocalFileSink implements Sink {
     @JacksonInject("queueManager")
     private QueueManager queueManager;
 
+    @JacksonInject("spaceChecker")
+    private SpaceChecker spaceChecker;
+
     private String fileName;
     private long nextRotation;
 
-    @Monitor(name = "freeSpace", type = DataSourceType.GAUGE)
-    private long freeSpace = 0;
+    @Monitor(name = "writtenMessages", type = DataSourceType.COUNTER)
+    private AtomicLong writtenMessages = new AtomicLong(0);
+    @Monitor(name = "writtenBytes", type = DataSourceType.COUNTER)
+    private AtomicLong writtenBytes = new AtomicLong(0);
 
     @JsonCreator
     public LocalFileSink(
-            @JsonProperty("name") String name,
             @JsonProperty("outputDir") String outputDir,
             @JsonProperty("writer") FileWriter writer,
             @JsonProperty("maxFileSize") long maxFileSize,
             @JsonProperty("rotationPeriod") Period rotationPeriod,
             @JsonProperty("minPercentFreeDisk") int minPercentFreeDisk,
             @JsonProperty("notify") Notify notify) {
-        this.name = name;
         if (outputDir.endsWith("/") == false) {
             outputDir += "/";
         }
@@ -64,23 +72,20 @@ public class LocalFileSink implements Sink {
         this.minPercentFreeDisk = minPercentFreeDisk;
         this.notify = notify;
 
-        Preconditions.checkNotNull(name, "name is needed");
         Preconditions.checkNotNull(outputDir, "outputDir is needed");
         Preconditions.checkNotNull(writer, "writer is needed");
         Preconditions.checkArgument(maxFileSize > 0, "maxFileSize is needed");
         Preconditions.checkNotNull(rotationPeriod, "rotationPeriod is needed");
-        Preconditions.checkNotNull(minPercentFreeDisk, "minPercentFreeDisk is needed");
+        Preconditions.checkArgument(minPercentFreeDisk > 0, "minPercentFreeDisk is needed");
         Preconditions.checkNotNull(notify, "notify is needed");
-    }
-
-    @Override
-    public String getName() {
-        return name;
     }
 
     @Override
     public void open() {
         try {
+            if (spaceChecker == null) {
+                spaceChecker = new SpaceChecker(minPercentFreeDisk, outputDir);
+            }
             writer.open(outputDir);
             rotate();
         } catch (Throwable e) {
@@ -92,6 +97,17 @@ public class LocalFileSink implements Sink {
     public void writeTo(Message message, SerDe serde) {
         try {
             writer.writeTo(message, serde);
+            DynamicCounter.increment(
+                    MonitorConfig.builder("writtenMessages")
+                            .withTag(TagKey.APP, message.getApp())
+                            .withTag(TagKey.DATA_SOURCE, message.getRoutingKey())
+                            .build());
+            DynamicCounter.increment(
+                    MonitorConfig.builder("writtenBytes")
+                            .withTag(TagKey.APP, message.getApp())
+                            .withTag(TagKey.DATA_SOURCE, message.getRoutingKey())
+                            .build(), message.getPayload().length);
+
             if (writer.getLength() > maxFileSize ||
                     System.currentTimeMillis() > nextRotation) {
                 rotate();
@@ -102,7 +118,30 @@ public class LocalFileSink implements Sink {
     }
 
     public static class SpaceChecker {
+        private final int minPercentFreeDisk;
+        private final File outputDir;
 
+        @Monitor(name = "freeSpace", type = DataSourceType.GAUGE)
+        private long freeSpace;
+
+        public SpaceChecker(int minPercentFreeDisk, String outputDir) {
+            this.minPercentFreeDisk = minPercentFreeDisk;
+            this.outputDir = new File(outputDir);
+
+            Monitors.registerObject(this);
+        }
+
+        public boolean hasEnoughSpace() {
+            long totalSpace = outputDir.getTotalSpace();
+
+            freeSpace = outputDir.getFreeSpace();
+            long minFreeAvailable = (totalSpace * minPercentFreeDisk) / 100;
+            if (freeSpace < minFreeAvailable) {
+                return false;
+            } else {
+                return true;
+            }
+        }
     }
 
     private void rotate() throws IOException {
@@ -115,12 +154,7 @@ public class LocalFileSink implements Sink {
 
         nextRotation = new DateTime().plus(rotationPeriod).getMillis();
 
-        File directory4Space = new File(outputDir);
-        long totalSpace = directory4Space.getTotalSpace();
-        freeSpace = directory4Space.getFreeSpace();
-        long minFreeAvailable = (totalSpace * minPercentFreeDisk) / 100;
-        if (freeSpace < minFreeAvailable) {
-            log.error("No space left on device, Bail out!");
+        if (spaceChecker.hasEnoughSpace() == false) {
             queueManager.stopTakingTraffic();
         } else {
             queueManager.startTakingTraffic();
@@ -149,5 +183,13 @@ public class LocalFileSink implements Sink {
             writer.setDone(fileName, doneFile);
             notify.send(doneFile);
         }
+    }
+
+    @Override
+    public String getStat() {
+        return String.format(
+                "%d msgs, %d bytes written",
+                writtenMessages.get(),
+                FileUtils.byteCountToDisplaySize(writtenBytes.get()));
     }
 }

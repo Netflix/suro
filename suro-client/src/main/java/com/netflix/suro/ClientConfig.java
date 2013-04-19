@@ -1,11 +1,12 @@
 package com.netflix.suro;
 
 import com.netflix.governator.annotations.Configuration;
+import com.netflix.suro.input.JsonLog4jFormatter;
 
 public class ClientConfig {
     public static final String CONNECTION_TIMEOUT = "SuroClient.connectionTimeout";
     @Configuration(CONNECTION_TIMEOUT)
-    private int connectionTimeout = 20000; // millisecond
+    private int connectionTimeout = 5000; // millisecond
     public int getConnectionTimeout() {
         return connectionTimeout;
     }
@@ -19,7 +20,7 @@ public class ClientConfig {
 
     public static final String LOG4J_FORMATTER = "SuroClient.log4jFormatter";
     @Configuration(LOG4J_FORMATTER)
-    private String log4jFormatter = "com.netflix.suro.input.StringLog4jFormatter";
+    private String log4jFormatter = JsonLog4jFormatter.class.toString();
     public String getLog4jFormatter() {
         return log4jFormatter;
     }
@@ -30,4 +31,142 @@ public class ClientConfig {
     public String getLog4jDateTimeFormat() {
         return log4jDateTimeFormat;
     }
+
+    public static final String APP = "SuroClient.app";
+    @Configuration(APP)
+    private String app;
+    public String getApp() {
+        return app;
+    }
+
+    public static final String DATA_TYPE = "SuroClient.dataType";
+    @Configuration(DATA_TYPE)
+    private String dataType;
+    public String getDataType() {
+        return dataType;
+    }
+
+    public static final String ROUTING_KEY = "SuroClient.routingKey";
+    @Configuration(ROUTING_KEY)
+    private String routingKey;
+    public String getRoutingKey() {
+        return routingKey;
+    }
+
+    public static final String RETRY_COUNT = "SuroClient.retryCount";
+    @Configuration(RETRY_COUNT)
+    private int retryCount = 5;
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    public static final String SERDE = "SuroClient.serDe";
+    @Configuration(SERDE)
+    private byte serde = 0;
+    public byte getSerDe() {
+        return serde;
+    }
+
+    public static final String COMPRESSION = "SuroClient.compression";
+    @Configuration(COMPRESSION)
+    private byte compression = 1;
+    public byte getCompression() {
+        return compression;
+    }
+
+    public static final String CLIENT_TYPE = "SuroClient.clientType";
+    @Configuration(CLIENT_TYPE)
+    private String clientType = "async";
+    public String getClientType() {
+        return clientType;
+    }
+
+    public static final String SENDER_THREADS = "SuroClient.asyncSenderThreads";
+    @Configuration(SENDER_THREADS)
+    private int senderThreads = 3;
+    public int getAsyncSenderThreads() {
+        return senderThreads;
+    }
+
+    public static final String ASYNC_BATCH_SIZE = "SuroClient.asyncBatchSize";
+    @Configuration(ASYNC_BATCH_SIZE)
+    private int asyncBatchSize = 200;
+    public int getAsyncBatchSize() {
+        return asyncBatchSize;
+    }
+
+    public static final String ASYNC_TIMEOUT = "SuroClient.asyncTimeout";
+    @Configuration(ASYNC_TIMEOUT)
+    private int asyncTimeout = 5000;
+    public int getAsyncTimeout() {
+        return asyncTimeout;
+    }
+
+    public static final String ASYNC_QUEUE_TYPE = "SuroClient.asyncQueueType";
+    @Configuration(ASYNC_QUEUE_TYPE)
+    private String asyncQueueType = "memory";
+    public String getAsyncQueueType() {
+        return asyncQueueType;
+    }
+
+    public static final String ASYNC_MSGQUEUE_CAPACITY = "SuroClient.asyncMessageQueueCapacity";
+    @Configuration(ASYNC_MSGQUEUE_CAPACITY)
+    private int asyncMessageQueueCapacity = 10000;
+    public int getAsyncMessageQueueCapacity() {
+        return asyncMessageQueueCapacity;
+    }
+
+    public static final String ASYNC_JOBQUEUE_CAPACITY = "SuroClient.asyncJobQueueCapacity";
+    @Configuration(ASYNC_JOBQUEUE_CAPACITY)
+    private int asyncJobQueueCapacity = 0;
+    public int getAsyncJobQueueCapacity() {
+        if (asyncJobQueueCapacity == 0) {
+            return asyncMessageQueueCapacity / asyncBatchSize;
+        } else {
+            return asyncJobQueueCapacity;
+        }
+    }
+
+    public static final String ASYNC_FILEQUEUE_PATH = "SuroClient.asyncFileQueuePath";
+    @Configuration(ASYNC_FILEQUEUE_PATH)
+    private String asyncFileQueuePath = "/logs/suroClient";
+    public String getAsyncFileQueuePath() {
+        return asyncFileQueuePath;
+    }
+
+    public static final String LB_TYPE = "SuroClient.loadBalancerType";
+    @Configuration(LB_TYPE)
+    private String loadBalancerType;
+    public String getLoadBalancerType() {
+        return loadBalancerType;
+    }
+
+    public static final String LB_SERVER = "SuroClient.loadBalancerServer";
+    @Configuration(LB_SERVER)
+    private String loadBalancerServer;
+    public String getLoadBalancerServer() {
+        return loadBalancerServer;
+    }
+
+    public static final String FILEQUEUE_GC_INTERVAL = "SuroClient.asyncFileQueueGCInterval";
+    @Configuration(FILEQUEUE_GC_INTERVAL)
+    private int fileQueueGCInterval = 3600;
+    public int getAsyncFileQueueGCInterval() {
+        return fileQueueGCInterval;
+    }
+
+    public static final String MINIMUM_RECONNECT_TIME_INTERVAL = "SuroClient.minimum.reconnect.timeInterval";
+    @Configuration(MINIMUM_RECONNECT_TIME_INTERVAL)
+    private int minimumReconnectTimeInterval = 90000;
+    public int getMinimumReconnectTimeInterval() { return minimumReconnectTimeInterval; }
+
+    public static final String RECONNECT_INTERVAL = "SuroClient.reconnect.interval";
+    @Configuration(RECONNECT_INTERVAL)
+    private int reconnectInterval = 240;
+    public int getReconnectInterval() { return reconnectInterval; }
+
+    public static final String RECONNECT_TIME_INTERVAL = "SuroClient.reconnect.timeInterval";
+    @Configuration(RECONNECT_TIME_INTERVAL)
+    private int reconnectTimeInterval = 300000;
+    public int getReconnectTimeInterval() { return reconnectTimeInterval; }
 }

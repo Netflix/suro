@@ -10,6 +10,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(name = SQSNotify.TYPE, value = SQSNotify.class)
 })
 public interface Notify {
+    void init();
     boolean send(String message);
     String recv();
+    String getStat();
 }

@@ -3,7 +3,7 @@ package com.netflix.suro.sink.localfile;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.StringSerDe;
+import com.netflix.suro.message.serde.StringSerDe;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -41,7 +41,7 @@ public class TestTextFileWriter {
         writer.rotate(dir + "testfile0.suro");
         for (int i = 0; i < 10; ++i) {
             writer.writeTo(
-                    new Message("routingKey", "app", "hostname", "datatype", ("message0" + i).getBytes()),
+                    new Message("routingKey", ("message0" + i).getBytes()),
                     new StringSerDe());
         }
         System.out.println("length: " + writer.getLength());
@@ -57,7 +57,7 @@ public class TestTextFileWriter {
 
         for (int i = 0; i < 10; ++i) {
             writer.writeTo(
-                    new Message("routingKey", "app", "hostname", "datatype", ("message1" + i).getBytes()),
+                    new Message("routingKey", ("message1" + i).getBytes()),
                     new StringSerDe());
         }
         writer.close();
@@ -78,7 +78,7 @@ public class TestTextFileWriter {
         writer.rotate(dir + "testfile0.suro");
         for (int i = 0; i < 100000; ++i) {
             writer.writeTo(
-                    new Message("routingKey", "app", "hostname", "datatype", ("message0" + i).getBytes()),
+                    new Message("routingKey", ("message0" + i).getBytes()),
                     new StringSerDe());
         }
         System.out.println("length: " + writer.getLength());
@@ -94,7 +94,7 @@ public class TestTextFileWriter {
 
         for (int i = 0; i < 100000; ++i) {
             writer.writeTo(
-                    new Message("routingKey", "app", "hostname", "datatype", ("message1" + i).getBytes()),
+                    new Message("routingKey", ("message1" + i).getBytes()),
                     new StringSerDe());
         }
         writer.close();

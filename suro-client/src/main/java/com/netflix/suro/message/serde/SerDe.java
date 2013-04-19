@@ -1,4 +1,4 @@
-package com.netflix.suro.message;
+package com.netflix.suro.message.serde;
 
 public interface SerDe<T> {
     byte getId();
@@ -6,4 +6,6 @@ public interface SerDe<T> {
     T deserialize(byte[] payload);
 
     byte[] serialize(T payload);
+
+    String toString(byte[] payload);
 }

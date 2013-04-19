@@ -1,5 +1,6 @@
 package com.netflix.suro.message;
 
+import com.netflix.suro.message.serde.StringSerDe;
 import com.netflix.suro.thrift.TMessageSet;
 
 import java.net.InetAddress;
@@ -7,6 +8,7 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.zip.CRC32;
 
 public class MessageSetBuilder {
@@ -15,7 +17,7 @@ public class MessageSetBuilder {
     private List<Message> messageList;
     private String dataType = "string";
     private Compression compression = Compression.NO;
-    private SerDe serde = new StringSerDe();
+    private byte serde = StringSerDe.id;
 
     public MessageSetBuilder() {
         messageList = new LinkedList<Message>();
@@ -36,12 +38,12 @@ public class MessageSetBuilder {
         return this;
     }
 
-    public MessageSetBuilder withMessage(Message message) {
-        this.messageList.add(message);
+    public MessageSetBuilder withMessage(String routingKey, byte[] payload) {
+        this.messageList.add(new Message(routingKey, payload));
         return this;
     }
 
-    public MessageSetBuilder withSerDe(SerDe serde) {
+    public MessageSetBuilder withSerDe(byte serde) {
         this.serde = serde;
         return this;
     }
@@ -57,8 +59,8 @@ public class MessageSetBuilder {
     }
 
     public TMessageSet build() {
-        ByteBuffer buffer = createPayload(messageList, compression);
-        long crc = getCRC(buffer.array());
+        byte[] buffer = createPayload(messageList, compression);
+        long crc = getCRC(buffer);
 
         messageList.clear();
 
@@ -66,20 +68,24 @@ public class MessageSetBuilder {
                 hostname,
                 app,
                 dataType,
-                serde.getId(),
+                serde,
                 compression.getId(),
                 crc,
-                buffer);
+                ByteBuffer.wrap(buffer));
     }
 
-    public static ByteBuffer createPayload(List<Message> messageList, Compression compression) {
+    public int size() {
+        return messageList.size();
+    }
+
+    public static byte[] createPayload(List<Message> messageList, Compression compression) {
         ByteBuffer buffer = ByteBuffer.allocate(getByteSize(messageList));
         for (Message message : messageList) {
             message.writeTo(buffer);
         }
         buffer.rewind();
 
-        return compression.compress(buffer);
+        return compression.compress(buffer.array());
     }
 
     public static int getByteSize(List<Message> messageList) {
@@ -94,5 +100,9 @@ public class MessageSetBuilder {
         CRC32 crc = new CRC32();
         crc.update(buffer);
         return crc.getValue();
+    }
+
+    public void drainFrom(BlockingQueue<Message> queue, int size) {
+        queue.drainTo(messageList, size);
     }
 }

@@ -1,1 +1,1 @@
-include 'suro-client', 'suro-server'
+include 'suro-client', 'suro-server', 'suro-integration-test'

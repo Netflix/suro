@@ -1,14 +1,28 @@
 package com.netflix.suro.message;
 
-import java.nio.ByteBuffer;
+import com.ning.compress.lzf.LZFDecoder;
+import com.ning.compress.lzf.LZFEncoder;
+import com.ning.compress.lzf.LZFException;
 
 public enum Compression {
     NO((byte)0) {
-        ByteBuffer compress(ByteBuffer buffer) {
+        byte[] compress(byte[] buffer) {
             return buffer;
         }
-        ByteBuffer decompress(ByteBuffer buffer) {
+        byte[] decompress(byte[] buffer) {
             return buffer;
+        }
+    },
+    LZF((byte)1) {
+        byte[] compress(byte[] buffer) {
+            return LZFEncoder.encode(buffer);
+        }
+        byte[] decompress(byte[] buffer) {
+            try {
+                return LZFDecoder.decode(buffer);
+            } catch (LZFException e) {
+                throw new RuntimeException(e);
+            }
         }
     };
     private final byte id;
@@ -26,6 +40,6 @@ public enum Compression {
         throw new IllegalArgumentException("invalid compression id: " + id);
     }
 
-    abstract ByteBuffer compress(ByteBuffer buffer);
-    abstract ByteBuffer decompress(ByteBuffer buffer);
+    abstract byte[] compress(byte[] buffer);
+    abstract byte[] decompress(byte[] buffer);
 }

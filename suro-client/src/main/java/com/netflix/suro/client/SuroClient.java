@@ -1,4 +1,11 @@
 package com.netflix.suro.client;
 
-public class SuroClient {
+import com.netflix.suro.message.Message;
+
+public interface SuroClient {
+    void send(Message message);
+
+    long getSentMessageCount();
+
+    long getLostMessageCount();
 }

@@ -1,10 +1,11 @@
 package com.netflix.suro.message;
 
+import com.netflix.suro.message.serde.DefaultSerDeFactory;
+import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.thrift.TMessageSet;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -18,7 +19,6 @@ public class TestMessageSet {
         for (int i = 0; i < routingKeyList.size(); ++i) {
             Message message = new Message(
                     routingKeyList.get(i),
-                    "app", "testhost", "string",
                     payloadList.get(i).getBytes());
             messageList.add(message);
         }
@@ -51,8 +51,8 @@ public class TestMessageSet {
 
         assertEquals(size, MessageSetBuilder.getByteSize(messageList));
 
-        ByteBuffer buffer = MessageSetBuilder.createPayload(messageList, Compression.NO);
-        assertEquals(buffer.capacity(), size);
+        byte[] buffer = MessageSetBuilder.createPayload(messageList, Compression.NO);
+        assertEquals(buffer.length, size);
     }
 
     @Test
@@ -70,10 +70,10 @@ public class TestMessageSet {
         assertEquals(messageSet.getCompression(), 0);
         assertEquals(messageSet.getSerde(), 0);
         byte[] bytePayload = messageSet.getMessages();
-        ByteBuffer payload = MessageSetBuilder.createPayload(messageList, Compression.NO);
-        assertEquals(bytePayload.length, payload.capacity());
+        byte[] payload = MessageSetBuilder.createPayload(messageList, Compression.NO);
+        assertEquals(bytePayload.length, payload.length);
         for (int i = 0; i < bytePayload.length; ++i) {
-            assertEquals(bytePayload[i], payload.get(i));
+            assertEquals(bytePayload[i], payload[i]);
         }
     }
 
@@ -81,7 +81,7 @@ public class TestMessageSet {
         MessageSetBuilder builder = new MessageSetBuilder();
         builder = builder.withApp("app").withDatatype("string").withHostname("testhost");
         for (Message message : messageList) {
-            builder.withMessage(message);
+            builder.withMessage(message.getRoutingKey(), message.getPayload());
         }
 
         return builder.build();
@@ -97,7 +97,7 @@ public class TestMessageSet {
         assertEquals(reader.getDataType(), "string");
         assertEquals(reader.getHostname(), "testhost");
 
-        SerDe<String> serde = DefaultSerDeFactory.create(reader.getSerDeId());
+        SerDe<String> serde = new DefaultSerDeFactory().create(reader.getSerDeId());
 
         int i = 0;
         for (Message message : reader) {

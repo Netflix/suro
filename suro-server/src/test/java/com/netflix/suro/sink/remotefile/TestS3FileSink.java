@@ -1,19 +1,19 @@
 package com.netflix.suro.sink.remotefile;
 
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.BeanProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
-import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.StringSerDe;
+import com.netflix.suro.message.serde.StringSerDe;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.TestTextFileWriter;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.multi.s3.S3ServiceEventListener;
-import org.jets3t.service.security.AWSCredentials;
 import org.jets3t.service.utils.MultipartUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -67,13 +67,33 @@ public class TestS3FileSink {
 
     @Test
     public void test() throws Exception {
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = new ObjectMapper();
         final Map<String, Object> injectables = Maps.newHashMap();
 
         injectables.put("region", "eu-west-1");
         injectables.put("stack", "gps");
 
-        injectables.put("credentials", new AWSCredentials("accessKey", "secretKey"));
+        injectables.put("credentials", new AWSCredentialsProvider() {
+            @Override
+            public com.amazonaws.auth.AWSCredentials getCredentials() {
+                return new AWSCredentials() {
+                    @Override
+                    public String getAWSAccessKeyId() {
+                        return "accessKey";
+                    }
+
+                    @Override
+                    public String getAWSSecretKey() {
+                        return "secretKey";
+                    }
+                };
+            }
+
+            @Override
+            public void refresh() {
+                // do nothing
+            }
+        });
 
         MultipartUtils mpUtils = mock(MultipartUtils.class);
         doNothing().when(mpUtils).uploadObjects(
@@ -96,7 +116,7 @@ public class TestS3FileSink {
 
         for (int i = 0; i < 100000; ++i) {
             sink.writeTo(
-                    new Message("routingKey", "app", "hostname", "datatype", ("message0" + i).getBytes()),
+                    new Message("routingKey", ("message0" + i).getBytes()),
                     new StringSerDe());
         }
         sink.close();

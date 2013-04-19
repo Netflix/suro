@@ -24,6 +24,10 @@ subprojects {
         compile 'com.fasterxml.jackson.core:jackson-databind:2.1.4'
         compile 'com.fasterxml.jackson.core:jackson-annotations:2.1.4'
         compile 'com.fasterxml.jackson.core:jackson-core:2.1.4'
+        compile 'com.fasterxml.jackson.datatype:jackson-datatype-guava:2.1.2'
+        compile 'com.fasterxml.jackson.datatype:jackson-datatype-joda:2.1.2'
+
+        compile 'com.ning:compress-lzf:0.9.8'
 
         testCompile 'org.mockito:mockito-core:1.9.5'
         testCompile 'junit:junit:4.+'
@@ -31,14 +35,38 @@ subprojects {
 }
 
 project(':suro-client') {
+  repositories {
+    maven{
+      name 'github.release.repo'
+      url 'https://raw.github.com/bulldog2011/bulldog-repo/master/repo/releases/'
+    }
+  }
+  dependencies {
+      compile 'com.leansoft:bigqueue:0.7.0'
+      testCompile 'commons-io:commons-io:2.1'
+  }
 }
 
 project(':suro-server') {
+    configurations {
+      all*.exclude group: 'org.codehaus.jackson', module: 'jackson-mapper'
+      all*.exclude group: 'org.codehaus.jackson', module: 'jackson-core'
+      all*.exclude group: 'javax.servlet', module: 'servlet-api'
+    }
     dependencies {
         compile project(':suro-client')
         compile 'org.apache.hadoop:hadoop-core:1.1.2'
         compile 'net.java.dev.jets3t:jets3t:0.9.0'
-        compile 'com.fasterxml.jackson.datatype:jackson-datatype-guava:2.1.2'
-        compile 'com.fasterxml.jackson.datatype:jackson-datatype-joda:2.1.2'
+
+        compile 'org.eclipse.jetty:jetty-servlet:9.0.0.v20130308'
+        compile 'com.sun.jersey.contribs:jersey-guice:1.17.1'
+        compile 'com.sun.jersey:jersey-server:1.17.1'
     }
+}
+
+project(':suro-integration-test') {
+  dependencies {
+    testCompile project(':suro-client')
+    testCompile project(':suro-server')
+  }
 }

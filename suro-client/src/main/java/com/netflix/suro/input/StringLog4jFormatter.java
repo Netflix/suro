@@ -1,6 +1,8 @@
 package com.netflix.suro.input;
 
+import com.google.inject.Inject;
 import com.netflix.suro.ClientConfig;
+import com.netflix.suro.TagKey;
 import org.apache.log4j.spi.LoggingEvent;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
@@ -15,6 +17,9 @@ public class StringLog4jFormatter implements Log4jFormatter {
 
     private final ClientConfig config;
     private final DateTimeFormatter fmt;
+    private String routingKey;
+
+    @Inject
     public StringLog4jFormatter(ClientConfig config) {
         this.config = config;
         fmt = DateTimeFormat.forPattern(config.getLog4jDateTimeFormat());
@@ -28,14 +33,19 @@ public class StringLog4jFormatter implements Log4jFormatter {
 
         Object obj = event.getMessage();
 
+        routingKey = null;
+
         // time UTC^]Level^]Map
         if (obj instanceof Map) {
             Map map = (Map) event.getMessage();
             Iterator it = map.keySet().iterator();
-            Object key = null;
+            String key = null;
             while (it.hasNext()) {
-                key = it.next();
+                key = (String) it.next();
                 sb.append(fieldDelim).append(key.toString()).append(fieldEqual).append(map.get(key));
+                if (key.equalsIgnoreCase(TagKey.ROUTING_KEY)) {
+                    routingKey = (String) map.get(key);
+                }
             }
         } else {
             // time UTC^]Level^]String
@@ -52,5 +62,10 @@ public class StringLog4jFormatter implements Log4jFormatter {
         }
 
         return sb.toString();
+    }
+
+    @Override
+    public String getRoutingKey() {
+        return routingKey;
     }
 }
