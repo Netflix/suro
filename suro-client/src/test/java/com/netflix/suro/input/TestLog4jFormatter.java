@@ -1,9 +1,25 @@
+/*
+ * Copyright 2013 Netflix, Inc.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package com.netflix.suro.input;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.netflix.suro.ClientConfig;
+import com.netflix.suro.jackson.DefaultObjectMapper;
 import org.apache.log4j.Level;
 import org.apache.log4j.spi.LoggingEvent;
 import org.joda.time.DateTime;
@@ -60,7 +76,7 @@ public class TestLog4jFormatter {
         when(event.getMessage()).thenReturn(logEvent);
         when(event.getThrowableStrRep()).thenReturn(new String[]{"StackTrace0", "StackTrace1"});
 
-        Map<String, Object> formattedEvent = new ObjectMapper().readValue(
+        Map<String, Object> formattedEvent = new DefaultObjectMapper().readValue(
                 formatter.format(event),
                 new TypeReference<Map<String, Object>>(){});
 

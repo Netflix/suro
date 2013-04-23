@@ -1,18 +1,24 @@
+/*
+ * Copyright 2013 Netflix, Inc.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package com.netflix.suro;
 
 import com.google.inject.Injector;
-import com.netflix.governator.configuration.PropertiesConfigurationProvider;
-import com.netflix.governator.guice.BootstrapBinder;
-import com.netflix.governator.guice.BootstrapModule;
-import com.netflix.governator.guice.LifecycleInjector;
-import com.netflix.governator.lifecycle.LifecycleManager;
-import com.netflix.loadbalancer.ILoadBalancer;
-import com.netflix.suro.client.SyncSuroClient;
-import com.netflix.suro.client.async.AsyncSuroClient;
-import com.netflix.suro.connection.StaticLoadBalancer;
+import com.netflix.suro.client.SuroClient;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.SerDe;
-import com.netflix.suro.message.serde.StringSerDe;
 import com.netflix.suro.routing.TestMessageRouter;
 import com.netflix.suro.server.TestServer;
 import com.netflix.suro.sink.SinkManager;
@@ -27,45 +33,30 @@ import static org.junit.Assert.assertEquals;
 
 public class TestSuroClient {
     private Injector serverInjector;
-    private Injector clientInjector;
     private SinkManager sinkManager;
-    private LifecycleManager manager;
 
     @Before
-    public void createServerClient() throws Exception {
+    public void createServer() throws Exception {
         // create the test server
         serverInjector = TestServer.start();
         sinkManager = TestMessageRouter.startSinkMakager(serverInjector);
         TestMessageRouter.startMessageRouter(serverInjector);
-
-        // create the client
-        final Properties clientProperties = new Properties();
-        clientProperties.setProperty(ClientConfig.APP, "testSuroClient");
-        clientProperties.setProperty(ClientConfig.DATA_TYPE, "testSuroDataType");
-        clientProperties.setProperty(ClientConfig.LB_SERVER, "localhost:7101");
-
-        clientInjector = LifecycleInjector.builder().withBootstrapModule(new BootstrapModule() {
-            @Override
-            public void configure(BootstrapBinder binder) {
-                binder.bindConfigurationProvider().toInstance(new PropertiesConfigurationProvider(clientProperties));
-
-                binder.bind(ILoadBalancer.class).to(StaticLoadBalancer.class);
-                binder.bind(SerDe.class).to(StringSerDe.class);
-            }
-        }).createInjector();
-        manager = clientInjector.getInstance(LifecycleManager.class);
-        manager.start();
     }
 
     @After
     public void shutdown() {
-        manager.close();
         TestServer.shutdown();
     }
 
     @Test
     public void testSyncClient() throws TTransportException {
-        SyncSuroClient client = clientInjector.getInstance(SyncSuroClient.class);
+        // create the client
+        final Properties clientProperties = new Properties();
+        clientProperties.setProperty(ClientConfig.LB_TYPE, "static");
+        clientProperties.setProperty(ClientConfig.LB_SERVER, "localhost:7101");
+        clientProperties.setProperty(ClientConfig.CLIENT_TYPE, "sync");
+
+        SuroClient client = new SuroClient(clientProperties);
 
         // send the message
         client.send(new Message("routingKey", "testMessage".getBytes()));
@@ -74,11 +65,19 @@ public class TestSuroClient {
         TestMessageRouter.TestSink testSink = (TestMessageRouter.TestSink) sinkManager.getSink("default");
         assertEquals(testSink.getMessageList().size(), 1);
         assertEquals(testSink.getMessageList().get(0), "testMessage");
+
+        client.shutdown();
     }
 
     @Test
     public void testAsyncClient() throws InterruptedException {
-        AsyncSuroClient client = clientInjector.getInstance(AsyncSuroClient.class);
+        // create the client
+        final Properties clientProperties = new Properties();
+        clientProperties.setProperty(ClientConfig.LB_TYPE, "static");
+        clientProperties.setProperty(ClientConfig.LB_SERVER, "localhost:7101");
+
+        SuroClient client = new SuroClient(clientProperties);
+
         for (int i = 0; i < 1000; ++i) {
             client.send(new Message("routingKey", "testMessage".getBytes()));
         }

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2013 Netflix, Inc.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package com.netflix.suro.connection;
 
 import com.google.inject.Injector;
@@ -152,6 +168,10 @@ public class TestConnectionPool {
 
     @Test
     public void testServerDown() throws Exception {
+        props.setProperty(ClientConfig.MINIMUM_RECONNECT_TIME_INTERVAL, "0");
+        props.setProperty(ClientConfig.RECONNECT_INTERVAL, "0");
+        props.setProperty(ClientConfig.RECONNECT_TIME_INTERVAL, "0");
+
         createInjector();
 
         final ConnectionPool pool = injector.getInstance(ConnectionPool.class);
@@ -192,10 +212,13 @@ public class TestConnectionPool {
         executors.shutdown();
         waitLatch.await();
 
-        pool.markServerDown(
-                new ConnectionPool.SuroConnection(
-                        new Server("localhost", 8300),
-                        injector.getInstance(ClientConfig.class)));
+        Server downServer = new Server("localhost", servers.get(0).getPort());
+        downServer.setAlive(true);
+
+        ConnectionPool.SuroConnection downConnection = new ConnectionPool.SuroConnection(
+                downServer,
+                injector.getInstance(ClientConfig.class));
+        pool.markServerDown(downConnection);
         long prevCount = servers.get(0).getMessageSetCount();
 
         goLatch.countDown();
@@ -212,7 +235,7 @@ public class TestConnectionPool {
 
     @Test
     public void testReconnectInterval() throws Exception {
-        props.setProperty(ClientConfig.MINIMUM_RECONNECT_TIME_INTERVAL, "1");
+        props.setProperty(ClientConfig.MINIMUM_RECONNECT_TIME_INTERVAL, "0");
         props.setProperty(ClientConfig.RECONNECT_INTERVAL, "2");
         props.setProperty(ClientConfig.RECONNECT_TIME_INTERVAL, "10000");
 
@@ -232,9 +255,9 @@ public class TestConnectionPool {
 
     @Test
     public void testReconnectTime() throws Exception {
-        props.setProperty(ClientConfig.MINIMUM_RECONNECT_TIME_INTERVAL, "1");
+        props.setProperty(ClientConfig.MINIMUM_RECONNECT_TIME_INTERVAL, "0");
         props.setProperty(ClientConfig.RECONNECT_INTERVAL, "1000");
-        props.setProperty(ClientConfig.RECONNECT_TIME_INTERVAL, "1");
+        props.setProperty(ClientConfig.RECONNECT_TIME_INTERVAL, "0");
 
         createInjector();
 

@@ -1,7 +1,23 @@
+/*
+ * Copyright 2013 Netflix, Inc.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package com.netflix.suro.server;
 
 import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.suro.queue.MessageQueue;
 import com.netflix.suro.thrift.SuroServer;
 import org.apache.thrift.TException;
@@ -10,10 +26,9 @@ import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
-@Singleton
+@LazySingleton
 public class ThriftServer {
     private static Logger logger = LoggerFactory.getLogger(ThriftServer.class);
 
@@ -23,7 +38,7 @@ public class ThriftServer {
 
     private final ServerConfig config;
     private final MessageQueue messageQueue;
-    private ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @Inject
     public ThriftServer(
@@ -33,6 +48,7 @@ public class ThriftServer {
         this.messageQueue = messageQueue;
     }
 
+    private Future serverStarted;
     public void start() throws TTransportException {
         transport = new CustomServerSocket(config);
         processor =  new SuroServer.Processor(messageQueue);
@@ -43,17 +59,33 @@ public class ThriftServer {
         serverArgs.maxReadBufferBytes = config.getThriftMaxReadBufferBytes();
 
         server = new THsHaServer(serverArgs);
-        executor.execute(new Runnable() {
+        serverStarted = executor.submit(new Runnable() {
             @Override
             public void run() {
                 server.serve();
             }
         });
-        while (isServing() == false) {
-            try { Thread.sleep(1000); } catch (InterruptedException e) {}
+        try {
+            serverStarted.get(config.getStartupTimeout(), TimeUnit.MILLISECONDS);
+            if (server.isServing()) {
+                logger.info("Server started on port:" + config.getPort());
+            } else {
+                throw new RuntimeException("ThriftServer didn't start up within: " + config.getStartupTimeout());
+            }
+        } catch (InterruptedException e) {
+            // ignore this type of exception
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+            System.exit(-1);
+        } catch (TimeoutException e) {
+            if (server.isServing()) {
+                logger.info("Server started on port:" + config.getPort());
+            } else {
+                logger.error("ThriftServer didn't start up within: " + config.getStartupTimeout());
+                System.exit(-1);
+            }
         }
 
-        logger.info("Server started on port:" + config.getPort());
     }
 
     public boolean isServing(){
@@ -62,6 +94,15 @@ public class ThriftServer {
 
     public boolean isStopped(){
         return server == null || server.isStopped();
+    }
+
+    public void join() {
+        try {
+            // wait forever until shutdown() called
+            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
+        } catch (InterruptedException e) {
+            // ignore exception
+        }
     }
 
     public void shutdown() {

@@ -1,6 +1,23 @@
+/*
+ * Copyright 2013 Netflix, Inc.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package com.netflix.suro.sink.remotefile;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSSessionCredentials;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -20,6 +37,7 @@ import org.jets3t.service.S3ServiceException;
 import org.jets3t.service.acl.gs.GSAccessControlList;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.model.S3Object;
+import org.jets3t.service.security.AWSCredentials;
 import org.jets3t.service.utils.MultipartUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +55,6 @@ public class S3FileSink implements Sink {
 
     static Logger log = LoggerFactory.getLogger(S3FileSink.class);
 
-    private final String name;
     private final LocalFileSink localFileSink;
     private final String bucket;
     private final String s3Endpoint;
@@ -46,9 +63,8 @@ public class S3FileSink implements Sink {
     private final Notify notify;
     private final RemotePrefixFormatter prefixFormatter;
 
-    @JacksonInject("multipartUtils")
     private MultipartUtils mpUtils;
-    @JacksonInject("credentials")
+
     private AWSCredentialsProvider credentialsProvider;
 
     private RestS3Service s3Service;
@@ -56,26 +72,26 @@ public class S3FileSink implements Sink {
 
     @JsonCreator
     public S3FileSink(
-            @JsonProperty("name") String name,
             @JsonProperty("localFileSink") LocalFileSink localFileSink,
             @JsonProperty("bucket") String bucket,
             @JsonProperty("s3Endpoint") String s3Endpoint,
             @JsonProperty("maxPartSize") long maxPartSize,
             @JsonProperty("concurrentUpload") int concurrentUpload,
             @JsonProperty("notify") Notify notify,
-            @JsonProperty("prefixFormatter") RemotePrefixFormatter prefixFormatter) {
-        this.name = name;
+            @JsonProperty("prefixFormatter") RemotePrefixFormatter prefixFormatter,
+            @JacksonInject("multipartUtils") MultipartUtils mpUtils,
+            @JacksonInject("credentials") AWSCredentialsProvider credentialProvider) {
         this.localFileSink = localFileSink;
         this.bucket = bucket;
         this.s3Endpoint = s3Endpoint;
         this.maxPartSize = maxPartSize;
-        this.prefixFormatter = prefixFormatter;
-
         this.notify = notify;
+        this.prefixFormatter = prefixFormatter;
+        this.mpUtils = mpUtils;
+        this.credentialsProvider = credentialProvider;
 
         uploader = Executors.newFixedThreadPool(concurrentUpload + 1);
 
-        Preconditions.checkNotNull(name, "name is needed");
         Preconditions.checkNotNull(localFileSink, "localFileSink is needed");
         Preconditions.checkNotNull(bucket, "bucket is needed");
         Preconditions.checkNotNull(bucket, "s3Endpoint is needed");
@@ -99,8 +115,17 @@ public class S3FileSink implements Sink {
         try {
             Jets3tProperties properties = new Jets3tProperties();
             properties.setProperty("s3service.s3-endpoint", s3Endpoint);
-            s3Service = new RestS3Service(
-                    new AWSSessionCredentialsAdapter(credentialsProvider), null, null, properties);
+            if (credentialsProvider.getCredentials() instanceof AWSSessionCredentials) {
+                s3Service = new RestS3Service(
+                        new AWSSessionCredentialsAdapter(credentialsProvider),
+                        null, null, properties);
+            } else {
+                s3Service = new RestS3Service(
+                        new AWSCredentials(
+                                credentialsProvider.getCredentials().getAWSAccessKeyId(),
+                                credentialsProvider.getCredentials().getAWSSecretKey()),
+                        null, null, properties);
+            }
         } catch (S3ServiceException e) {
             throw new RuntimeException(e);
         }
