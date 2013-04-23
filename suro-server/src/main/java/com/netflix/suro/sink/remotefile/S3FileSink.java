@@ -158,8 +158,9 @@ public class S3FileSink implements Sink {
             localFileSink.close();
             uploader.shutdown();
             uploader.awaitTermination(60000, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             // ignore exceptions while closing
+            log.error("Exception while closing: " + e.getMessage(), e);
         }
     }
 
@@ -261,7 +262,7 @@ public class S3FileSink implements Sink {
         jsonMessage.put("collector", FileNameFormatter.localHostAddr);
 
         if (notify.send(jsonMessage.toString()) == false) {
-
+            throw new RuntimeException("Notification failed");
         }
     }
 

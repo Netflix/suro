@@ -184,12 +184,10 @@ public class ConnectionPool {
     }
 
     public void endConnection(SuroConnection connection) {
-        if (connection != null) {
-            if (shouldChangeClient(connection)) {
-                connection.initStat();
-                connectionBeingUsed.remove(connection.getServer());
-                connection = chooseFromPool();
-            }
+        if (connection != null && shouldChangeClient(connection)) {
+            connection.initStat();
+            connectionBeingUsed.remove(connection.getServer());
+            connection = chooseFromPool();
         }
 
         if (connection != null) {
@@ -212,11 +210,10 @@ public class ConnectionPool {
         long now = System.currentTimeMillis();
 
         long minimumTimeSpan = connection.getTimeUsed() + config.getMinimumReconnectTimeInterval();
-        if (minimumTimeSpan <= now) {
-            if (connection.getSentCount() >= config.getReconnectInterval() ||
-                    connection.getTimeUsed() + config.getReconnectTimeInterval() <= now) {
-                return true;
-            }
+        if (minimumTimeSpan <= now &&
+                (connection.getSentCount() >= config.getReconnectInterval() ||
+                 connection.getTimeUsed() + config.getReconnectTimeInterval() <= now)) {
+            return true;
         }
 
         return false;

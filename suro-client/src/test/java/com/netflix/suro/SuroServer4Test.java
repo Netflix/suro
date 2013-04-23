@@ -136,7 +136,7 @@ public class SuroServer4Test implements SuroServer.Iface {
         server.stop();
         transport.close();
         System.out.println("shutdown STC");
-        try {Thread.sleep(1000);}catch (Exception e) {}
+        try {Thread.sleep(1000);} catch (Exception e) { e.printStackTrace(); }
         return 0;
     }
 

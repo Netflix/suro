@@ -187,6 +187,7 @@ public class LocalFileSink implements Sink {
             renameNotify(fileName);
         } catch (IOException e) {
             // ignore exceptions when closing
+            log.error("Exception while closing: " + e.getMessage(), e);
         }
     }
 

@@ -109,4 +109,15 @@ public class Message {
                routingKey.equals(m.routingKey) &&
                Arrays.equals(payload, m.payload);
     }
+
+    @Override
+    public int hashCode() {
+        int hostnameHash = hostname == null ? 0 : hostname.hashCode();
+        int appHash = app == null ? 0 : app.hashCode();
+        int dataTypeHash = dataType == null ? 0 : dataType.hashCode();
+        int routingKeyHash = routingKey.hashCode();
+        int messageHash = payload.hashCode();
+
+        return hostnameHash + appHash + dataTypeHash + routingKeyHash + messageHash;
+    }
 }

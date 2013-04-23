@@ -149,10 +149,8 @@ public class TestConnectionPool {
         int messagesetCount = 0;
         for (SuroServer4Test c : servers) {
             messagesetCount += c.getMessageSetCount();
-            if (c.getMessageSetCount() == 0) {
-                if (unbalanceCheck) {
-                    fail("unbalanced");
-                }
+            if (c.getMessageSetCount() == 0 && unbalanceCheck) {
+                fail("unbalanced");
             }
         }
         assertEquals(messagesetCount, count);

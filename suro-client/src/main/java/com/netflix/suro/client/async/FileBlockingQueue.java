@@ -23,6 +23,8 @@ import com.leansoft.bigqueue.IBigQueue;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.message.serde.SerDe;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.AbstractQueue;
@@ -37,6 +39,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 @LazySingleton
 public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E> {
+    static Logger log = LoggerFactory.getLogger(FileBlockingQueue.class);
+
     private final Lock lock = new ReentrantLock();
     private final Condition notEmpty = lock.newCondition();
 
@@ -58,7 +62,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
                 try {
                     queue.gc();
                 } catch (IOException e) {
-                    // ignore exception while gc
+                    log.error("IOException while FileBlockingQueue.gc: " + e.getMessage(), e);
                 }
             }
         }, config.getAsyncFileQueueGCInterval(), config.getAsyncFileQueueGCInterval(), TimeUnit.SECONDS);

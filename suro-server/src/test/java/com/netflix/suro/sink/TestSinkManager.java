@@ -44,9 +44,7 @@ public class TestSinkManager {
         }
 
         @Override
-        public void writeTo(Message message, SerDe serde) {
-            return;
-        }
+        public void writeTo(Message message, SerDe serde) {}
 
         @Override
         public void open() {

@@ -105,8 +105,7 @@ public class CustomServerSocket extends TNonblockingServerTransport {
             // accepting new connections
             serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
         } catch (ClosedChannelException e) {
-            // this shouldn't happen, ideally...
-            // TODO: decide what to do with this.
+            LOGGER.error("This shouldn't happen, ideally...: " + e.getMessage(), e);
         }
     }
 

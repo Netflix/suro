@@ -75,6 +75,7 @@ public class TestSuroClient {
         final Properties clientProperties = new Properties();
         clientProperties.setProperty(ClientConfig.LB_TYPE, "static");
         clientProperties.setProperty(ClientConfig.LB_SERVER, "localhost:7101");
+        clientProperties.setProperty(ClientConfig.ASYNC_TIMEOUT, "0");
 
         SuroClient client = new SuroClient(clientProperties);
 
@@ -91,6 +92,11 @@ public class TestSuroClient {
             ++count;
         }
         assertEquals(client.getSentMessageCount(), 1000);
+        count = 0;
+        while (testSink.getMessageList().size() < 1000 && count < 10) {
+            Thread.sleep(1000);
+            ++count;
+        }
         assertEquals(testSink.getMessageList().size(), 1000);
         for (int i = 0; i < 1000; ++i) {
             assertEquals(testSink.getMessageList().get(0), "testMessage");
