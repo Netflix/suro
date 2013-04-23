@@ -1,12 +1,25 @@
 allprojects {
-    repositories { mavenCentral() }
+    repositories { 
+      mavenCentral()
+      maven{
+        name 'github.release.repo'
+        url 'https://raw.github.com/bulldog2011/bulldog-repo/master/repo/releases/'
+      }
+    }
 }
 
 subprojects {
     apply plugin: 'java'
     apply plugin: 'idea'
+    apply plugin: 'project-report'
 
     group = "com.netflix.suro" // TEMPLATE: Set to organization of project
+
+    configurations {
+      all*.exclude group: 'org.codehaus.jackson', module: 'jackson-mapper'
+      all*.exclude group: 'org.codehaus.jackson', module: 'jackson-core'
+      all*.exclude group: 'javax.servlet', module: 'servlet-api'
+    }
 
     dependencies {
         compile 'com.netflix.archaius:archaius-core:0.5.6'
@@ -28,6 +41,8 @@ subprojects {
         compile 'com.fasterxml.jackson.datatype:jackson-datatype-joda:2.1.2'
 
         compile 'com.ning:compress-lzf:0.9.8'
+        compile 'com.leansoft:bigqueue:0.7.0'
+        compile 'commons-io:commons-io:2.1'
 
         testCompile 'org.mockito:mockito-core:1.9.5'
         testCompile 'junit:junit:4.+'
@@ -35,32 +50,23 @@ subprojects {
 }
 
 project(':suro-client') {
-  repositories {
-    maven{
-      name 'github.release.repo'
-      url 'https://raw.github.com/bulldog2011/bulldog-repo/master/repo/releases/'
-    }
-  }
-  dependencies {
-      compile 'com.leansoft:bigqueue:0.7.0'
-      testCompile 'commons-io:commons-io:2.1'
-  }
 }
 
 project(':suro-server') {
-    configurations {
-      all*.exclude group: 'org.codehaus.jackson', module: 'jackson-mapper'
-      all*.exclude group: 'org.codehaus.jackson', module: 'jackson-core'
-      all*.exclude group: 'javax.servlet', module: 'servlet-api'
-    }
     dependencies {
         compile project(':suro-client')
-        compile 'org.apache.hadoop:hadoop-core:1.1.2'
+        compile (
+            [group: 'org.apache.hadoop', name: 'hadoop-core', version: '1.1.2', transitive: false]
+        )
         compile 'net.java.dev.jets3t:jets3t:0.9.0'
 
         compile 'org.eclipse.jetty:jetty-servlet:9.0.0.v20130308'
         compile 'com.sun.jersey.contribs:jersey-guice:1.17.1'
         compile 'com.sun.jersey:jersey-server:1.17.1'
+
+        compile 'commons-cli:commons-cli:1.2'
+
+        testCompile project(':suro-client').sourceSets.test.output
     }
 }
 
@@ -68,5 +74,7 @@ project(':suro-integration-test') {
   dependencies {
     testCompile project(':suro-client')
     testCompile project(':suro-server')
+    testCompile project(':suro-client').sourceSets.test.output
+    testCompile project(':suro-server').sourceSets.test.output
   }
 }

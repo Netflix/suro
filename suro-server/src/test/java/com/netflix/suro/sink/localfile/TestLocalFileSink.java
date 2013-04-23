@@ -1,3 +1,19 @@
+/*
+ * Copyright 2013 Netflix, Inc.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package com.netflix.suro.sink.localfile;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -5,15 +21,16 @@ import com.fasterxml.jackson.databind.BeanProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.netflix.suro.connection.TestConnectionPool;
+import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.message.serde.StringSerDe;
 import com.netflix.suro.queue.MessageQueue;
 import com.netflix.suro.queue.QueueManager;
 import com.netflix.suro.sink.Sink;
-import com.netflix.suro.thrift.Result;
 import com.netflix.suro.thrift.ServiceStatus;
-import com.netflix.suro.thrift.TMessageSet;
-import org.apache.thrift.TException;
+import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -22,7 +39,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 import static junit.framework.Assert.*;
 import static org.mockito.Mockito.mock;
@@ -32,14 +48,13 @@ public class TestLocalFileSink {
     @Before
     @After
     public void clean() throws IOException {
-        TestTextFileWriter.cleanUp();
+        FileUtils.deleteDirectory(new File(TestTextFileWriter.dir));
     }
 
     @Test
     public void testWithPeriodRotation() throws IOException, InterruptedException {
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"LocalFileSink\",\n" +
-                "    \"name\": \"local\",\n" +
                 "    \"outputDir\": \"" + TestTextFileWriter.dir + "\",\n" +
                 "    \"writer\": {\n" +
                 "        \"type\": \"text\"\n" +
@@ -52,7 +67,7 @@ public class TestLocalFileSink {
                 "    }\n" +
                 "}";
 
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = new DefaultObjectMapper();
         mapper.setInjectableValues(new InjectableValues() {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
@@ -67,10 +82,8 @@ public class TestLocalFileSink {
         sink.open();
         assertNull(sink.recvNotify());
 
-        for (int i = 0; i < 100; ++i) {
-            sink.writeTo(
-                    new Message("routingKey", ("message0" + i).getBytes()),
-                    new StringSerDe());
+        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100))) {
+            sink.writeTo(m, new StringSerDe());
             Thread.sleep(100);
         }
 
@@ -87,7 +100,7 @@ public class TestLocalFileSink {
                 BufferedReader br = new BufferedReader(new FileReader(file));
                 String line = null;
                 while ((line = br.readLine()) != null) {
-                    assertTrue(line.contains("message0"));
+                    assertTrue(line.contains("testMessage"));
                     ++count;
                 }
                 br.close();
@@ -97,38 +110,10 @@ public class TestLocalFileSink {
         assertTrue(fileCount > 1);
     }
 
-    public static class TestMessageQueue extends MessageQueue {
-        @Override
-        public TMessageSet poll(long timeout, TimeUnit unit) {
-            return null;
-        }
-
-        @Override
-        public Result process(TMessageSet messageSet) throws TException {
-            return null;
-        }
-
-        @Override
-        public long shutdown() throws TException {
-            return 0;
-        }
-
-        @Override
-        public String getName() throws TException {
-            return null;
-        }
-
-        @Override
-        public String getVersion() throws TException {
-            return null;
-        }
-    }
-
     @Test
     public void testSpaceChecker() throws Exception {
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"LocalFileSink\",\n" +
-                "    \"name\": \"local\",\n" +
                 "    \"outputDir\": \"" + TestTextFileWriter.dir + "\",\n" +
                 "    \"writer\": {\n" +
                 "        \"type\": \"text\"\n" +
@@ -141,9 +126,9 @@ public class TestLocalFileSink {
                 "    }\n" +
                 "}";
 
-        ObjectMapper mapper = new ObjectMapper();
-        final TestMessageQueue queue = new TestMessageQueue();
+        ObjectMapper mapper = new DefaultObjectMapper();
         final QueueManager queueManager = new QueueManager();
+        final MessageQueue queue = new MessageQueue(null, queueManager);
         queueManager.registerService(queue);
 
         final LocalFileSink.SpaceChecker spaceChecker = mock(LocalFileSink.SpaceChecker.class);
@@ -172,10 +157,8 @@ public class TestLocalFileSink {
 
         when(spaceChecker.hasEnoughSpace()).thenReturn(true);
 
-        for (int i = 0; i < 100000; ++i) {
-            sink.writeTo(
-                    new Message("routingKey", ("message0" + i).getBytes()),
-                    new StringSerDe());
+        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
+            sink.writeTo(m, new StringSerDe());
         }
 
         sink.close();
@@ -190,7 +173,7 @@ public class TestLocalFileSink {
                 BufferedReader br = new BufferedReader(new FileReader(file));
                 String line = null;
                 while ((line = br.readLine()) != null) {
-                    assertTrue(line.contains("message0"));
+                    assertTrue(line.contains("testMessage"));
                     ++count;
                 }
                 br.close();
@@ -203,7 +186,6 @@ public class TestLocalFileSink {
     public void testWithSizeRotation() throws IOException {
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"LocalFileSink\",\n" +
-                "    \"name\": \"local\",\n" +
                 "    \"outputDir\": \"" + TestTextFileWriter.dir + "\",\n" +
                 "    \"writer\": {\n" +
                 "        \"type\": \"text\"\n" +
@@ -216,7 +198,7 @@ public class TestLocalFileSink {
                 "    }\n" +
                 "}";
 
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = new DefaultObjectMapper();
         mapper.setInjectableValues(new InjectableValues() {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
@@ -232,10 +214,8 @@ public class TestLocalFileSink {
         sink.open();
         assertNull(sink.recvNotify());
 
-        for (int i = 0; i < 100000; ++i) {
-            sink.writeTo(
-                    new Message("routingKey", ("message0" + i).getBytes()),
-                    new StringSerDe());
+        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
+            sink.writeTo(m, new StringSerDe());
         }
 
         sink.close();
@@ -250,7 +230,7 @@ public class TestLocalFileSink {
                 BufferedReader br = new BufferedReader(new FileReader(file));
                 String line = null;
                 while ((line = br.readLine()) != null) {
-                    assertTrue(line.contains("message0"));
+                    assertTrue(line.contains("testMessage"));
                     ++count;
                 }
                 br.close();

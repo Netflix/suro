@@ -1,3 +1,19 @@
+/*
+ * Copyright 2013 Netflix, Inc.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package com.netflix.suro.sink.localfile;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
@@ -59,7 +75,7 @@ public class LocalFileSink implements Sink {
             @JsonProperty("outputDir") String outputDir,
             @JsonProperty("writer") FileWriter writer,
             @JsonProperty("maxFileSize") long maxFileSize,
-            @JsonProperty("rotationPeriod") Period rotationPeriod,
+            @JsonProperty("rotationPeriod") String rotationPeriod,
             @JsonProperty("minPercentFreeDisk") int minPercentFreeDisk,
             @JsonProperty("notify") Notify notify) {
         if (outputDir.endsWith("/") == false) {
@@ -68,7 +84,7 @@ public class LocalFileSink implements Sink {
         this.outputDir = outputDir;
         this.writer = writer;
         this.maxFileSize = maxFileSize;
-        this.rotationPeriod = rotationPeriod;
+        this.rotationPeriod = new Period(rotationPeriod);
         this.minPercentFreeDisk = minPercentFreeDisk;
         this.notify = notify;
 
@@ -85,6 +101,9 @@ public class LocalFileSink implements Sink {
         try {
             if (spaceChecker == null) {
                 spaceChecker = new SpaceChecker(minPercentFreeDisk, outputDir);
+            }
+            if (queueManager == null) {
+                throw new NullPointerException("queueManager should be injected");
             }
             writer.open(outputDir);
             rotate();

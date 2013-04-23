@@ -1,3 +1,19 @@
+/*
+ * Copyright 2013 Netflix, Inc.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package com.netflix.suro.sink.remotefile;
 
 import com.amazonaws.auth.AWSCredentials;
@@ -8,10 +24,15 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
+import com.netflix.suro.connection.TestConnectionPool;
+import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.message.serde.StringSerDe;
+import com.netflix.suro.queue.QueueManager;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.TestTextFileWriter;
+import org.apache.commons.io.FileUtils;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.multi.s3.S3ServiceEventListener;
 import org.jets3t.service.utils.MultipartUtils;
@@ -25,8 +46,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import static junit.framework.Assert.assertTrue;
-import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -34,16 +55,15 @@ import static org.mockito.Mockito.mock;
 public class TestS3FileSink {
     public static final String s3FileSink = "{\n" +
             "    \"type\": \"S3FileSink\",\n" +
-            "    \"name\": \"s3\",\n" +
             "    \"localFileSink\": {\n" +
             "        \"type\": \"LocalFileSink\",\n" +
-            "        \"name\": \"local\",\n" +
             "        \"outputDir\": \"" + TestTextFileWriter.dir + "\",\n" +
             "        \"writer\": {\n" +
             "            \"type\": \"text\"\n" +
             "        },\n" +
             "        \"maxFileSize\": 10240,\n" +
             "        \"rotationPeriod\": \"PT1m\",\n" +
+            "        \"minPercentFreeDisk\": 50,\n" +
             "        \"notify\": {\n" +
             "            \"type\": \"queue\"\n" +
             "        }\n" +
@@ -62,12 +82,12 @@ public class TestS3FileSink {
     @Before
     @After
     public void clean() throws IOException {
-        TestTextFileWriter.cleanUp();
+        FileUtils.deleteDirectory(new File(TestTextFileWriter.dir));
     }
 
     @Test
     public void test() throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = new DefaultObjectMapper();
         final Map<String, Object> injectables = Maps.newHashMap();
 
         injectables.put("region", "eu-west-1");
@@ -102,6 +122,7 @@ public class TestS3FileSink {
                 any(List.class),
                 any(S3ServiceEventListener.class));
         injectables.put("multipartUtils", mpUtils);
+        injectables.put("queueManager", new QueueManager());
 
         mapper.setInjectableValues(new InjectableValues() {
             @Override
@@ -114,10 +135,8 @@ public class TestS3FileSink {
         Sink sink = mapper.readValue(s3FileSink, new TypeReference<Sink>(){});
         sink.open();
 
-        for (int i = 0; i < 100000; ++i) {
-            sink.writeTo(
-                    new Message("routingKey", ("message0" + i).getBytes()),
-                    new StringSerDe());
+        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
+            sink.writeTo(m, new StringSerDe());
         }
         sink.close();
 

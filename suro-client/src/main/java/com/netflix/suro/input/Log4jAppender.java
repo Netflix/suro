@@ -1,31 +1,30 @@
+/*
+ * Copyright 2013 Netflix, Inc.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package com.netflix.suro.input;
 
-import com.google.inject.Injector;
-import com.google.inject.TypeLiteral;
-import com.netflix.governator.configuration.PropertiesConfigurationProvider;
-import com.netflix.governator.guice.BootstrapBinder;
-import com.netflix.governator.guice.BootstrapModule;
-import com.netflix.governator.guice.LifecycleInjector;
-import com.netflix.governator.lifecycle.LifecycleManager;
-import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.client.SuroClient;
-import com.netflix.suro.client.SyncSuroClient;
-import com.netflix.suro.client.async.AsyncSuroClient;
-import com.netflix.suro.client.async.FileBlockingQueue;
-import com.netflix.suro.connection.EurekaLoadBalancer;
-import com.netflix.suro.connection.StaticLoadBalancer;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.MessageSerDe;
-import com.netflix.suro.message.serde.SerDe;
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.spi.LoggingEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Properties;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 public class Log4jAppender extends AppenderSkeleton {
     static final Logger log = LoggerFactory.getLogger(Log4jAppender.class);
@@ -86,11 +85,19 @@ public class Log4jAppender extends AppenderSkeleton {
         return asyncQueueType;
     }
 
+    private int memoryQueueCapacity = 10000;
+    public void setAsyncMemoryQueueCapacity(int memoryQueueCapacity) {
+        this.memoryQueueCapacity = memoryQueueCapacity;
+    }
+    public int getAsyncMemoryQueueCapacity() {
+        return memoryQueueCapacity;
+    }
+
     private String fileQueuePath = "/logs/suroClient";
-    public String getFileQueuePath() {
+    public String getAsyncFileQueuePath() {
         return fileQueuePath;
     }
-    public void setFileQueuePath(String fileQueuePath) {
+    public void setAsyncFileQueuePath(String fileQueuePath) {
         this.fileQueuePath = fileQueuePath;
     }
 
@@ -110,67 +117,18 @@ public class Log4jAppender extends AppenderSkeleton {
         return routingKey;
     }
 
-    private Injector injector;
     private Log4jFormatter formatter;
     private SuroClient client;
 
     @Override
     public void activateOptions() {
-        final Properties properties = createProperties();
+        client = new SuroClient(createProperties());
 
-        ClientConfig config = createInjector(properties).getInstance(ClientConfig.class);
-
-        client = injector.getInstance(SuroClient.class);
         try {
             formatter = (Log4jFormatter) Class.forName(formatterClass).newInstance();
         } catch (Exception e) {
-            formatter = new JsonLog4jFormatter(config);
+            formatter = new JsonLog4jFormatter(client.getConfig());
         }
-    }
-
-    private Injector createInjector(final Properties properties) {
-        injector = LifecycleInjector
-                .builder()
-                .withBootstrapModule
-                        (
-                                new BootstrapModule() {
-                                    @Override
-                                    public void configure(BootstrapBinder binder) {
-                                        binder.bindConfigurationProvider().toInstance(
-                                                new PropertiesConfigurationProvider(properties));
-
-                                        if (loadBalancerType.equals("eureka")) {
-                                            binder.bind(ILoadBalancer.class).to(EurekaLoadBalancer.class);
-                                        } else {
-                                            binder.bind(ILoadBalancer.class).to(StaticLoadBalancer.class);
-                                        }
-
-                                        if (clientType.equals("async")) {
-                                            binder.bind(SuroClient.class).to(AsyncSuroClient.class);
-                                            if (asyncQueueType.equals("memory")) {
-                                                binder.bind(new TypeLiteral<BlockingQueue<Message>>() {})
-                                                        .to(new TypeLiteral<LinkedBlockingQueue<Message>>() {
-                                                        });
-                                            } else {
-                                                binder.bind(new TypeLiteral<BlockingQueue<Message>>() {})
-                                                        .to(new TypeLiteral<FileBlockingQueue<Message>>() {});
-                                                binder.bind(new TypeLiteral<SerDe<Message>>(){}).to(new TypeLiteral<MessageSerDe>() {});
-                                            }
-                                        } else {
-                                            binder.bind(SuroClient.class).to(SyncSuroClient.class);
-                                        }
-                                    }
-                                }
-                        )
-                .createInjector();
-        LifecycleManager manager = injector.getInstance(LifecycleManager.class);
-
-        try {
-            manager.start();
-        } catch (Exception e) {
-            throw new RuntimeException("LifecycleManager cannot start with an exception: " + e.getMessage());
-        }
-        return injector;
     }
 
     private Properties createProperties() {
@@ -203,7 +161,7 @@ public class Log4jAppender extends AppenderSkeleton {
 
     @Override
     public void close() {
-        injector.getInstance(LifecycleManager.class).close();
+        client.shutdown();
     }
 
     @Override

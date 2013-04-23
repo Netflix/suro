@@ -1,3 +1,19 @@
+/*
+ * Copyright 2013 Netflix, Inc.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package com.netflix.suro;
 
 import com.netflix.governator.annotations.Configuration;
@@ -34,21 +50,21 @@ public class ClientConfig {
 
     public static final String APP = "SuroClient.app";
     @Configuration(APP)
-    private String app;
+    private String app = "defaultApp";
     public String getApp() {
         return app;
     }
 
     public static final String DATA_TYPE = "SuroClient.dataType";
     @Configuration(DATA_TYPE)
-    private String dataType;
+    private String dataType = "defaultDataType";
     public String getDataType() {
         return dataType;
     }
 
     public static final String ROUTING_KEY = "SuroClient.routingKey";
     @Configuration(ROUTING_KEY)
-    private String routingKey;
+    private String routingKey = "defaultRoutingKey";
     public String getRoutingKey() {
         return routingKey;
     }
@@ -81,8 +97,8 @@ public class ClientConfig {
         return clientType;
     }
 
-    public static final String SENDER_THREADS = "SuroClient.asyncSenderThreads";
-    @Configuration(SENDER_THREADS)
+    public static final String ASYNC_SENDER_THREADS = "SuroClient.asyncSenderThreads";
+    @Configuration(ASYNC_SENDER_THREADS)
     private int senderThreads = 3;
     public int getAsyncSenderThreads() {
         return senderThreads;

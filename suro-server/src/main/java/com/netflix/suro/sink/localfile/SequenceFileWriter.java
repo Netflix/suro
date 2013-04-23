@@ -1,10 +1,28 @@
+/*
+ * Copyright 2013 Netflix, Inc.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package com.netflix.suro.sink.localfile;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.serde.SerDe;
+import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.SequenceFile;
+import org.apache.hadoop.io.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +35,8 @@ public class SequenceFileWriter implements FileWriter {
 
     private final FileWriterBase base;
     private SequenceFile.Writer seqFileWriter;
+    private Text routingKey = new Text();
+    private BytesWritable value = new BytesWritable();
 
     @JsonCreator
     public SequenceFileWriter(@JsonProperty("codec") String codec) {
@@ -30,17 +50,23 @@ public class SequenceFileWriter implements FileWriter {
 
     @Override
     public long getLength() {
-        try {
-            return seqFileWriter.getLength();
-        } catch (IOException e) {
-            log.error("IOException while getLength: " + e.getMessage());
-            return -1;
+        if (seqFileWriter != null) {
+            try {
+                return seqFileWriter.getLength();
+            } catch (IOException e) {
+                log.error("IOException while getLength: " + e.getMessage());
+                return -1;
+            }
+        } else {
+            return 0;
         }
     }
 
     @Override
     public void writeTo(Message message, SerDe serde) throws IOException {
-        throw new UnsupportedOperationException("should be implemented");
+        routingKey.set(message.getRoutingKey());
+        value.set(message.getPayload(), 0, message.getPayload().length);
+        seqFileWriter.append(routingKey, value);
     }
 
     @Override
