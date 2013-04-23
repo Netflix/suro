@@ -14,6 +14,7 @@ findbugs {
 
 // PMD
 apply plugin: 'pmd'
+pmdMain.excludes = ['**/thrift/*.java']
 //tasks.withType(Pmd) { reports.html.enabled true }
 
 apply plugin: 'cobertura'

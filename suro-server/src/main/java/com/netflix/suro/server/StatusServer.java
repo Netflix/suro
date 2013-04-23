@@ -96,6 +96,7 @@ public class StatusServer {
             server.stop();
         } catch (Exception e) {
             //ignore exceptions while shutdown
+            log.error("Exception while shutting down: " + e.getMessage(), e);
         }
     }
 }

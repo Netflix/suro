@@ -110,8 +110,9 @@ public class ThriftServer {
             server.stop();
             executor.shutdownNow();
             messageQueue.shutdown();
-        } catch (TException e) {
+        } catch (Exception e) {
             // ignore any exception when shutdown
+            logger.error("Exception while shutting down: " + e.getMessage(), e);
         }
     }
 }

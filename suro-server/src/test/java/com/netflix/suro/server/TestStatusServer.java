@@ -198,7 +198,9 @@ public class TestStatusServer {
             while ((line = br.readLine()) != null) {
                 sb.append(line).append('\n');
             }
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         assertEquals(sb.toString(), "sink1:sink1 open\ndefault:default open\n");
     }
