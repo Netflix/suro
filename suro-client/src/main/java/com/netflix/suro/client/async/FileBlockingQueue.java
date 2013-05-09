@@ -26,6 +26,7 @@ import com.netflix.suro.message.serde.SerDe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.util.AbstractQueue;
 import java.util.Collection;
@@ -66,6 +67,15 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
                 }
             }
         }, config.getAsyncFileQueueGCInterval(), config.getAsyncFileQueueGCInterval(), TimeUnit.SECONDS);
+    }
+
+    @PreDestroy
+    public void gc() {
+        try {
+            queue.gc();
+        } catch (IOException e) {
+            log.error("Exception while gc: " + e.getMessage(), e);
+        }
     }
 
     @Override

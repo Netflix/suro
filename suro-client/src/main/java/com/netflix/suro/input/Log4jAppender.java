@@ -37,7 +37,15 @@ public class Log4jAppender extends AppenderSkeleton {
         return formatterClass;
     }
 
-    private String app = "default";
+    private String datetimeFormat = "yyyy-MM-dd'T'HH:mm:ss,SSS";
+    public void setDatetimeFormat(String datetimeFormat) {
+        this.datetimeFormat = datetimeFormat;
+    }
+    public String getDatetimeFormat() {
+        return datetimeFormat;
+    }
+
+    private String app = "defaultApp";
     public void setApp(String app) {
         this.app = app;
     }
@@ -45,7 +53,7 @@ public class Log4jAppender extends AppenderSkeleton {
         return app;
     }
 
-    private String dataType = "default";
+    private String dataType = "defaultDataType";
     public void setDataType(String dataType) {
         this.dataType = dataType;
     }
@@ -85,20 +93,20 @@ public class Log4jAppender extends AppenderSkeleton {
         return asyncQueueType;
     }
 
-    private int memoryQueueCapacity = 10000;
+    private int asyncMemoryQueueCapacity = 10000;
     public void setAsyncMemoryQueueCapacity(int memoryQueueCapacity) {
-        this.memoryQueueCapacity = memoryQueueCapacity;
+        this.asyncMemoryQueueCapacity = memoryQueueCapacity;
     }
     public int getAsyncMemoryQueueCapacity() {
-        return memoryQueueCapacity;
+        return asyncMemoryQueueCapacity;
     }
 
-    private String fileQueuePath = "/logs/suroClient";
+    private String asyncFileQueuePath = "/logs/suroClient";
     public String getAsyncFileQueuePath() {
-        return fileQueuePath;
+        return asyncFileQueuePath;
     }
     public void setAsyncFileQueuePath(String fileQueuePath) {
-        this.fileQueuePath = fileQueuePath;
+        this.asyncFileQueuePath = fileQueuePath;
     }
 
     private String clientType = "async";
@@ -109,7 +117,7 @@ public class Log4jAppender extends AppenderSkeleton {
         return clientType;
     }
 
-    private String routingKey = "default";
+    private String routingKey = "defaultRoutingKey";
     public void setRoutingKey(String routingKey) {
         this.routingKey = routingKey;
     }
@@ -133,13 +141,16 @@ public class Log4jAppender extends AppenderSkeleton {
 
     private Properties createProperties() {
         Properties properties = new Properties();
+        properties.setProperty(ClientConfig.LOG4J_FORMATTER, formatterClass);
+        properties.setProperty(ClientConfig.LOG4J_DATETIMEFORMAT, datetimeFormat);
         properties.setProperty(ClientConfig.APP, app);
         properties.setProperty(ClientConfig.DATA_TYPE, dataType);
         properties.setProperty(ClientConfig.COMPRESSION, Byte.toString(compression));
         properties.setProperty(ClientConfig.LB_TYPE, loadBalancerType);
         properties.setProperty(ClientConfig.LB_SERVER, loadBalancerServer);
+        properties.setProperty(ClientConfig.ASYNC_MEMORYQUEUE_CAPACITY, Integer.toString(asyncMemoryQueueCapacity));
         properties.setProperty(ClientConfig.ASYNC_QUEUE_TYPE, asyncQueueType);
-        properties.setProperty(ClientConfig.ASYNC_FILEQUEUE_PATH, fileQueuePath);
+        properties.setProperty(ClientConfig.ASYNC_FILEQUEUE_PATH, asyncFileQueuePath);
         properties.setProperty(ClientConfig.CLIENT_TYPE, clientType);
         properties.setProperty(ClientConfig.ROUTING_KEY, routingKey);
 

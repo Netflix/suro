@@ -66,6 +66,8 @@ public class SyncSuroClient implements ISuroClient {
     public long getRetriedCount() {
         return retriedCount.get();
     }
+    @Monitor(name = "senderExceptionCount", type = DataSourceType.COUNTER)
+    private AtomicLong senderExceptionCount = new AtomicLong(0);
 
     @Override
     public void send(Message message) {
@@ -86,20 +88,14 @@ public class SyncSuroClient implements ISuroClient {
             try {
                 if (connection.send(messageSet).getResultCode() == ResultCode.OK) {
                     sent = true;
+                    connectionPool.endConnection(connection);
                     retried = i > 0;
                     break;
                 }
             } catch (Exception e) {
                 log.error("Exception in send: " + e.getMessage(), e);
-                connection.disconnect();
-                try {
-                    connection.connect();
-                } catch (Exception ex) {
-                    log.error("Error in connecting to " + connection + " message: " + e.getMessage(), ex);
-                    connectionPool.markServerDown(connection);
-                }
-            } finally {
-                connectionPool.endConnection(connection);
+                connectionPool.markServerDown(connection);
+                senderExceptionCount.incrementAndGet();
             }
         }
 

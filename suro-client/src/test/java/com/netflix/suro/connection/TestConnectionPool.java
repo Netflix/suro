@@ -88,8 +88,8 @@ public class TestConnectionPool {
         return collectors;
     }
 
-    public static void shutdownServers(List<SuroServer4Test> collectors) {
-        for (SuroServer4Test c : collectors) {
+    public static void shutdownServers(List<SuroServer4Test> servers) {
+        for (SuroServer4Test c : servers) {
             c.shutdown();
         }
     }
@@ -215,7 +215,8 @@ public class TestConnectionPool {
 
         ConnectionPool.SuroConnection downConnection = new ConnectionPool.SuroConnection(
                 downServer,
-                injector.getInstance(ClientConfig.class));
+                injector.getInstance(ClientConfig.class),
+                true);
         pool.markServerDown(downConnection);
         long prevCount = servers.get(0).getMessageSetCount();
 
