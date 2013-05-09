@@ -152,13 +152,15 @@ public class AsyncSuroClient implements ISuroClient {
                         boolean expired = (msg == null);
                         if (expired == false) {
                             builder.withMessage(msg.getRoutingKey(), msg.getPayload());
-                            builder.drainFrom(messageQueue, config.getAsyncBatchSize() - 1);
+                            builder.drainFrom(messageQueue, config.getAsyncBatchSize() - builder.size());
                         }
 
                         boolean full = (builder.size() >= config.getAsyncBatchSize());
                         if ((expired || full) && builder.size() > 0) {
                             lastBatch = System.currentTimeMillis();
                             senders.execute(new AsyncSuroSender(builder.build(), client, config));
+                        } else if (builder.size() == 0) {
+                            Thread.sleep(config.getAsyncTimeout());
                         }
                     } catch (Exception e) {
                         log.error("MessageConsumer poller exception: " + e.getMessage(), e);
@@ -178,7 +180,7 @@ public class AsyncSuroClient implements ISuroClient {
         running = false;
         poller.shutdown();
         try {
-            poller.awaitTermination(5, TimeUnit.SECONDS);
+            poller.awaitTermination(5000 + config.getAsyncTimeout(), TimeUnit.MILLISECONDS);
             senders.shutdown();
             senders.awaitTermination(5000 + config.getAsyncTimeout(), TimeUnit.MILLISECONDS);
             if (senders.isTerminated() == false) {
@@ -218,5 +220,11 @@ public class AsyncSuroClient implements ISuroClient {
 
     public ConnectionPool getConnectionPool() {
         return connectionPool;
+    }
+
+    @Monitor(name = "senderExceptionCount", type = DataSourceType.COUNTER)
+    private AtomicLong senderExceptionCount = new AtomicLong(0);
+    public void updateSenderException() {
+        senderExceptionCount.incrementAndGet();
     }
 }

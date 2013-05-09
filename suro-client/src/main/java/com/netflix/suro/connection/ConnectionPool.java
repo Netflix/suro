@@ -16,6 +16,7 @@
 
 package com.netflix.suro.connection;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.netflix.governator.guice.lazy.LazySingleton;
@@ -41,13 +42,15 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.PreDestroy;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @LazySingleton
 public class ConnectionPool {
     private static Logger logger = LoggerFactory.getLogger(ConnectionPool.class);
 
-    private Map<Server, SuroConnection> connections = new ConcurrentHashMap<Server, SuroConnection>();
-    private Set<Server> connectionBeingUsed = Collections.newSetFromMap(new ConcurrentHashMap<Server, Boolean>());
+    private Map<Server, SuroConnection> connectionPool = new ConcurrentHashMap<Server, SuroConnection>();
+    private Set<Server> serverSet = Collections.newSetFromMap(new ConcurrentHashMap<Server, Boolean>());
+    private List<SuroConnection> connectionList = Collections.synchronizedList(new LinkedList<SuroConnection>());
 
     private final ClientConfig config;
     private final ILoadBalancer lb;
@@ -71,11 +74,12 @@ public class ConnectionPool {
 
     @PreDestroy
     public void shutdown() {
-        for (Map.Entry<Server, SuroConnection> entry : connections.entrySet()) {
-            entry.getValue().disconnect();
+        serverSet.clear();
+        connectionPool.clear();
+        connectionQueue.clear();
+        for (SuroConnection conn : connectionList) {
+            conn.disconnect();
         }
-        connections.clear();
-        connectionBeingUsed.clear();
 
         connectionSweeper.shutdownNow();
         newConnectionBuilder.shutdownNow();
@@ -83,52 +87,91 @@ public class ConnectionPool {
 
     @Monitor(name = "PoolSize", type = DataSourceType.GAUGE)
     public int getPoolSize() {
-        return connections.size();
+        return connectionList.size();
+    }
+
+    @Monitor(name = "OutPoolSize", type = DataSourceType.GAUGE)
+    private AtomicInteger outPoolSize = new AtomicInteger(0);
+    public int getOutPoolSize() {
+        return outPoolSize.get();
     }
 
     private void populateClients() {
         for (Server server : lb.getServerList(true)) {
-            SuroConnection client = new SuroConnection(server, config);
+            SuroConnection connection = new SuroConnection(server, config, true);
             try {
-                client.connect();
-                addConnection(server, client);
-                logger.info(client + " is added to SuroClientPool");
+                connection.connect();
+                addConnection(server, connection, true);
+                logger.info(connection + " is added to SuroClientPool");
             } catch (Exception e) {
-                logger.error("Error in connecting to " + client + " message: " + e.getMessage(), e);
+                logger.error("Error in connecting to " + connection + " message: " + e.getMessage(), e);
                 lb.markServerDown(server);
             }
         }
 
-        final Runnable checker = new Runnable() {
-            public void run() {
-                Set<Server> serversInClients = connections.keySet();
-                Set<Server> serversInDiscovery = new HashSet<Server>(lb.getServerList(true));
-
-                for (Server serverRemoved : Sets.difference(serversInClients, serversInDiscovery)) {
-                    removeConnection(serverRemoved);
-                    logger.info(serverRemoved + " is removed from SuroClientPool");
-                }
-            }
-        };
-
-        connectionSweeper.scheduleAtFixedRate(checker,
+        connectionSweeper.scheduleAtFixedRate(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        removeConnection(Sets.difference(serverSet, new HashSet<Server>(lb.getServerList(true))));
+                    }
+                },
                 config.getConnectionSweepInterval(),
                 config.getConnectionSweepInterval(),
                 TimeUnit.SECONDS);
     }
 
-    private void addConnection(Server server, SuroConnection client) {
-        connections.put(server, client);
+    private void addConnection(Server server, SuroConnection connection, boolean inPool) {
+        if (inPool) {
+            connectionPool.put(server, connection);
+        }
+        serverSet.add(server);
+        connectionList.add(connection);
     }
 
-    private void removeConnection(Server server) {
-        connections.remove(server).disconnect();
+
+    private synchronized  void removeConnection(Set<Server> removedServers) {
+        for (Server s : removedServers) {
+            serverSet.remove(s);
+            connectionPool.remove(s);
+        }
+
+        Iterator<SuroConnection> i = connectionQueue.iterator();
+        while (i.hasNext()) {
+            if (serverSet.contains(i.next().getServer()) == false) {
+                i.remove();
+                logger.info("connection was removed from the queue");
+            }
+        }
+
+        i = connectionList.iterator();
+        while (i.hasNext()) {
+            SuroConnection c = i.next();
+            if (serverSet.contains(c.getServer()) == false) {
+                c.disconnect();
+                i.remove();
+            }
+        }
     }
 
     public SuroConnection chooseConnection() {
         SuroConnection connection = connectionQueue.poll();
         if (connection == null) {
             connection = chooseFromPool();
+        }
+
+        for (int i = 0; i < config.getRetryCount() && connection == null; ++i) {
+            Server server = lb.chooseServer(null);
+            connection = new SuroConnection(server, config, false);
+            try {
+                connection.connect();
+                outPoolSize.incrementAndGet();
+                logger.info(connection + " is created out of the pool");
+                break;
+            } catch (Exception e) {
+                logger.error("Error in connecting to " + connection + " message: " + e.getMessage(), e);
+                lb.markServerDown(server);
+            }
         }
 
         return connection;
@@ -141,11 +184,10 @@ public class ConnectionPool {
         while (connection == null) {
             Server server = lb.chooseServer(null);
             if (server != null) {
-                connection = connections.get(server);
-                if (connection == null) {
-                    newConnectionBuilder.execute(createNewConnection(server));
-                } else if (connectionBeingUsed.contains(server)) {
-                    connection = null;
+                if (serverSet.contains(server) == false) {
+                    newConnectionBuilder.execute(createNewConnection(server, true));
+                } else {
+                    connection = connectionPool.remove(server);
                 }
             } else {
                 break;
@@ -158,21 +200,18 @@ public class ConnectionPool {
             }
         }
 
-        if (connection != null) {
-            connectionBeingUsed.add(connection.getServer());
-        }
         return connection;
     }
 
-    private Runnable createNewConnection(final Server server) {
+    private Runnable createNewConnection(final Server server, final boolean inPool) {
         return new Runnable() {
             @Override
             public void run() {
-                if (connections.get(server) == null) {
-                    SuroConnection connection = new SuroConnection(server, config);
+                if (connectionPool.get(server) == null) {
+                    SuroConnection connection = new SuroConnection(server, config, inPool);
                     try {
                         connection.connect();
-                        addConnection(server, connection);
+                        addConnection(server, connection, inPool);
                         logger.info(connection + " is added to ConnectionPool");
                     } catch (Exception e) {
                         logger.error("Error in connecting to " + connection + " message: " + e.getMessage(), e);
@@ -184,9 +223,9 @@ public class ConnectionPool {
     }
 
     public void endConnection(SuroConnection connection) {
-        if (connection != null && shouldChangeClient(connection)) {
+        if (connection != null && shouldChangeConnection(connection)) {
             connection.initStat();
-            connectionBeingUsed.remove(connection.getServer());
+            connectionPool.put(connection.getServer(), connection);
             connection = chooseFromPool();
         }
 
@@ -195,24 +234,24 @@ public class ConnectionPool {
         }
     }
 
-    public void markServerDown(SuroConnection client) {
-        Iterator<SuroConnection> i = connectionQueue.iterator();
-        while (i.hasNext()) {
-            if (i.next().getServer().equals(client.getServer())) {
-                i.remove();
-                logger.info("connection was removed from the queue");
-            }
+    public void markServerDown(SuroConnection connection) {
+        if (connection != null) {
+            lb.markServerDown(connection.getServer());
+            removeConnection(new ImmutableSet.Builder<Server>().add(connection.getServer()).build());
         }
-        lb.markServerDown(client.getServer());
     }
 
-    private boolean shouldChangeClient(SuroConnection connection) {
+    private boolean shouldChangeConnection(SuroConnection connection) {
+        if (connection.isInPool() == false) {
+            return false;
+        }
+
         long now = System.currentTimeMillis();
 
         long minimumTimeSpan = connection.getTimeUsed() + config.getMinimumReconnectTimeInterval();
         if (minimumTimeSpan <= now &&
                 (connection.getSentCount() >= config.getReconnectInterval() ||
-                 connection.getTimeUsed() + config.getReconnectTimeInterval() <= now)) {
+                        connection.getTimeUsed() + config.getReconnectTimeInterval() <= now)) {
             return true;
         }
 
@@ -225,13 +264,15 @@ public class ConnectionPool {
 
         private final Server server;
         private final ClientConfig config;
+        private final boolean inPool;
 
         private int sentCount = 0;
         private long timeUsed = 0;
 
-        public SuroConnection(Server server, ClientConfig config) {
+        public SuroConnection(Server server, ClientConfig config, boolean inPool) {
             this.server = server;
             this.config = config;
+            this.inPool = inPool;
         }
 
         public void connect() throws Exception {
@@ -275,6 +316,10 @@ public class ConnectionPool {
             return timeUsed;
         }
 
+        public boolean isInPool() {
+            return inPool;
+        }
+
         public void initStat() {
             sentCount = 0;
             timeUsed = 0;
@@ -283,6 +328,22 @@ public class ConnectionPool {
         @Override
         public String toString() {
             return server.getHostPort();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o instanceof Server) {
+                return server.equals(o);
+            } else if (o instanceof SuroConnection) {
+                return server.equals(((SuroConnection) o).server);
+            } else {
+                return false;
+            }
+        }
+
+        @Override
+        public int hashCode() {
+            return server.hashCode();
         }
     }
 }

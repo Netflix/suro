@@ -125,11 +125,11 @@ public class ClientConfig {
         return asyncQueueType;
     }
 
-    public static final String ASYNC_MSGQUEUE_CAPACITY = "SuroClient.asyncMessageQueueCapacity";
-    @Configuration(ASYNC_MSGQUEUE_CAPACITY)
-    private int asyncMessageQueueCapacity = 10000;
-    public int getAsyncMessageQueueCapacity() {
-        return asyncMessageQueueCapacity;
+    public static final String ASYNC_MEMORYQUEUE_CAPACITY = "SuroClient.asyncMemoryQueueCapacity";
+    @Configuration(ASYNC_MEMORYQUEUE_CAPACITY)
+    private int asyncMemoryQueueCapacity = 10000;
+    public int getAsyncMemoryQueueCapacity() {
+        return asyncMemoryQueueCapacity;
     }
 
     public static final String ASYNC_JOBQUEUE_CAPACITY = "SuroClient.asyncJobQueueCapacity";
@@ -137,7 +137,7 @@ public class ClientConfig {
     private int asyncJobQueueCapacity = 0;
     public int getAsyncJobQueueCapacity() {
         if (asyncJobQueueCapacity == 0) {
-            return asyncMessageQueueCapacity / asyncBatchSize;
+            return asyncMemoryQueueCapacity / asyncBatchSize;
         } else {
             return asyncJobQueueCapacity;
         }

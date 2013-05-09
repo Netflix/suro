@@ -81,7 +81,7 @@ public class SuroClient implements ISuroClient {
                                                                 return new LinkedBlockingQueue<Message>(
                                                                         Integer.parseInt(
                                                                                 properties.getProperty(
-                                                                                        ClientConfig.ASYNC_MSGQUEUE_CAPACITY, "10000"))
+                                                                                        ClientConfig.ASYNC_MEMORYQUEUE_CAPACITY, "10000"))
                                                                 );
                                                             }
                                                         });
