@@ -16,6 +16,28 @@
 
 package com.netflix.suro.message.serde;
 
-public interface SerDeFactory {
-    SerDe create(byte id);
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
+public class SerDeFactory {
+    static Logger log = LoggerFactory.getLogger(SerDeFactory.class);
+    private static ConcurrentMap<String, SerDe> map = new ConcurrentHashMap<String, SerDe>();
+
+    public static SerDe create(String clazz) {
+        SerDe serDe = map.get(clazz);
+        if (serDe == null) {
+            try {
+                serDe = (SerDe) Class.forName(clazz).newInstance();
+                map.putIfAbsent(clazz, serDe);
+            } catch (Exception e) {
+                log.error("Exception on creating SerDe using reflection: " + e.getMessage(), e);
+                throw new RuntimeException(e);
+            }
+        }
+
+        return serDe;
+    }
 }

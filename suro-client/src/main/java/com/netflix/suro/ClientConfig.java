@@ -18,6 +18,9 @@ package com.netflix.suro;
 
 import com.netflix.governator.annotations.Configuration;
 import com.netflix.suro.input.JsonLog4jFormatter;
+import com.netflix.suro.message.serde.JsonSerDe;
+import com.netflix.suro.message.serde.SerDe;
+import com.netflix.suro.message.serde.SerDeFactory;
 
 public class ClientConfig {
     public static final String CONNECTION_TIMEOUT = "SuroClient.connectionTimeout";
@@ -78,9 +81,9 @@ public class ClientConfig {
 
     public static final String SERDE = "SuroClient.serDe";
     @Configuration(SERDE)
-    private byte serde = 0;
-    public byte getSerDe() {
-        return serde;
+    private String serde = JsonSerDe.class.getCanonicalName();
+    public SerDe getSerDe() {
+        return SerDeFactory.create(serde);
     }
 
     public static final String COMPRESSION = "SuroClient.compression";

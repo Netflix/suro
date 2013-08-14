@@ -30,7 +30,6 @@ import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetBuilder;
-import com.netflix.suro.message.serde.DefaultSerDeFactory;
 import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.message.serde.SerDeFactory;
 import com.netflix.suro.queue.MessageQueue;
@@ -117,8 +116,6 @@ public class TestMessageRouter {
                                 );
                             }
                         });
-                binder.bind(SerDeFactory.class).to(DefaultSerDeFactory.class);
-
                 ObjectMapper jsonMapper = new DefaultObjectMapper();
                 jsonMapper.registerSubtypes(new NamedType(TestSink.class, "TestSink"));
                 binder.bind(ObjectMapper.class).toInstance(jsonMapper);

@@ -20,12 +20,15 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.serde.SerDe;
-import org.apache.hadoop.io.BytesWritable;
+import com.netflix.suro.message.serde.SerDeFactory;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
 
 public class SequenceFileWriter implements FileWriter {
@@ -36,7 +39,7 @@ public class SequenceFileWriter implements FileWriter {
     private final FileWriterBase base;
     private SequenceFile.Writer seqFileWriter;
     private Text routingKey = new Text();
-    private BytesWritable value = new BytesWritable();
+    private MessageWritable value = new MessageWritable();
 
     @JsonCreator
     public SequenceFileWriter(@JsonProperty("codec") String codec) {
@@ -65,7 +68,7 @@ public class SequenceFileWriter implements FileWriter {
     @Override
     public void writeTo(Message message, SerDe serde) throws IOException {
         routingKey.set(message.getRoutingKey());
-        value.set(message.getPayload(), 0, message.getPayload().length);
+        value.set(serde, message);
         seqFileWriter.append(routingKey, value);
     }
 
@@ -89,5 +92,32 @@ public class SequenceFileWriter implements FileWriter {
     @Override
     public void setDone(String oldName, String newName) throws IOException {
         base.setDone(oldName, newName);
+    }
+
+    public static class MessageWritable implements Writable {
+        private SerDe serDe;
+        private Message message = new Message(null, null);
+
+        public MessageWritable() {}
+
+        public void set(SerDe serDe, Message message) {
+            this.serDe = serDe;
+            this.message = message;
+        }
+
+        public SerDe getSerDe() { return serDe; }
+        public Message getMessage() { return message; }
+
+        @Override
+        public void write(DataOutput dataOutput) throws IOException {
+            dataOutput.writeUTF(serDe.getClass().getCanonicalName());
+            message.write(dataOutput);
+        }
+
+        @Override
+        public void readFields(DataInput dataInput) throws IOException {
+            serDe = SerDeFactory.create(dataInput.readUTF());
+            message.readFields(dataInput);
+        }
     }
 }

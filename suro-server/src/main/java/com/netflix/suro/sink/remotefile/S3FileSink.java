@@ -27,9 +27,12 @@ import com.netflix.servo.annotations.Monitor;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.nofify.Notify;
+import com.netflix.suro.nofify.QueueNotify;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.FileNameFormatter;
 import com.netflix.suro.sink.localfile.LocalFileSink;
+import com.netflix.suro.sink.remotefile.formatter.RemotePrefixFormatter;
+import com.netflix.suro.sink.remotefile.formatter.SimpleDateFormatter;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.jets3t.service.Jets3tProperties;
@@ -69,6 +72,7 @@ public class S3FileSink implements Sink {
 
     private RestS3Service s3Service;
     private final ExecutorService uploader;
+    private final ExecutorService localFilePoller;
 
     @JsonCreator
     public S3FileSink(
@@ -83,22 +87,21 @@ public class S3FileSink implements Sink {
             @JacksonInject("credentials") AWSCredentialsProvider credentialProvider) {
         this.localFileSink = localFileSink;
         this.bucket = bucket;
-        this.s3Endpoint = s3Endpoint;
-        this.maxPartSize = maxPartSize;
-        this.notify = notify;
-        this.prefixFormatter = prefixFormatter;
+        this.s3Endpoint = s3Endpoint == null ? "s3.amazonaws.com" : s3Endpoint;
+        this.maxPartSize = maxPartSize == 0 ? 20 * 1024 * 1024 : maxPartSize;
+        this.notify = notify == null ? new QueueNotify() : notify;
+        this.prefixFormatter = prefixFormatter == null ? new SimpleDateFormatter("'P'yyyyMMdd'T'HHmmss") : prefixFormatter;
         this.mpUtils = mpUtils;
         this.credentialsProvider = credentialProvider;
 
-        uploader = Executors.newFixedThreadPool(concurrentUpload + 1);
+        if (concurrentUpload == 0) {
+            concurrentUpload = 5;
+        }
+        uploader = Executors.newFixedThreadPool(concurrentUpload);
+        localFilePoller = Executors.newSingleThreadExecutor();
 
         Preconditions.checkNotNull(localFileSink, "localFileSink is needed");
         Preconditions.checkNotNull(bucket, "bucket is needed");
-        Preconditions.checkNotNull(bucket, "s3Endpoint is needed");
-        Preconditions.checkArgument(maxPartSize > 0, "maxPartSize is needed");
-        Preconditions.checkArgument(concurrentUpload > 0, "concurrentUpload is needed");
-        Preconditions.checkNotNull(notify, "notify is needed");
-        Preconditions.checkNotNull(prefixFormatter, "prefixFormatter is needed");
     }
 
     @Override
@@ -132,7 +135,7 @@ public class S3FileSink implements Sink {
 
         running = true;
 
-        uploader.submit(new Runnable() {
+        localFilePoller.submit(new Runnable() {
             @Override
             public void run() {
                 while (running) {
@@ -154,8 +157,11 @@ public class S3FileSink implements Sink {
     @Override
     public void close() {
         try {
-            running = false;
             localFileSink.close();
+            running = false;
+            localFilePoller.shutdown();
+
+            localFilePoller.awaitTermination(60000, TimeUnit.MILLISECONDS);
             uploader.shutdown();
             uploader.awaitTermination(60000, TimeUnit.MILLISECONDS);
         } catch (Exception e) {

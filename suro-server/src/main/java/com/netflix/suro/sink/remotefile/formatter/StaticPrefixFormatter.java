@@ -14,22 +14,23 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.message.serde;
+package com.netflix.suro.sink.remotefile.formatter;
 
-import com.google.inject.Singleton;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-@Singleton
-public class DefaultSerDeFactory implements SerDeFactory {
+public class StaticPrefixFormatter implements RemotePrefixFormatter {
+    public static final String TYPE = "static";
+
+    private final String prefix;
+
+    @JsonCreator
+    public StaticPrefixFormatter(@JsonProperty("prefix") String prefix) {
+        this.prefix = prefix;
+    }
 
     @Override
-    public SerDe create(byte id) {
-        switch (id) {
-            case StringSerDe.id:
-                return new StringSerDe();
-            case JsonSerDe.id:
-                return new JsonSerDe();
-            default:
-                throw new IllegalArgumentException("invalid SerDe id: " + id);
-        }
+    public String get() {
+        return prefix;
     }
 }

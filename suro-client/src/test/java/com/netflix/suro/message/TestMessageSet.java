@@ -16,8 +16,8 @@
 
 package com.netflix.suro.message;
 
-import com.netflix.suro.message.serde.DefaultSerDeFactory;
 import com.netflix.suro.message.serde.SerDe;
+import com.netflix.suro.message.serde.StringSerDe;
 import com.netflix.suro.thrift.TMessageSet;
 import org.junit.Before;
 import org.junit.Test;
@@ -81,10 +81,9 @@ public class TestMessageSet {
         TMessageSet messageSet = buildMessageSet();
 
         assertEquals(messageSet.getApp(), "app");
-        assertEquals(messageSet.getDataType(), "string");
         assertEquals(messageSet.getHostname(), "testhost");
         assertEquals(messageSet.getCompression(), 0);
-        assertEquals(messageSet.getSerde(), 0);
+        assertEquals(messageSet.getSerde(), StringSerDe.class.getCanonicalName());
         byte[] bytePayload = messageSet.getMessages();
         byte[] payload = MessageSetBuilder.createPayload(messageList, Compression.NO);
         assertEquals(bytePayload.length, payload.length);
@@ -104,23 +103,21 @@ public class TestMessageSet {
     }
 
     @Test
-    public void testReader() {
+    public void testReader() throws Exception {
         TMessageSet messageSet = buildMessageSet();
 
         MessageSetReader reader = new MessageSetReader(messageSet);
         assertTrue(reader.checkCRC());
         assertEquals(reader.getApp(), "app");
-        assertEquals(reader.getDataType(), "string");
         assertEquals(reader.getHostname(), "testhost");
 
-        SerDe<String> serde = new DefaultSerDeFactory().create(reader.getSerDeId());
+        SerDe<String> serde = reader.getSerDe();
 
         int i = 0;
         for (Message message : reader) {
             assertEquals(message.getRoutingKey(), "routingKey" + i);
             assertEquals(message.getApp(), "app");
             assertEquals(message.getHostname(), "testhost");
-            assertEquals(message.getDataType(), "string");
             assertEquals(serde.deserialize(message.getPayload()), "payload" + i);
             ++i;
         }

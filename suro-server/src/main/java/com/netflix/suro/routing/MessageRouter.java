@@ -117,22 +117,12 @@ public class MessageRouter {
         }
     }
 
-    private SerDe getSerDe(byte id) {
-        SerDe serde = serDeMap.get(id);
-        if (serde == null) {
-            serde = serDeFactory.create(id);
-            serDeMap.put(id, serde);
-        }
-
-        return serde;
-    }
-
     private void processMessageSet(TMessageSet tMessageSet) {
         MessageSetReader reader = new MessageSetReader(tMessageSet);
 
         for (Message message : reader) {
             RoutingMap.RoutingInfo info = routingMap.getRoutingInfo(message.getRoutingKey());
-            SerDe serde = getSerDe(reader.getSerDeId());
+            SerDe serde = SerDeFactory.create(tMessageSet.getSerde());
 
             if (info == null) {
                 sinkManager.getSink("default").writeTo(message, serde);

@@ -16,6 +16,7 @@
 
 package com.netflix.suro.message;
 
+import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.message.serde.StringSerDe;
 import com.netflix.suro.thrift.TMessageSet;
 
@@ -33,7 +34,7 @@ public class MessageSetBuilder {
     private List<Message> messageList;
     private String dataType = "string";
     private Compression compression = Compression.NO;
-    private byte serde = StringSerDe.id;
+    private SerDe serde = new StringSerDe();
 
     public MessageSetBuilder() {
         messageList = new LinkedList<Message>();
@@ -59,7 +60,7 @@ public class MessageSetBuilder {
         return this;
     }
 
-    public MessageSetBuilder withSerDe(byte serde) {
+    public MessageSetBuilder withSerDe(SerDe serde) {
         this.serde = serde;
         return this;
     }
@@ -83,8 +84,7 @@ public class MessageSetBuilder {
         return new TMessageSet(
                 hostname,
                 app,
-                dataType,
-                serde,
+                serde.getClass().getCanonicalName(),
                 compression.getId(),
                 crc,
                 ByteBuffer.wrap(buffer));

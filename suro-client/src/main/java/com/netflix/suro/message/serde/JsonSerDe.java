@@ -18,35 +18,27 @@ package com.netflix.suro.message.serde;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import org.apache.log4j.Logger;
 
-import java.util.Map;
-
-public class JsonSerDe implements SerDe<Map<String, Object>> {
+public class JsonSerDe<T> implements SerDe<T> {
     static Logger log = Logger.getLogger(JsonSerDe.class);
 
-    public static final byte id = 1;
     private final ObjectMapper jsonMapper = new DefaultObjectMapper();
-    private final TypeReference<Map<String, Object>> typeReference = new TypeReference<Map<String, Object>>(){};
-    @Override
-    public byte getId() {
-        return id;
-    }
+    private final TypeReference<T> typeReference = new TypeReference<T>(){};
 
     @Override
-    public Map<String, Object> deserialize(byte[] payload) {
+    public T deserialize(byte[] payload) {
         try {
             return jsonMapper.readValue(payload, typeReference);
         } catch (Exception e) {
             log.error("deserialize error in JsonSerDe: " + e.getMessage(), e);
-            return Maps.newHashMap();
+            return null;
         }
     }
 
     @Override
-    public byte[] serialize(Map<String, Object> payload) {
+    public byte[] serialize(T payload) {
         try {
             return jsonMapper.writeValueAsBytes(payload);
         } catch (Exception e) {

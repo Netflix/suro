@@ -29,19 +29,13 @@ public class MessageSetSerDe implements SerDe<TMessageSet> {
     private DataInputBuffer inBuffer = new DataInputBuffer();
 
     @Override
-    public byte getId() {
-        return 101;
-    }
-
-    @Override
     public TMessageSet deserialize(byte[] payload) {
         inBuffer.reset(payload, payload.length);
 
         try {
             String hostname = WritableUtils.readString(inBuffer);
             String app = WritableUtils.readString(inBuffer);
-            String dataType = WritableUtils.readString(inBuffer);
-            byte serde = inBuffer.readByte();
+            String serde = WritableUtils.readString(inBuffer);
             byte compression = inBuffer.readByte();
             long crc = inBuffer.readLong();
             byte[] messages = new byte[inBuffer.readInt()];
@@ -50,7 +44,6 @@ public class MessageSetSerDe implements SerDe<TMessageSet> {
             return new TMessageSet(
                     hostname,
                     app,
-                    dataType,
                     serde,
                     compression,
                     crc,
@@ -68,8 +61,7 @@ public class MessageSetSerDe implements SerDe<TMessageSet> {
 
             WritableUtils.writeString(outBuffer, payload.getHostname());
             WritableUtils.writeString(outBuffer, payload.getApp());
-            WritableUtils.writeString(outBuffer, payload.getDataType());
-            outBuffer.writeByte(payload.getSerde());
+            WritableUtils.writeString(outBuffer, payload.getSerde());
             outBuffer.writeByte(payload.getCompression());
             outBuffer.writeLong(payload.getCrc());
             outBuffer.writeInt(payload.getMessages().length);

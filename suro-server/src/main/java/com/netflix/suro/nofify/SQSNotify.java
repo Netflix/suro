@@ -42,12 +42,10 @@ public class SQSNotify implements Notify {
     private final List<String> queues;
     private final List<String> queueUrls = new LinkedList<String>();
 
-    @JacksonInject("sqsClient")
     private AmazonSQSClient sqsClient;
-    @JacksonInject("credentials")
-    private AWSCredentialsProvider credentialsProvider;
+    private final AWSCredentialsProvider credentialsProvider;
 
-    private final ClientConfiguration clientConfig;
+    private ClientConfiguration clientConfig;
     private final String region;
 
     @Monitor(name = TagKey.SENT_COUNT, type = DataSourceType.COUNTER)
@@ -64,22 +62,31 @@ public class SQSNotify implements Notify {
             @JsonProperty("connectionTimeout") int connectionTimeout,
             @JsonProperty("maxConnections") int maxConnections,
             @JsonProperty("socketTimeout") int socketTimeout,
-            @JsonProperty("maxRetries") int maxRetries) {
+            @JsonProperty("maxRetries") int maxRetries,
+            @JacksonInject("sqsClient") AmazonSQSClient sqsClient,
+            @JacksonInject("credentials") AWSCredentialsProvider credentialsProvider) {
         this.queues = queues;
         this.region = region;
 
+        this.sqsClient = sqsClient;
+        this.credentialsProvider = credentialsProvider;
+
         Preconditions.checkArgument(queues.size() > 0);
         Preconditions.checkNotNull(region);
-        Preconditions.checkArgument(connectionTimeout > 0);
-        Preconditions.checkArgument(maxConnections > 0);
-        Preconditions.checkArgument(socketTimeout > 0);
-        Preconditions.checkArgument(maxRetries > 0);
 
-        clientConfig = new ClientConfiguration()
-                .withConnectionTimeout(connectionTimeout)
-                .withMaxConnections(maxConnections)
-                .withSocketTimeout(socketTimeout)
-                .withMaxErrorRetry(maxRetries);
+        clientConfig = new ClientConfiguration();
+        if (connectionTimeout > 0) {
+            clientConfig = clientConfig.withConnectionTimeout(connectionTimeout);
+        }
+        if (maxConnections > 0) {
+            clientConfig = clientConfig.withMaxConnections(maxConnections);
+        }
+        if (socketTimeout > 0) {
+            clientConfig = clientConfig.withSocketTimeout(socketTimeout);
+        }
+        if (maxRetries > 0) {
+            clientConfig = clientConfig.withMaxErrorRetry(maxRetries);
+        }
     }
 
     @Override

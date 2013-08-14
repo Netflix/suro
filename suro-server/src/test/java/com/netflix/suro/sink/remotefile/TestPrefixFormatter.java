@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.netflix.suro.jackson.DefaultObjectMapper;
+import com.netflix.suro.sink.remotefile.formatter.RemotePrefixFormatter;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
