@@ -50,16 +50,15 @@ subprojects {
         compile 'org.apache.thrift:libthrift:0.7.0'
         compile 'org.slf4j:slf4j-api:1.6.4'
         compile 'com.google.guava:guava:11.0.2'
-        compile 'joda-time:joda-time:2.2'
+        compile 'joda-time:joda-time:2.1'
         compile 'com.fasterxml.jackson.core:jackson-databind:2.1.4'
         compile 'com.fasterxml.jackson.core:jackson-annotations:2.1.4'
         compile 'com.fasterxml.jackson.core:jackson-core:2.1.4'
-        compile 'com.fasterxml.jackson.datatype:jackson-datatype-guava:2.1.2'
-        compile 'com.fasterxml.jackson.datatype:jackson-datatype-joda:2.1.2'
+        compile 'com.fasterxml.jackson.datatype:jackson-datatype-guava:2.2.0'
 
-        compile 'com.ning:compress-lzf:0.9.8'
+        compile 'com.ning:compress-lzf:0.9.5'
         compile 'com.leansoft:bigqueue:0.7.0'
-        compile 'commons-io:commons-io:2.1'
+        compile 'commons-io:commons-io:2.4'
 
         compile (
             [group: 'org.apache.hadoop', name: 'hadoop-core', version: '1.1.2', transitive: false]
@@ -68,6 +67,11 @@ subprojects {
         testCompile 'org.mockito:mockito-core:1.9.5'
         testCompile 'junit:junit:4.+'
     }
+
+  test {
+    forkEvery = 1
+    maxParallelForks = 1
+  }
 }
 
 project(':suro-client') {
@@ -96,3 +100,4 @@ project(':suro-integration-test') {
     testCompile project(':suro-server').sourceSets.test.output
   }
 }
+
