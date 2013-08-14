@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Injector;
 import com.google.inject.Provider;
 import com.google.inject.TypeLiteral;
+import com.netflix.config.DynamicStringProperty;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
@@ -34,7 +35,6 @@ import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.client.async.FileBlockingQueue;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.message.serde.DefaultSerDeFactory;
 import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.message.serde.SerDeFactory;
 import com.netflix.suro.queue.MessageSetSerDe;
@@ -48,7 +48,6 @@ import com.netflix.suro.thrift.TMessageSet;
 import org.apache.commons.cli.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
-import org.apache.thrift.transport.TTransportException;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -56,14 +55,11 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class SuroServer {
     static Logger log = Logger.getLogger(SuroServer.class);
 
-    private final ExecutorService statusServerExecutor = Executors.newSingleThreadExecutor();
     private StatusServer statusServer;
     private ThriftServer server;
 
@@ -71,9 +67,11 @@ public class SuroServer {
     private final String mapDesc;
     private final String sinkDesc;
 
+    private final DynamicStringProperty routingMap;
+    private final DynamicStringProperty sinkConfig;
+
     private ObjectMapper jsonMapper;
     private AWSCredentialsProvider credentialsProvider;
-    private Class<? extends SerDeFactory> serDeFactoryClass;
 
     private SuroServer(
             Properties properties,
@@ -86,6 +84,19 @@ public class SuroServer {
         this.properties = properties;
         this.mapDesc = mapDesc;
         this.sinkDesc = sinkDesc;
+
+        routingMap = new DynamicStringProperty("SuroServer.routingMap", mapDesc) {
+            @Override
+            protected void propertyChanged() {
+                injector.getInstance(RoutingMap.class).build(get());
+            }
+        };
+        sinkConfig = new DynamicStringProperty("SuroServer.sinkConfig", sinkDesc) {
+            @Override
+            protected void propertyChanged() {
+                injector.getInstance(SinkManager.class).build(get());
+            }
+        };
     }
 
     public void start() {
@@ -95,9 +106,11 @@ public class SuroServer {
         server = injector.getInstance(ThriftServer.class);
 
         try {
-            startSinkManager(sinkDesc);
-            startMessageRouter(mapDesc);
-            startServer();
+            injector.getInstance(SinkManager.class).build(sinkDesc);
+            injector.getInstance(RoutingMap.class).build(mapDesc);
+            injector.getInstance(MessageRouter.class).start();
+            server.start();
+            statusServer.start(injector);
         } catch (Exception e) {
             log.error("Exception while starting up server: " + e.getMessage(), e);
             System.exit(-1);
@@ -122,28 +135,6 @@ public class SuroServer {
             //ignore every exception while shutting down but loggign should be done for debugging
             log.error("Exception while shutting down SuroServer: " + e.getMessage(), e);
         }
-    }
-
-    private void startServer() throws TTransportException {
-        server.start();
-        statusServerExecutor.execute(new Runnable() {
-            @Override
-            public void run() {
-                statusServer.start(injector);
-            }
-        });
-    }
-
-    private void startSinkManager(String sinkDesc) {
-        SinkManager sinkManager = injector.getInstance(SinkManager.class);
-        sinkManager.build(sinkDesc);
-    }
-
-    private void startMessageRouter(String mapDesc) {
-        RoutingMap routingMap = injector.getInstance(RoutingMap.class);
-        routingMap.build(mapDesc);
-        MessageRouter router = injector.getInstance(MessageRouter.class);
-        router.start();
     }
 
     private Injector injector;
@@ -201,7 +192,6 @@ public class SuroServer {
                                             });
                                         }
                                         binder.bind(ObjectMapper.class).toInstance(jsonMapper);
-                                        binder.bind(SerDeFactory.class).to(serDeFactoryClass);
                                     }
                                 }
                         )
@@ -258,7 +248,6 @@ public class SuroServer {
             SuroServer server = new SuroServer(properties, mapDesc, sinkDesc);
             server.jsonMapper = jsonMapper == null ? new DefaultObjectMapper() : jsonMapper;
             server.credentialsProvider = credentialsProvider;
-            server.serDeFactoryClass = serDeFactoryclass == null ? DefaultSerDeFactory.class : serDeFactoryclass;
 
             return server;
         }

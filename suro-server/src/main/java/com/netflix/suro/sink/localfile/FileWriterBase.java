@@ -21,7 +21,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -81,12 +80,12 @@ public class FileWriterBase {
         if (codec != null) {
             return SequenceFile.createWriter(
                     fs, conf, new Path(newPath),
-                    Text.class, BytesWritable.class,
+                    Text.class, SequenceFileWriter.MessageWritable.class,
                     SequenceFile.CompressionType.BLOCK, codec);
         } else {
             return SequenceFile.createWriter(
                     fs, conf, new Path(newPath),
-                    Text.class, BytesWritable.class,
+                    Text.class, SequenceFileWriter.MessageWritable.class,
                     SequenceFile.CompressionType.NONE, codec);
         }
     }

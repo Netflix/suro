@@ -26,7 +26,6 @@ public class TestStringSerDe {
     @Test
     public void test() {
         SerDe serde = new StringSerDe();
-        assertEquals(serde.getId(), 0);
 
         String testString = "teststring";
         byte[] serialized = serde.serialize(testString);

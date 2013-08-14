@@ -86,6 +86,87 @@ public class TestS3FileSink {
     }
 
     @Test
+    public void testDefaultParameters() throws Exception {
+        final String s3FileSink = "{\n" +
+                "    \"type\": \"S3FileSink\",\n" +
+                "    \"localFileSink\": {\n" +
+                "        \"type\": \"LocalFileSink\",\n" +
+                "        \"outputDir\": \"" + TestTextFileWriter.dir + "\"\n" +
+                "    },\n" +
+                "    \"bucket\": \"s3bucket\"\n" +
+                "}";
+
+        ObjectMapper mapper = new DefaultObjectMapper();
+        final Map<String, Object> injectables = Maps.newHashMap();
+
+        injectables.put("credentials", new AWSCredentialsProvider() {
+            @Override
+            public com.amazonaws.auth.AWSCredentials getCredentials() {
+                return new AWSCredentials() {
+                    @Override
+                    public String getAWSAccessKeyId() {
+                        return "accessKey";
+                    }
+
+                    @Override
+                    public String getAWSSecretKey() {
+                        return "secretKey";
+                    }
+                };
+            }
+
+            @Override
+            public void refresh() {
+                // do nothing
+            }
+        });
+
+        MultipartUtils mpUtils = mock(MultipartUtils.class);
+        doNothing().when(mpUtils).uploadObjects(
+                any(String.class),
+                any(RestS3Service.class),
+                any(List.class),
+                any(S3ServiceEventListener.class));
+        injectables.put("multipartUtils", mpUtils);
+        injectables.put("queueManager", new QueueManager());
+
+        mapper.setInjectableValues(new InjectableValues() {
+            @Override
+            public Object findInjectableValue(
+                    Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance
+            ) {
+                return injectables.get(valueId);
+            }
+        });
+        Sink sink = mapper.readValue(s3FileSink, new TypeReference<Sink>(){});
+        sink.open();
+
+        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
+            sink.writeTo(m, new StringSerDe());
+        }
+        sink.close();
+
+        // check every file uploaded, deleted, and notified
+        File dir = new File(TestTextFileWriter.dir);
+        File[] files = dir.listFiles(new FilenameFilter() {
+            @Override
+            public boolean accept(File file, String name) {
+                if (file.isFile() && file.getName().startsWith(".") == false) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        });
+        assertEquals(files.length, 0);
+        int count = 0;
+        while (sink.recvNotify() != null) {
+            ++count;
+        }
+        assertTrue(count > 0);
+    }
+
+    @Test
     public void test() throws Exception {
         ObjectMapper mapper = new DefaultObjectMapper();
         final Map<String, Object> injectables = Maps.newHashMap();

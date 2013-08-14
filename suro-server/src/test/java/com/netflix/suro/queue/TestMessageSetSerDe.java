@@ -39,7 +39,6 @@ public class TestMessageSetSerDe {
 
         assertEquals(d.getHostname(), messageSet.getHostname());
         assertEquals(d.getApp(), messageSet.getApp());
-        assertEquals(d.getDataType(), messageSet.getDataType());
         assertTrue(Arrays.equals(d.getMessages(), messageSet.getMessages()));
 
         List<Message> messageList = new LinkedList<Message>();

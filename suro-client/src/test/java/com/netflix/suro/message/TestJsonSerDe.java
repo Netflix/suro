@@ -44,7 +44,7 @@ public class TestJsonSerDe {
         Map<String, Object> map = jsonMapper.readValue(obj, type);
         assertEquals(map.get("field2"), 3); // just check whether the object is created properly
 
-        JsonSerDe serde = new JsonSerDe();
+        JsonSerDe<Map<String, Object>> serde = new JsonSerDe<Map<String, Object>>();
         byte[] bytes = serde.serialize(map);
         Map<String, Object> map2 = jsonMapper.readValue(bytes, type);
         assertEquals(map, map2);

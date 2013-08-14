@@ -69,8 +69,8 @@ public class SinkManager {
         }
     }
 
-    public Sink getSink(String routingKey) {
-        Sink sink = sinkMap.get(routingKey);
+    public Sink getSink(String id) {
+        Sink sink = sinkMap.get(id);
         if (sink == null) {
             sink = sinkMap.get("default");
         }

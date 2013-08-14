@@ -29,6 +29,7 @@ import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.nofify.Notify;
+import com.netflix.suro.nofify.QueueNotify;
 import com.netflix.suro.queue.QueueManager;
 import com.netflix.suro.sink.Sink;
 import org.apache.commons.io.FileUtils;
@@ -56,10 +57,7 @@ public class LocalFileSink implements Sink {
     private final int minPercentFreeDisk;
     private final Notify notify;
 
-    @JacksonInject("queueManager")
-    private QueueManager queueManager;
-
-    @JacksonInject("spaceChecker")
+    private final QueueManager queueManager;
     private SpaceChecker spaceChecker;
 
     private String fileName;
@@ -74,26 +72,25 @@ public class LocalFileSink implements Sink {
     public LocalFileSink(
             @JsonProperty("outputDir") String outputDir,
             @JsonProperty("writer") FileWriter writer,
+            @JsonProperty("notify") Notify notify,
             @JsonProperty("maxFileSize") long maxFileSize,
             @JsonProperty("rotationPeriod") String rotationPeriod,
             @JsonProperty("minPercentFreeDisk") int minPercentFreeDisk,
-            @JsonProperty("notify") Notify notify) {
+            @JacksonInject("queueManager") QueueManager queueManager,
+            @JacksonInject("spaceChecker") SpaceChecker spaceChecker) {
         if (outputDir.endsWith("/") == false) {
             outputDir += "/";
         }
         this.outputDir = outputDir;
-        this.writer = writer;
-        this.maxFileSize = maxFileSize;
-        this.rotationPeriod = new Period(rotationPeriod);
-        this.minPercentFreeDisk = minPercentFreeDisk;
-        this.notify = notify;
+        this.writer = writer == null ? new TextFileWriter(null) : writer;
+        this.maxFileSize = maxFileSize == 0 ? 100 * 1024 * 1024 : maxFileSize;
+        this.rotationPeriod = new Period(rotationPeriod == null ? "PT1m" : rotationPeriod);
+        this.minPercentFreeDisk = minPercentFreeDisk == 0 ? 50 : minPercentFreeDisk;
+        this.notify = notify == null ? new QueueNotify() : notify;
+        this.queueManager = queueManager;
+        this.spaceChecker = spaceChecker;
 
         Preconditions.checkNotNull(outputDir, "outputDir is needed");
-        Preconditions.checkNotNull(writer, "writer is needed");
-        Preconditions.checkArgument(maxFileSize > 0, "maxFileSize is needed");
-        Preconditions.checkNotNull(rotationPeriod, "rotationPeriod is needed");
-        Preconditions.checkArgument(minPercentFreeDisk > 0, "minPercentFreeDisk is needed");
-        Preconditions.checkNotNull(notify, "notify is needed");
     }
 
     @Override

@@ -25,7 +25,6 @@ import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.message.serde.DefaultSerDeFactory;
 import com.netflix.suro.message.serde.SerDeFactory;
 import com.netflix.suro.routing.TestMessageRouter;
 import com.netflix.suro.thrift.TMessageSet;
@@ -49,8 +48,6 @@ public class TestServer {
                                 return new LinkedBlockingQueue<TMessageSet>(1);
                             }
                         });
-                binder.bind(SerDeFactory.class).to(DefaultSerDeFactory.class);
-
                 ObjectMapper jsonMapper = new DefaultObjectMapper();
                 jsonMapper.registerSubtypes(new NamedType(TestMessageRouter.TestSink.class, "TestSink"));
                 binder.bind(ObjectMapper.class).toInstance(jsonMapper);

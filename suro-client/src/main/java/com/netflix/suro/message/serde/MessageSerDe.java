@@ -22,11 +22,6 @@ import java.nio.ByteBuffer;
 
 public class MessageSerDe implements SerDe<Message> {
     @Override
-    public byte getId() {
-        return 100;
-    }
-
-    @Override
     public Message deserialize(byte[] payload) {
         ByteBuffer buffer = ByteBuffer.wrap(payload);
 

@@ -61,6 +61,10 @@ subprojects {
         compile 'com.leansoft:bigqueue:0.7.0'
         compile 'commons-io:commons-io:2.1'
 
+        compile (
+            [group: 'org.apache.hadoop', name: 'hadoop-core', version: '1.1.2', transitive: false]
+        )
+
         testCompile 'org.mockito:mockito-core:1.9.5'
         testCompile 'junit:junit:4.+'
     }
@@ -72,9 +76,6 @@ project(':suro-client') {
 project(':suro-server') {
     dependencies {
         compile project(':suro-client')
-        compile (
-            [group: 'org.apache.hadoop', name: 'hadoop-core', version: '1.1.2', transitive: false]
-        )
         compile 'net.java.dev.jets3t:jets3t:0.9.0'
 
         compile 'org.eclipse.jetty:jetty-servlet:9.0.0.v20130308'

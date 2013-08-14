@@ -16,6 +16,8 @@
 
 package com.netflix.suro.message;
 
+import com.netflix.suro.message.serde.SerDe;
+import com.netflix.suro.message.serde.SerDeFactory;
 import com.netflix.suro.thrift.TMessageSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,8 +37,7 @@ public class MessageSetReader implements Iterable<Message> {
 
     public String getApp() { return messageSet.getApp(); }
     public String getHostname() { return messageSet.getHostname(); }
-    public String getDataType() { return messageSet.getDataType(); }
-    public byte getSerDeId() { return messageSet.getSerde(); }
+    public SerDe getSerDe() { return SerDeFactory.create(messageSet.getSerde()); }
 
     public boolean checkCRC() {
         long crcReceived = messageSet.getCrc();
@@ -68,7 +69,7 @@ public class MessageSetReader implements Iterable<Message> {
                     byte[] payloadBytes = new byte[buffer.getInt()];
                     buffer.get(payloadBytes);
 
-                    return new Message(routingKey, getApp(), getHostname(), getDataType(), payloadBytes);
+                    return new Message(routingKey, getApp(), getHostname(), payloadBytes);
                 }
 
                 @Override

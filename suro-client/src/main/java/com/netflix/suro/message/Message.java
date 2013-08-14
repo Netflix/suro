@@ -16,35 +16,36 @@
 
 package com.netflix.suro.message;
 
+import org.apache.hadoop.io.Writable;
+
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-public class Message {
-    private final String routingKey;
-    private final String app;
-    private final String hostname;
-    private final String dataType;
-    private final byte[] payload;
+public class Message implements Writable {
+    private String routingKey;
+    private String app;
+    private String hostname;
+    private byte[] payload;
 
     // constructor for MessageSetBuilder
     public Message(String routingKey, byte[] payload) {
         this.routingKey = routingKey;
         this.app = null;
         this.hostname = null;
-        this.dataType = null;
         this.payload = payload;
     }
 
     // constructor for MessageSetReader
-    Message(String routingKey,
+    public Message(String routingKey,
                    String app,
                    String hostname,
-                   String dataType,
                    byte[] payload) {
         this.routingKey = routingKey;
         this.app = app;
         this.hostname = hostname;
-        this.dataType = dataType;
         this.payload = payload;
     }
 
@@ -83,10 +84,6 @@ public class Message {
         return app;
     }
 
-    public String getDataType() {
-        return dataType;
-    }
-
     public byte[] getPayload() {
         return payload;
     }
@@ -105,7 +102,6 @@ public class Message {
         Message m = (Message) o;
         return (hostname == null ? m.hostname == null : hostname.equals(m.hostname)) &&
                (app == null ? m.app == null : app.equals(m.app)) &&
-               (dataType == null ? m.dataType == null : dataType.equals(m.dataType)) &&
                routingKey.equals(m.routingKey) &&
                Arrays.equals(payload, m.payload);
     }
@@ -114,10 +110,27 @@ public class Message {
     public int hashCode() {
         int hostnameHash = hostname == null ? 0 : hostname.hashCode();
         int appHash = app == null ? 0 : app.hashCode();
-        int dataTypeHash = dataType == null ? 0 : dataType.hashCode();
         int routingKeyHash = routingKey.hashCode();
         int messageHash = payload.hashCode();
 
-        return hostnameHash + appHash + dataTypeHash + routingKeyHash + messageHash;
+        return hostnameHash + appHash + routingKeyHash + messageHash;
+    }
+
+    @Override
+    public void write(DataOutput dataOutput) throws IOException {
+        dataOutput.writeUTF(hostname);
+        dataOutput.writeUTF(app);
+        dataOutput.writeUTF(routingKey);
+        dataOutput.writeInt(payload.length);
+        dataOutput.write(payload);
+    }
+
+    @Override
+    public void readFields(DataInput dataInput) throws IOException {
+        hostname = dataInput.readUTF();
+        app = dataInput.readUTF();
+        routingKey = dataInput.readUTF();
+        payload = new byte[dataInput.readInt()];
+        dataInput.readFully(payload);
     }
 }

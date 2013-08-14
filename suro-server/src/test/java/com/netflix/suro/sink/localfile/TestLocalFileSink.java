@@ -52,6 +52,55 @@ public class TestLocalFileSink {
     }
 
     @Test
+    public void testDefaultParameters() throws IOException {
+        final String localFileSinkSpec = "{\n" +
+                "    \"type\": \"LocalFileSink\",\n" +
+                "    \"outputDir\": \"" + TestTextFileWriter.dir + "\"\n" +
+                "    }\n" +
+                "}";
+
+        ObjectMapper mapper = new DefaultObjectMapper();
+        mapper.setInjectableValues(new InjectableValues() {
+            @Override
+            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
+                if (valueId.equals("queueManager")) {
+                    return new QueueManager();
+                } else {
+                    return null;
+                }
+            }
+        });
+        Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
+        sink.open();
+
+        assertNull(sink.recvNotify());
+
+        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
+            sink.writeTo(m, new StringSerDe());
+        }
+
+        sink.close();
+
+        int count = 0;
+        File dir = new File(TestTextFileWriter.dir);
+        File[] files = dir.listFiles();
+        for (File file : files) {
+            assertTrue(file.getName().contains(".done"));
+            if (file.getName().contains("crc") == false) {
+                BufferedReader br = new BufferedReader(new FileReader(file));
+                String line = null;
+                while ((line = br.readLine()) != null) {
+                    assertTrue(line.contains("testMessage"));
+                    ++count;
+                }
+                br.close();
+            }
+        }
+        assertEquals(count, 100000);
+
+    }
+
+    @Test
     public void testWithPeriodRotation() throws IOException, InterruptedException {
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"LocalFileSink\",\n" +

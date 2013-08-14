@@ -25,7 +25,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.junit.After;
@@ -60,14 +59,14 @@ public class TestSequenceFileWriter {
         writer.rotate(dir + "testfile0.suro");
         for (int i = 0; i < 10; ++i) {
             writer.writeTo(
-                    new Message("routingKey", ("message0" + i).getBytes()),
+                    new Message("routingKey", "app", "hostname", ("message0" + i).getBytes()),
                     new StringSerDe());
         }
         System.out.println("length: " + writer.getLength());
-        assertEquals(writer.getLength(), 407);
+        assertEquals(writer.getLength(), 1149);
 
         writer.rotate(dir + "testfile1.suro");
-        assertEquals(writer.getLength(), 87); // empty sequence file length
+        assertEquals(writer.getLength(), 119); // empty sequence file length
         assertEquals(checkFileContents(dir + "testfile0.suro", "message0"), 10);
 
         writer.setDone(dir + "testfile0.suro", dir + "testfile0.done");
@@ -76,7 +75,7 @@ public class TestSequenceFileWriter {
 
         for (int i = 0; i < 10; ++i) {
             writer.writeTo(
-                    new Message("routingKey", ("message1" + i).getBytes()),
+                    new Message("routingKey", "app", "hostname", ("message1" + i).getBytes()),
                     new StringSerDe());
         }
         writer.close();
@@ -90,12 +89,12 @@ public class TestSequenceFileWriter {
                 new Configuration());
 
         Text routingKey = new Text();
-        BytesWritable value = new BytesWritable();
+        SequenceFileWriter.MessageWritable value = new SequenceFileWriter.MessageWritable();
 
         int i = 0;
         while (r.next(routingKey, value)) {
             assertEquals(routingKey.toString(), "routingKey");
-            assertEquals(new String(value.getBytes(), 0, value.getLength()), message + i);
+            assertEquals(value.getSerDe().deserialize(value.getMessage().getPayload()), message + i);
             ++i;
         }
         r.close();
