@@ -18,7 +18,8 @@ package com.netflix.suro.message;
 
 import com.ning.compress.lzf.LZFDecoder;
 import com.ning.compress.lzf.LZFEncoder;
-import com.ning.compress.lzf.LZFException;
+
+import java.io.IOException;
 
 public enum Compression {
     NO((byte)0) {
@@ -31,12 +32,16 @@ public enum Compression {
     },
     LZF((byte)1) {
         byte[] compress(byte[] buffer) {
-            return LZFEncoder.encode(buffer);
+            try {
+                return LZFEncoder.encode(buffer);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
         byte[] decompress(byte[] buffer) {
             try {
                 return LZFDecoder.decode(buffer);
-            } catch (LZFException e) {
+            } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
