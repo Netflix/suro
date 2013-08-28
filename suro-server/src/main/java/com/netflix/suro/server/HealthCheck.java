@@ -17,7 +17,7 @@
 package com.netflix.suro.server;
 
 import com.google.inject.Inject;
-import com.google.inject.servlet.RequestScoped;
+import com.google.inject.Singleton;
 import com.netflix.suro.thrift.ServiceStatus;
 import com.netflix.suro.thrift.SuroServer;
 import org.apache.thrift.TException;
@@ -34,7 +34,7 @@ import javax.ws.rs.Produces;
 import java.net.SocketException;
 
 @Path("/healthcheck")
-@RequestScoped
+@Singleton
 public class HealthCheck {
     private final ServerConfig config;
 

@@ -31,7 +31,6 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetBuilder;
 import com.netflix.suro.message.serde.SerDe;
-import com.netflix.suro.message.serde.SerDeFactory;
 import com.netflix.suro.queue.MessageQueue;
 import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.sink.Sink;
@@ -129,7 +128,7 @@ public class TestMessageRouter {
         MessageQueue queue = injector.getInstance(MessageQueue.class);
 
         MessageSetBuilder builder = new MessageSetBuilder();
-        builder = builder.withApp("app").withDatatype("string").withHostname("testhost");
+        builder = builder.withApp("app").withHostname("testhost");
 
         for (int i = 0; i < 10; ++i) {
             builder.withMessage("topic1", Integer.toString(i).getBytes());

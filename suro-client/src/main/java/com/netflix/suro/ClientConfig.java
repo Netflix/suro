@@ -58,20 +58,6 @@ public class ClientConfig {
         return app;
     }
 
-    public static final String DATA_TYPE = "SuroClient.dataType";
-    @Configuration(DATA_TYPE)
-    private String dataType = "defaultDataType";
-    public String getDataType() {
-        return dataType;
-    }
-
-    public static final String ROUTING_KEY = "SuroClient.routingKey";
-    @Configuration(ROUTING_KEY)
-    private String routingKey = "defaultRoutingKey";
-    public String getRoutingKey() {
-        return routingKey;
-    }
-
     public static final String RETRY_COUNT = "SuroClient.retryCount";
     @Configuration(RETRY_COUNT)
     private int retryCount = 5;

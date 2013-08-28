@@ -130,7 +130,7 @@ public class ConnectionPool {
     }
 
 
-    private synchronized  void removeConnection(Set<Server> removedServers) {
+    private synchronized void removeConnection(Set<Server> removedServers) {
         for (Server s : removedServers) {
             serverSet.remove(s);
             connectionPool.remove(s);

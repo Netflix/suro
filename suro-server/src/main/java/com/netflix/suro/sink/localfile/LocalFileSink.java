@@ -57,7 +57,7 @@ public class LocalFileSink implements Sink {
     private final int minPercentFreeDisk;
     private final Notify notify;
 
-    private final QueueManager queueManager;
+    private QueueManager queueManager;
     private SpaceChecker spaceChecker;
 
     private String fileName;
@@ -67,6 +67,8 @@ public class LocalFileSink implements Sink {
     private AtomicLong writtenMessages = new AtomicLong(0);
     @Monitor(name = "writtenBytes", type = DataSourceType.COUNTER)
     private AtomicLong writtenBytes = new AtomicLong(0);
+
+    private boolean messageWrittenInRotation = false;
 
     @JsonCreator
     public LocalFileSink(
@@ -100,7 +102,7 @@ public class LocalFileSink implements Sink {
                 spaceChecker = new SpaceChecker(minPercentFreeDisk, outputDir);
             }
             if (queueManager == null) {
-                throw new NullPointerException("queueManager should be injected");
+                queueManager = new QueueManager();
             }
             writer.open(outputDir);
             rotate();
@@ -112,22 +114,26 @@ public class LocalFileSink implements Sink {
     @Override
     public void writeTo(Message message, SerDe serde) {
         try {
+            if (writer.getLength() > maxFileSize ||
+                    System.currentTimeMillis() > nextRotation) {
+                rotate();
+            }
+
             writer.writeTo(message, serde);
             DynamicCounter.increment(
                     MonitorConfig.builder("writtenMessages")
                             .withTag(TagKey.APP, message.getApp())
                             .withTag(TagKey.DATA_SOURCE, message.getRoutingKey())
                             .build());
+            writtenMessages.incrementAndGet();
             DynamicCounter.increment(
                     MonitorConfig.builder("writtenBytes")
                             .withTag(TagKey.APP, message.getApp())
                             .withTag(TagKey.DATA_SOURCE, message.getRoutingKey())
                             .build(), message.getPayload().length);
+            writtenBytes.addAndGet(message.getPayload().length);
 
-            if (writer.getLength() > maxFileSize ||
-                    System.currentTimeMillis() > nextRotation) {
-                rotate();
-            }
+            messageWrittenInRotation = true;
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
@@ -175,6 +181,8 @@ public class LocalFileSink implements Sink {
         } else {
             queueManager.startTakingTraffic();
         }
+
+        messageWrittenInRotation = false;
     }
 
     @Override
@@ -193,20 +201,40 @@ public class LocalFileSink implements Sink {
         return notify.recv();
     }
 
-    private void renameNotify(String fileName) throws IOException {
-        if (fileName != null) {
-            // if we have the previous file
-            String doneFile = fileName.replace(suffix, done);
-            writer.setDone(fileName, doneFile);
-            notify.send(doneFile);
+    private void renameNotify(String filePath) throws IOException {
+        if (filePath != null) {
+            if (messageWrittenInRotation) {
+                // if we have the previous file
+                String doneFile = filePath.replace(suffix, done);
+                writer.setDone(filePath, doneFile);
+                notify.send(doneFile);
+            } else {
+                // delete it
+                deleteFile(filePath);
+            }
         }
     }
 
     @Override
     public String getStat() {
         return String.format(
-                "%d msgs, %d bytes written",
+                "%d msgs, %s bytes written",
                 writtenMessages.get(),
                 FileUtils.byteCountToDisplaySize(writtenBytes.get()));
+    }
+
+    public static void deleteFile(String filePath) {
+        // with AWS EBS, sometimes deletion failure without any IOException was observed
+        // To prevent the surplus files, let's iterate file deletion
+        int retryCount = 1;
+        while (new File(filePath).exists() && retryCount <= 5) {
+            try {
+                Thread.sleep(1000 * retryCount);
+                new File(filePath).delete();
+                ++retryCount;
+            } catch (Exception e) {
+                log.warn("Exception while deleting the file: " + e.getMessage(), e);
+            }
+        }
     }
 }

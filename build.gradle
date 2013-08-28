@@ -35,16 +35,15 @@ subprojects {
     configurations {
       all*.exclude group: 'org.codehaus.jackson', module: 'jackson-mapper'
       all*.exclude group: 'org.codehaus.jackson', module: 'jackson-core'
-      all*.exclude group: 'javax.servlet', module: 'servlet-api'
     }
 
     dependencies {
-        compile 'com.netflix.archaius:archaius-core:0.5.6'
+        compile 'com.netflix.archaius:archaius-core:0.5.11'
         compile 'com.netflix.servo:servo-core:0.4.32'
-        compile 'com.netflix.governator:governator:1.1.1'
-        compile 'com.netflix.eureka:eureka-client:1.1.73'
-        compile 'com.netflix.ribbon:ribbon-core:0.1.5'
-        compile 'com.netflix.ribbon:ribbon-eureka:0.1.5'
+        compile 'com.netflix.governator:governator:1.2.3'
+        compile 'com.netflix.eureka:eureka-client:1.1.109'
+        compile 'com.netflix.ribbon:ribbon-core:0.2.2'
+        compile 'com.netflix.ribbon:ribbon-eureka:0.2.2'
         compile 'log4j:log4j:1.2.17'
 
         compile 'org.apache.thrift:libthrift:0.7.0'
@@ -61,7 +60,7 @@ subprojects {
         compile 'commons-io:commons-io:2.4'
 
         compile (
-            [group: 'org.apache.hadoop', name: 'hadoop-core', version: '1.1.2', transitive: false]
+            [group: 'org.apache.hadoop', name: 'hadoop-core', version: '0.20.205.0', transitive: false]
         )
 
         testCompile 'org.mockito:mockito-core:1.9.5'
@@ -78,18 +77,19 @@ project(':suro-client') {
 }
 
 project(':suro-server') {
-    dependencies {
-        compile project(':suro-client')
-        compile 'net.java.dev.jets3t:jets3t:0.9.0'
+  dependencies {
+    compile project(':suro-client')
+    compile 'net.java.dev.jets3t:jets3t:0.9.0'
 
-        compile 'org.eclipse.jetty:jetty-servlet:9.0.0.v20130308'
-        compile 'com.sun.jersey.contribs:jersey-guice:1.17.1'
-        compile 'com.sun.jersey:jersey-server:1.17.1'
+    compile 'org.eclipse.jetty:jetty-servlet:7.6.7.v20120910'
+    compile 'com.sun.jersey.contribs:jersey-guice:1.11'
+    compile 'com.sun.jersey:jersey-bundle:1.11'
+    compile 'com.amazonaws:aws-java-sdk:1.4.7'
 
-        compile 'commons-cli:commons-cli:1.2'
+    compile 'commons-cli:commons-cli:1.2'
 
-        testCompile project(':suro-client').sourceSets.test.output
-    }
+    testCompile project(':suro-client').sourceSets.test.output
+  }
 }
 
 project(':suro-integration-test') {

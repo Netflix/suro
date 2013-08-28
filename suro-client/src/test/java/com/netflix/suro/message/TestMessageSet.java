@@ -94,7 +94,7 @@ public class TestMessageSet {
 
     private TMessageSet buildMessageSet() {
         MessageSetBuilder builder = new MessageSetBuilder();
-        builder = builder.withApp("app").withDatatype("string").withHostname("testhost");
+        builder = builder.withApp("app").withHostname("testhost");
         for (Message message : messageList) {
             builder.withMessage(message.getRoutingKey(), message.getPayload());
         }

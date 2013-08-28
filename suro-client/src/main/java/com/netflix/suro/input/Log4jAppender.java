@@ -53,14 +53,6 @@ public class Log4jAppender extends AppenderSkeleton {
         return app;
     }
 
-    private String dataType = "defaultDataType";
-    public void setDataType(String dataType) {
-        this.dataType = dataType;
-    }
-    private String getDataType() {
-        return dataType;
-    }
-
     private byte compression = 1;
     public void setCompression(byte compression) {
         this.compression = compression;
@@ -117,14 +109,6 @@ public class Log4jAppender extends AppenderSkeleton {
         return clientType;
     }
 
-    private String routingKey = "defaultRoutingKey";
-    public void setRoutingKey(String routingKey) {
-        this.routingKey = routingKey;
-    }
-    public String getRoutingKey() {
-        return routingKey;
-    }
-
     private Log4jFormatter formatter;
     private SuroClient client;
 
@@ -144,7 +128,6 @@ public class Log4jAppender extends AppenderSkeleton {
         properties.setProperty(ClientConfig.LOG4J_FORMATTER, formatterClass);
         properties.setProperty(ClientConfig.LOG4J_DATETIMEFORMAT, datetimeFormat);
         properties.setProperty(ClientConfig.APP, app);
-        properties.setProperty(ClientConfig.DATA_TYPE, dataType);
         properties.setProperty(ClientConfig.COMPRESSION, Byte.toString(compression));
         properties.setProperty(ClientConfig.LB_TYPE, loadBalancerType);
         properties.setProperty(ClientConfig.LB_SERVER, loadBalancerServer);
@@ -152,7 +135,6 @@ public class Log4jAppender extends AppenderSkeleton {
         properties.setProperty(ClientConfig.ASYNC_QUEUE_TYPE, asyncQueueType);
         properties.setProperty(ClientConfig.ASYNC_FILEQUEUE_PATH, asyncFileQueuePath);
         properties.setProperty(ClientConfig.CLIENT_TYPE, clientType);
-        properties.setProperty(ClientConfig.ROUTING_KEY, routingKey);
 
         return properties;
     }
@@ -166,7 +148,7 @@ public class Log4jAppender extends AppenderSkeleton {
     protected void append(LoggingEvent event) {
         String result = formatter.format(event);
         client.send(new Message(
-                formatter.getRoutingKey() == null ? routingKey : formatter.getRoutingKey(),
+                formatter.getRoutingKey(),
                 result.getBytes()));
     }
 

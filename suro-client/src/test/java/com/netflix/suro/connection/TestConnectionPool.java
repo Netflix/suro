@@ -97,7 +97,6 @@ public class TestConnectionPool {
     public static TMessageSet createMessageSet(int messageCount) {
         MessageSetBuilder builder = new MessageSetBuilder()
                 .withApp("application")
-                .withDatatype("Client-" + Thread.currentThread().getId())
                 .withCompression(Compression.LZF);
 
         for(int i = 0; i < messageCount; ++i) {

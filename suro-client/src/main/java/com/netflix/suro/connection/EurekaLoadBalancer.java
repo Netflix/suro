@@ -17,11 +17,16 @@
 package com.netflix.suro.connection;
 
 import com.google.inject.Inject;
+import com.netflix.client.config.CommonClientConfigKey;
+import com.netflix.client.config.DefaultClientConfigImpl;
+import com.netflix.client.config.IClientConfig;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.loadbalancer.DynamicServerListLoadBalancer;
 import com.netflix.loadbalancer.Server;
 import com.netflix.niws.loadbalancer.DiscoveryEnabledNIWSServerList;
 import com.netflix.suro.ClientConfig;
+
+import java.util.List;
 
 @LazySingleton
 public class EurekaLoadBalancer extends DynamicServerListLoadBalancer {
@@ -35,17 +40,31 @@ public class EurekaLoadBalancer extends DynamicServerListLoadBalancer {
         }
 
         this.port = Integer.parseInt(vipAddress_port[1]);
-
-        DiscoveryEnabledNIWSServerList serverList = new DiscoveryEnabledNIWSServerList();
-        serverList.setVipAddresses(vipAddress_port[0]);
-        setServerListImpl(serverList);
+        IClientConfig loadBalancerConfig = new DefaultClientConfigImpl();
+        loadBalancerConfig.loadProperties("suroClient");
+        loadBalancerConfig.setProperty(CommonClientConfigKey.DeploymentContextBasedVipAddresses, vipAddress_port[0]);
+        loadBalancerConfig.setProperty(CommonClientConfigKey.NIWSServerListClassName, DiscoveryEnabledNIWSServerList.class.getName());
+        super.initWithNiwsConfig(loadBalancerConfig);
     }
 
     @Override
     public Server chooseServer(Object key) {
         Server server = super.chooseServer(key);
+        if (server == null) {
+            return null;
+        }
         server.setPort(port);
 
         return server;
+    }
+
+    @Override
+    public List<Server> getServerList(boolean availableOnly) {
+        List<Server> serverList = super.getServerList(availableOnly);
+        for (Server s : serverList) {
+            s.setPort(port);
+        }
+
+        return serverList;
     }
 }

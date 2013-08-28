@@ -76,7 +76,6 @@ public class SyncSuroClient implements ISuroClient {
     public void send(Message message) {
         send(new MessageSetBuilder()
                 .withApp(config.getApp())
-                .withDatatype(config.getDataType())
                 .withSerDe(config.getSerDe())
                 .withCompression(compression)
                 .withMessage(message.getRoutingKey(), message.getPayload()).build());
