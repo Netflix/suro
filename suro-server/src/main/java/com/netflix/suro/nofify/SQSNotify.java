@@ -58,7 +58,7 @@ public class SQSNotify implements Notify {
     @JsonCreator
     public SQSNotify(
             @JsonProperty("queues") List<String> queues,
-            @JsonProperty("region") String region,
+            @JsonProperty("region") @JacksonInject("region") String region,
             @JsonProperty("connectionTimeout") int connectionTimeout,
             @JsonProperty("maxConnections") int maxConnections,
             @JsonProperty("socketTimeout") int socketTimeout,

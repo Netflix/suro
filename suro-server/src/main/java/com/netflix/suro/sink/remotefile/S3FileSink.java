@@ -226,7 +226,7 @@ public class S3FileSink implements Sink {
                     uploadDuration = t2 - t1;
 
                     doNotify(remoteFilePath, localFile.length());
-                    deleteFile(filePath);
+                    LocalFileSink.deleteFile(filePath);
 
                     log.info("upload done deleting from local: " + filePath);
                 } catch (Throwable e) {
@@ -243,21 +243,6 @@ public class S3FileSink implements Sink {
                 }
             }
         });
-    }
-
-    private void deleteFile(String filePath) {
-        // with AWS EBS, sometimes deletion failure without any IOException was observed
-        // To prevent the surplus files, let's iterate file deletion
-        int retryCount = 1;
-        while (new File(filePath).exists() && retryCount <= 5) {
-            try {
-                Thread.sleep(1000 * retryCount);
-                new File(filePath).delete();
-                ++retryCount;
-            } catch (Exception e) {
-                log.warn("Exception while deleting the file: " + e.getMessage(), e);
-            }
-        }
     }
 
     private void doNotify(String filePath, long fileSize) throws JSONException {

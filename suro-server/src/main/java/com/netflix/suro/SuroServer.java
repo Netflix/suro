@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.Injector;
 import com.google.inject.Provider;
 import com.google.inject.TypeLiteral;
@@ -36,7 +35,6 @@ import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.client.async.FileBlockingQueue;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.serde.SerDe;
-import com.netflix.suro.message.serde.SerDeFactory;
 import com.netflix.suro.queue.MessageSetSerDe;
 import com.netflix.suro.routing.MessageRouter;
 import com.netflix.suro.routing.RoutingMap;
@@ -52,6 +50,7 @@ import org.apache.log4j.Logger;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
@@ -71,7 +70,6 @@ public class SuroServer {
     private final DynamicStringProperty sinkConfig;
 
     private ObjectMapper jsonMapper;
-    private AWSCredentialsProvider credentialsProvider;
 
     private SuroServer(
             Properties properties,
@@ -100,7 +98,13 @@ public class SuroServer {
     }
 
     public void start() {
-        createInjector(properties, credentialsProvider);
+        if (internalInjector) {
+            try {
+                injector.getInstance(LifecycleManager.class).start();
+            } catch (Exception e) {
+                throw new RuntimeException("LifecycleManager cannot start with an exception: " + e.getMessage());
+            }
+        }
 
         statusServer = injector.getInstance(StatusServer.class);
         server = injector.getInstance(ThriftServer.class);
@@ -131,6 +135,10 @@ public class SuroServer {
             injector.getInstance(MessageRouter.class).shutdown();
             injector.getInstance(SinkManager.class).shutdown();
             injector.getInstance(LifecycleManager.class).close();
+
+            if (internalInjector) {
+                injector.getInstance(LifecycleManager.class).close();
+            }
         } catch (Exception e) {
             //ignore every exception while shutting down but loggign should be done for debugging
             log.error("Exception while shutting down SuroServer: " + e.getMessage(), e);
@@ -138,81 +146,16 @@ public class SuroServer {
     }
 
     private Injector injector;
-
-    private Injector createInjector(
-            final Properties properties,
-            final AWSCredentialsProvider credentialsProvider) {
-        injector = LifecycleInjector
-                .builder()
-                .withBootstrapModule
-                        (
-                                new BootstrapModule() {
-                                    @Override
-                                    public void configure(BootstrapBinder binder) {
-                                        binder.bindConfigurationProvider().toInstance(
-                                                new PropertiesConfigurationProvider(properties));
-
-                                        if (properties.getProperty(ServerConfig.QUEUE_TYPE, "memory").equals("memory")) {
-                                            binder.bind(new TypeLiteral<BlockingQueue<TMessageSet>>() {
-                                            })
-                                                    .toProvider(new Provider<LinkedBlockingQueue<TMessageSet>>() {
-                                                        @Override
-                                                        public LinkedBlockingQueue<TMessageSet> get() {
-                                                            return new LinkedBlockingQueue<TMessageSet>(
-                                                                    Integer.parseInt(
-                                                                            properties.getProperty(
-                                                                                    ServerConfig.MEMORY_QUEUE_SIZE, "100"))
-                                                            );
-                                                        }
-                                                    });
-                                        } else {
-                                            binder.bind(new TypeLiteral<BlockingQueue<TMessageSet>>() {
-                                            })
-                                                    .to(new TypeLiteral<FileBlockingQueue<TMessageSet>>() {
-                                                    });
-                                            binder.bind(new TypeLiteral<SerDe<TMessageSet>>() {
-                                            })
-                                                    .to(new TypeLiteral<MessageSetSerDe>() {
-                                                    });
-                                        }
-
-                                        if (credentialsProvider != null) {
-                                            final Map<String, Object> injectables = new ImmutableMap.Builder<String, Object>()
-                                                    .put("credentials", credentialsProvider)
-                                                    .build();
-                                            jsonMapper.setInjectableValues(new InjectableValues() {
-                                                @Override
-                                                public Object findInjectableValue(
-                                                        Object valueId,
-                                                        DeserializationContext ctxt,
-                                                        BeanProperty forProperty,
-                                                        Object beanInstance) {
-                                                    return injectables.get(valueId);
-                                                }
-                                            });
-                                        }
-                                        binder.bind(ObjectMapper.class).toInstance(jsonMapper);
-                                    }
-                                }
-                        )
-                .createInjector();
-        LifecycleManager manager = injector.getInstance(LifecycleManager.class);
-
-        try {
-            manager.start();
-        } catch (Exception e) {
-            throw new RuntimeException("LifecycleManager cannot start with an exception: " + e.getMessage());
-        }
-        return injector;
-    }
+    private boolean internalInjector;
 
     public static class Builder {
         private Properties properties;
         private String mapDesc;
         private String sinkDesc;
+        private Injector injector;
         private AWSCredentialsProvider credentialsProvider;
         private ObjectMapper jsonMapper;
-        private Class<? extends SerDeFactory> serDeFactoryclass;
+        private Map<String, Object> injectables = new HashMap<String, Object>();
 
         public Builder withProperties(Properties properties) {
             this.properties = properties;
@@ -239,15 +182,86 @@ public class SuroServer {
             return this;
         }
 
-        public Builder withSerDeFactoryClass(Class<? extends SerDeFactory> serDeFactoryClass) {
-            this.serDeFactoryclass = serDeFactoryClass;
+        public Builder withInjector(Injector injector) {
+            this.injector = injector;
             return this;
+        }
+
+
+        public Builder addInjectable(String name, Object value) {
+            this.injectables.put(name, value);
+            return this;
+        }
+
+        private Injector createInjector(final Properties properties) {
+            Injector injector = LifecycleInjector
+                    .builder()
+                    .withBootstrapModule(createBootstrapModule(properties))
+                    .withModules(StatusServer.createJerseyServletModule())
+                    .createInjector();
+
+            return injector;
+        }
+
+        public BootstrapModule createBootstrapModule(final Properties properties) {
+            return new BootstrapModule() {
+                @Override
+                public void configure(BootstrapBinder binder) {
+                    binder.bindConfigurationProvider().toInstance(
+                            new PropertiesConfigurationProvider(properties));
+
+                    if (properties.getProperty(ServerConfig.QUEUE_TYPE, "memory").equals("memory")) {
+                        binder.bind(new TypeLiteral<BlockingQueue<TMessageSet>>() {
+                        })
+                                .toProvider(new Provider<LinkedBlockingQueue<TMessageSet>>() {
+                                    @Override
+                                    public LinkedBlockingQueue<TMessageSet> get() {
+                                        return new LinkedBlockingQueue<TMessageSet>(
+                                                Integer.parseInt(
+                                                        properties.getProperty(
+                                                                ServerConfig.MEMORY_QUEUE_SIZE, "100"))
+                                        );
+                                    }
+                                });
+                    } else {
+                        binder.bind(new TypeLiteral<BlockingQueue<TMessageSet>>() {
+                        })
+                                .to(new TypeLiteral<FileBlockingQueue<TMessageSet>>() {
+                                });
+                        binder.bind(new TypeLiteral<SerDe<TMessageSet>>() {
+                        })
+                                .to(new TypeLiteral<MessageSetSerDe>() {
+                                });
+                    }
+
+                    binder.bind(ObjectMapper.class).toInstance(jsonMapper);
+                }
+            };
         }
 
         public SuroServer build() {
             SuroServer server = new SuroServer(properties, mapDesc, sinkDesc);
+            if (injector == null) {
+                injector = createInjector(properties);
+                server.internalInjector = true;
+            }
+            server.injector = injector;
+
             server.jsonMapper = jsonMapper == null ? new DefaultObjectMapper() : jsonMapper;
-            server.credentialsProvider = credentialsProvider;
+            if (credentialsProvider != null) {
+                injectables.put("credentials", credentialsProvider);
+            }
+
+            server.jsonMapper.setInjectableValues(new InjectableValues() {
+                @Override
+                public Object findInjectableValue(
+                        Object valueId,
+                        DeserializationContext ctxt,
+                        BeanProperty forProperty,
+                        Object beanInstance) {
+                    return injectables.get(valueId);
+                }
+            });
 
             return server;
         }
@@ -278,8 +292,6 @@ public class SuroServer {
             System.err.println("SuroServer startup failed: " + e.getMessage());
             System.exit(-1);
         }
-
-
     }
 
     private static Options createOptions() {

@@ -79,6 +79,8 @@ public class TestLocalFileSink {
             sink.writeTo(m, new StringSerDe());
         }
 
+        System.out.println(sink.getStat());
+
         sink.close();
 
         int count = 0;
@@ -97,7 +99,6 @@ public class TestLocalFileSink {
             }
         }
         assertEquals(count, 100000);
-
     }
 
     @Test
@@ -286,5 +287,67 @@ public class TestLocalFileSink {
             }
         }
         assertEquals(count, 100000);
+    }
+
+    @Test
+    public void rotateEmptyFile() throws IOException, InterruptedException {
+        final String localFileSinkSpec = "{\n" +
+                "    \"type\": \"LocalFileSink\",\n" +
+                "    \"outputDir\": \"" + TestTextFileWriter.dir + "\",\n" +
+                "    \"writer\": {\n" +
+                "        \"type\": \"text\"\n" +
+                "    },\n" +
+                "    \"maxFileSize\": 100000000,\n" +
+                "    \"minPercentFreeDisk\": 50,\n" +
+                "    \"rotationPeriod\": \"PT2s\",\n" +
+                "    \"notify\": {\n" +
+                "        \"type\": \"queue\"\n" +
+                "    }\n" +
+                "}";
+
+        ObjectMapper mapper = new DefaultObjectMapper();
+        mapper.setInjectableValues(new InjectableValues() {
+            @Override
+            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
+                if (valueId.equals("queueManager")) {
+                    return new QueueManager();
+                } else {
+                    return null;
+                }
+            }
+        });
+        Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
+        sink.open();
+        assertNull(sink.recvNotify());
+
+        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100))) {
+            sink.writeTo(m, new StringSerDe());
+            Thread.sleep(100);
+        }
+
+        Thread.sleep(3000);
+
+        sink.close();
+
+        int count = 0;
+        int fileCount = 0;
+        File dir = new File(TestTextFileWriter.dir);
+        File[] files = dir.listFiles();
+        for (File file : files) {
+            assertTrue(file.getName().contains(".done"));
+            if (file.getName().contains("crc") == false) {
+                ++fileCount;
+                BufferedReader br = new BufferedReader(new FileReader(file));
+                String line = null;
+                while ((line = br.readLine()) != null) {
+                    assertTrue(line.contains("testMessage"));
+                    ++count;
+                }
+                br.close();
+                assertTrue(count > 0); // should not empty
+            }
+        }
+        assertEquals(count, 100);
+        assertTrue(fileCount > 1);
     }
 }

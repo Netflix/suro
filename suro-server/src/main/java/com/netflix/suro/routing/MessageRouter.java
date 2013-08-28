@@ -44,7 +44,6 @@ public class MessageRouter {
     private final MessageQueue messageQueue;
     private final RoutingMap routingMap;
     private final SinkManager sinkManager;
-    private final SerDeFactory serDeFactory;
     private final ServerConfig config;
     private final ExecutorService executors;
 
@@ -57,12 +56,10 @@ public class MessageRouter {
             MessageQueue messageQueue,
             RoutingMap routingMap,
             SinkManager sinkManager,
-            SerDeFactory serDeFactory,
             ServerConfig config) {
         this.messageQueue = messageQueue;
         this.routingMap = routingMap;
         this.sinkManager = sinkManager;
-        this.serDeFactory = serDeFactory;
         this.config = config;
 
         executors = Executors.newFixedThreadPool(config.getMessageRouterThreads());

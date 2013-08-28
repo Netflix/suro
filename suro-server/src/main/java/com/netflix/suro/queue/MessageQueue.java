@@ -144,10 +144,6 @@ public class MessageQueue implements SuroServer.Iface {
             }
 
             return result;
-        } catch (OutOfMemoryError oom) {
-            log.error("OutOfMemoryError: " + oom.getLocalizedMessage(), oom);
-            oom.printStackTrace();
-            System.exit(-1);
         } catch (Throwable e) {
             log.error("Throable handled: " + e.getMessage(), e);
         }

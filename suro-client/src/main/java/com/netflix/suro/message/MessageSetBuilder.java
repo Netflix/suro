@@ -32,7 +32,6 @@ public class MessageSetBuilder {
     private String hostname;
     private String app = "default";
     private List<Message> messageList;
-    private String dataType = "string";
     private Compression compression = Compression.NO;
     private SerDe serde = new StringSerDe();
 
@@ -67,11 +66,6 @@ public class MessageSetBuilder {
 
     public MessageSetBuilder withCompression(Compression compresson) {
         this.compression = compresson;
-        return this;
-    }
-
-    public MessageSetBuilder withDatatype(String dataType) {
-        this.dataType = dataType;
         return this;
     }
 

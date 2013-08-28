@@ -85,7 +85,6 @@ public class AsyncSuroClient implements ISuroClient {
         this.connectionPool = connectionPool;
         this.builder = new MessageSetBuilder()
                 .withApp(config.getApp())
-                .withDatatype(config.getDataType())
                 .withCompression(Compression.create(config.getCompression()))
                 .withSerDe(config.getSerDe());
 
