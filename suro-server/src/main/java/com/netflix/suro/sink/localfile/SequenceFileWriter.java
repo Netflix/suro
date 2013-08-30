@@ -19,16 +19,11 @@ package com.netflix.suro.sink.localfile;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.SerDe;
-import com.netflix.suro.message.serde.SerDeFactory;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 public class SequenceFileWriter implements FileWriter {
@@ -39,7 +34,6 @@ public class SequenceFileWriter implements FileWriter {
     private final FileWriterBase base;
     private SequenceFile.Writer seqFileWriter;
     private Text routingKey = new Text();
-    private MessageWritable value = new MessageWritable();
 
     @JsonCreator
     public SequenceFileWriter(@JsonProperty("codec") String codec) {
@@ -66,10 +60,9 @@ public class SequenceFileWriter implements FileWriter {
     }
 
     @Override
-    public void writeTo(Message message, SerDe serde) throws IOException {
+    public void writeTo(Message message) throws IOException {
         routingKey.set(message.getRoutingKey());
-        value.set(serde, message);
-        seqFileWriter.append(routingKey, value);
+        seqFileWriter.append(routingKey, message);
     }
 
     @Override
@@ -94,30 +87,8 @@ public class SequenceFileWriter implements FileWriter {
         base.setDone(oldName, newName);
     }
 
-    public static class MessageWritable implements Writable {
-        private SerDe serDe;
-        private Message message = new Message(null, null);
-
-        public MessageWritable() {}
-
-        public void set(SerDe serDe, Message message) {
-            this.serDe = serDe;
-            this.message = message;
-        }
-
-        public SerDe getSerDe() { return serDe; }
-        public Message getMessage() { return message; }
-
-        @Override
-        public void write(DataOutput dataOutput) throws IOException {
-            dataOutput.writeUTF(serDe.getClass().getCanonicalName());
-            message.write(dataOutput);
-        }
-
-        @Override
-        public void readFields(DataInput dataInput) throws IOException {
-            serDe = SerDeFactory.create(dataInput.readUTF());
-            message.readFields(dataInput);
-        }
+    @Override
+    public void sync() throws IOException {
+        seqFileWriter.sync();
     }
 }

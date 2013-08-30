@@ -19,7 +19,6 @@ package com.netflix.suro.sink;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.sink.localfile.LocalFileSink;
 import com.netflix.suro.sink.remotefile.S3FileSink;
 
@@ -29,7 +28,7 @@ import com.netflix.suro.sink.remotefile.S3FileSink;
         @JsonSubTypes.Type(name = S3FileSink.TYPE, value = S3FileSink.class)
 })
 public interface Sink {
-    void writeTo(Message message, SerDe serde);
+    void writeTo(Message message);
 
     void open();
     void close();

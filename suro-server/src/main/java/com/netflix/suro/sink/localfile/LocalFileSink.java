@@ -27,11 +27,12 @@ import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.nofify.Notify;
 import com.netflix.suro.nofify.QueueNotify;
 import com.netflix.suro.queue.QueueManager;
 import com.netflix.suro.sink.Sink;
+import com.netflix.suro.sink.queue.MemoryQueue4Sink;
+import com.netflix.suro.sink.queue.MessageQueue4Sink;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
@@ -40,9 +41,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class LocalFileSink implements Sink {
+public class LocalFileSink extends Thread implements Sink {
     static Logger log = LoggerFactory.getLogger(LocalFileSink.class);
 
     public static final String TYPE = "LocalFileSink";
@@ -56,6 +59,9 @@ public class LocalFileSink implements Sink {
     private final Period rotationPeriod;
     private final int minPercentFreeDisk;
     private final Notify notify;
+    private final MessageQueue4Sink queue4Sink;
+    private final int batchSize;
+    private final int sleepDelay;
 
     private QueueManager queueManager;
     private SpaceChecker spaceChecker;
@@ -78,6 +84,9 @@ public class LocalFileSink implements Sink {
             @JsonProperty("maxFileSize") long maxFileSize,
             @JsonProperty("rotationPeriod") String rotationPeriod,
             @JsonProperty("minPercentFreeDisk") int minPercentFreeDisk,
+            @JsonProperty("queue4Sink") MessageQueue4Sink queue4Sink,
+            @JsonProperty("batchSize") int batchSize,
+            @JsonProperty("sleepDelayOnIdle") int sleepDelay,
             @JacksonInject("queueManager") QueueManager queueManager,
             @JacksonInject("spaceChecker") SpaceChecker spaceChecker) {
         if (outputDir.endsWith("/") == false) {
@@ -89,6 +98,9 @@ public class LocalFileSink implements Sink {
         this.rotationPeriod = new Period(rotationPeriod == null ? "PT1m" : rotationPeriod);
         this.minPercentFreeDisk = minPercentFreeDisk == 0 ? 50 : minPercentFreeDisk;
         this.notify = notify == null ? new QueueNotify() : notify;
+        this.queue4Sink = queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink;
+        this.batchSize = batchSize == 0 ? 200 : batchSize;
+        this.sleepDelay = sleepDelay == 0 ? 1000 : sleepDelay;
         this.queueManager = queueManager;
         this.spaceChecker = spaceChecker;
 
@@ -104,39 +116,89 @@ public class LocalFileSink implements Sink {
             if (queueManager == null) {
                 queueManager = new QueueManager();
             }
+
+            notify.init();
+
             writer.open(outputDir);
-            rotate();
+            setName(LocalFileSink.class.getSimpleName());
+            start();
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }
 
+    private boolean isRunning;
+    private boolean isStopped;
+
     @Override
-    public void writeTo(Message message, SerDe serde) {
+    public void run() {
+        isRunning = true;
+        List<Message> msgList = new LinkedList<Message>();
+
+        while (isRunning) {
+            try {
+                // Don't rotate if we are not running
+                if (isRunning &&
+                        (writer.getLength() > maxFileSize ||
+                        System.currentTimeMillis() > nextRotation)) {
+                    rotate();
+                }
+                if (queue4Sink.retrieve(batchSize, msgList) == 0) {
+                    Thread.sleep(sleepDelay);
+                } else {
+                    write(msgList);
+                }
+            } catch (Exception e) {
+                log.error("Exception on running: " + e.getMessage(), e);
+            }
+        }
+        log.info("Shutdown request exit loop ..., queue.size at exit time: " + queue4Sink.size());
         try {
-            if (writer.getLength() > maxFileSize ||
-                    System.currentTimeMillis() > nextRotation) {
-                rotate();
+            while (queue4Sink.isEmpty() == false) {
+                if (queue4Sink.retrieve(batchSize, msgList) > 0) {
+                    write(msgList);
+                }
             }
 
-            writer.writeTo(message, serde);
-            DynamicCounter.increment(
-                    MonitorConfig.builder("writtenMessages")
-                            .withTag(TagKey.APP, message.getApp())
-                            .withTag(TagKey.DATA_SOURCE, message.getRoutingKey())
-                            .build());
-            writtenMessages.incrementAndGet();
-            DynamicCounter.increment(
-                    MonitorConfig.builder("writtenBytes")
-                            .withTag(TagKey.APP, message.getApp())
-                            .withTag(TagKey.DATA_SOURCE, message.getRoutingKey())
-                            .build(), message.getPayload().length);
-            writtenBytes.addAndGet(message.getPayload().length);
-
-            messageWrittenInRotation = true;
-        } catch (Throwable e) {
-            throw new RuntimeException(e);
+            log.info("Shutdown request internalClose done ...");
+        } catch (Exception e) {
+            log.error("Exception on terminating: " + e.getMessage(), e);
+        } finally {
+            isStopped = true;
         }
+    }
+
+    private void write(List<Message> msgList) {
+        try {
+            for (Message msg : msgList) {
+                writer.writeTo(msg);
+                DynamicCounter.increment(
+                        MonitorConfig.builder("writtenMessages")
+                                .withTag(TagKey.APP, msg.getApp())
+                                .withTag(TagKey.DATA_SOURCE, msg.getRoutingKey())
+                                .build());
+                writtenMessages.incrementAndGet();
+                DynamicCounter.increment(
+                        MonitorConfig.builder("writtenBytes")
+                                .withTag(TagKey.APP, msg.getApp())
+                                .withTag(TagKey.DATA_SOURCE, msg.getRoutingKey())
+                                .build(), msg.getPayload().length);
+                writtenBytes.addAndGet(msg.getPayload().length);
+
+                messageWrittenInRotation = true;
+            }
+
+            writer.sync();
+            queue4Sink.commit();
+            msgList.clear();
+        } catch (Exception e) {
+            log.error("Exception on write: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void writeTo(Message message) {
+        queue4Sink.put(message);
     }
 
     public static class SpaceChecker {
@@ -187,12 +249,20 @@ public class LocalFileSink implements Sink {
 
     @Override
     public void close() {
+        isRunning = false;
+        log.info("Starting to close");
+        do {
+            try { Thread.sleep(500); } catch (Exception ignored) {};
+        } while (isStopped == false);
+
         try {
             writer.close();
             renameNotify(fileName);
         } catch (IOException e) {
             // ignore exceptions when closing
             log.error("Exception while closing: " + e.getMessage(), e);
+        } finally {
+            log.info("close finished");
         }
     }
 
@@ -210,7 +280,10 @@ public class LocalFileSink implements Sink {
                 notify.send(doneFile);
             } else {
                 // delete it
-                deleteFile(filePath);
+                LocalFileSink.deleteFile(filePath);
+                File f = new File(filePath);
+                String crcName = "." + f.getName() + ".crc";
+                LocalFileSink.deleteFile(f.getParent() + "/" + crcName);
             }
         }
     }

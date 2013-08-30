@@ -17,6 +17,8 @@
 package com.netflix.suro.connection;
 
 import com.google.inject.Inject;
+import com.netflix.client.config.DefaultClientConfigImpl;
+import com.netflix.client.config.IClientConfig;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.loadbalancer.BaseLoadBalancer;
 import com.netflix.loadbalancer.Server;
@@ -27,6 +29,7 @@ import java.util.List;
 
 @LazySingleton
 public class StaticLoadBalancer extends BaseLoadBalancer {
+
     @Inject
     public StaticLoadBalancer(ClientConfig config) {
         List<Server> serverList = new ArrayList<Server>();
@@ -38,6 +41,9 @@ public class StaticLoadBalancer extends BaseLoadBalancer {
             throw new IllegalArgumentException("empty server list");
         }
 
+        IClientConfig loadBalancerConfig = new DefaultClientConfigImpl();
+        loadBalancerConfig.loadProperties("suroClient");
+        super.initWithNiwsConfig(loadBalancerConfig);
         addServers(serverList);
     }
 }

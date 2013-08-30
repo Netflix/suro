@@ -16,6 +16,8 @@
 
 package com.netflix.suro.message;
 
+import com.netflix.suro.message.serde.SerDe;
+import com.netflix.suro.message.serde.SerDeFactory;
 import org.apache.hadoop.io.Writable;
 
 import java.io.DataInput;
@@ -28,13 +30,16 @@ public class Message implements Writable {
     private String routingKey;
     private String app;
     private String hostname;
+    private SerDe serde;
     private byte[] payload;
 
+    public Message() {}
     // constructor for MessageSetBuilder
     public Message(String routingKey, byte[] payload) {
         this.routingKey = routingKey;
         this.app = null;
         this.hostname = null;
+        this.serde = null;
         this.payload = payload;
     }
 
@@ -42,10 +47,12 @@ public class Message implements Writable {
     public Message(String routingKey,
                    String app,
                    String hostname,
+                   SerDe serde,
                    byte[] payload) {
         this.routingKey = routingKey;
         this.app = app;
         this.hostname = hostname;
+        this.serde = serde;
         this.payload = payload;
     }
 
@@ -82,6 +89,10 @@ public class Message implements Writable {
 
     public String getApp() {
         return app;
+    }
+
+    public SerDe getSerDe() {
+        return serde;
     }
 
     public byte[] getPayload() {
@@ -121,6 +132,7 @@ public class Message implements Writable {
         dataOutput.writeUTF(hostname);
         dataOutput.writeUTF(app);
         dataOutput.writeUTF(routingKey);
+        dataOutput.writeUTF(serde.getClass().getName());
         dataOutput.writeInt(payload.length);
         dataOutput.write(payload);
     }
@@ -130,6 +142,7 @@ public class Message implements Writable {
         hostname = dataInput.readUTF();
         app = dataInput.readUTF();
         routingKey = dataInput.readUTF();
+        serde = SerDeFactory.create(dataInput.readUTF());
         payload = new byte[dataInput.readInt()];
         dataInput.readFully(payload);
     }

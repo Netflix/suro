@@ -16,6 +16,7 @@
 
 package com.netflix.suro.sink.localfile;
 
+import com.netflix.suro.message.Message;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -41,6 +42,7 @@ public class FileWriterBase {
 
         try {
             fs = FileSystem.getLocal(conf);
+            fs.setVerifyChecksum(false);
             if (codecClass != null) {
                 codec = createCodecInstance(codecClass);
                 log.info("Codec:" + codec.getDefaultExtension());
@@ -80,12 +82,12 @@ public class FileWriterBase {
         if (codec != null) {
             return SequenceFile.createWriter(
                     fs, conf, new Path(newPath),
-                    Text.class, SequenceFileWriter.MessageWritable.class,
+                    Text.class, Message.class,
                     SequenceFile.CompressionType.BLOCK, codec);
         } else {
             return SequenceFile.createWriter(
                     fs, conf, new Path(newPath),
-                    Text.class, SequenceFileWriter.MessageWritable.class,
+                    Text.class, Message.class,
                     SequenceFile.CompressionType.NONE, codec);
         }
     }

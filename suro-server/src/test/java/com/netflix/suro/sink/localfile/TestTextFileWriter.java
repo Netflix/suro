@@ -58,8 +58,7 @@ public class TestTextFileWriter {
         writer.rotate(dir + "testfile0.suro");
         for (int i = 0; i < 10; ++i) {
             writer.writeTo(
-                    new Message("routingKey", ("message0" + i).getBytes()),
-                    new StringSerDe());
+                    new Message("routingKey", "app", "hostname", new StringSerDe(), ("message0" + i).getBytes()));
         }
         System.out.println("length: " + writer.getLength());
         assertEquals(writer.getLength(), 100);
@@ -74,8 +73,7 @@ public class TestTextFileWriter {
 
         for (int i = 0; i < 10; ++i) {
             writer.writeTo(
-                    new Message("routingKey", ("message1" + i).getBytes()),
-                    new StringSerDe());
+                    new Message("routingKey", "app", "hostname", new StringSerDe(), ("message1" + i).getBytes()));
         }
         writer.close();
         assertEquals(checkFileContents(dir + "testfile1.suro", "message1"), 10);
@@ -95,8 +93,7 @@ public class TestTextFileWriter {
         writer.rotate(dir + "testfile0.suro");
         for (int i = 0; i < 100000; ++i) {
             writer.writeTo(
-                    new Message("routingKey", ("message0" + i).getBytes()),
-                    new StringSerDe());
+                    new Message("routingKey", "app", "hostname", new StringSerDe(), ("message0" + i).getBytes()));
         }
         System.out.println("length: " + writer.getLength());
         assertEquals(writer.getLength(), 232456); // compressed one
@@ -111,8 +108,7 @@ public class TestTextFileWriter {
 
         for (int i = 0; i < 100000; ++i) {
             writer.writeTo(
-                    new Message("routingKey", ("message1" + i).getBytes()),
-                    new StringSerDe());
+                    new Message("routingKey", "app", "hostname", new StringSerDe(), ("message1" + i).getBytes()));
         }
         writer.close();
         assertEquals(checkFileContentsWithGzip(dir + "testfile1.suro", "message1"), 100000);

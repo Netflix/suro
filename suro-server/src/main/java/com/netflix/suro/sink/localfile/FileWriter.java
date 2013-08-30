@@ -19,7 +19,6 @@ package com.netflix.suro.sink.localfile;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.SerDe;
 
 import java.io.IOException;
 
@@ -31,7 +30,8 @@ import java.io.IOException;
 public interface FileWriter {
     void open(String outputDir) throws IOException;
     long getLength() throws IOException;
-    void writeTo(Message message, SerDe serde) throws IOException;
+    void writeTo(Message message) throws IOException;
+    void sync() throws IOException;
     void rotate(String newPath) throws IOException;
 
     void close() throws IOException;

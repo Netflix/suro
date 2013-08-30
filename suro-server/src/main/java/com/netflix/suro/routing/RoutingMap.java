@@ -55,8 +55,8 @@ public class RoutingMap {
 
         public List<String> getWhere() { return where; }
         public Converter getConverter() { return converter; }
-        public boolean doFilter(Message message, SerDe serde) {
-            return filter != null ? filter.doFilter(message, serde) : true;
+        public boolean doFilter(Message message) {
+            return filter != null ? filter.doFilter(message) : true;
         }
     }
 

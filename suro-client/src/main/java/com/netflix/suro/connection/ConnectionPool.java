@@ -36,6 +36,7 @@ import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TFramedTransport;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
+import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -162,16 +163,22 @@ public class ConnectionPool {
 
         for (int i = 0; i < config.getRetryCount() && connection == null; ++i) {
             Server server = lb.chooseServer(null);
-            connection = new SuroConnection(server, config, false);
-            try {
-                connection.connect();
-                outPoolSize.incrementAndGet();
-                logger.info(connection + " is created out of the pool");
-                break;
-            } catch (Exception e) {
-                logger.error("Error in connecting to " + connection + " message: " + e.getMessage(), e);
-                lb.markServerDown(server);
+            if (server != null) {
+                connection = new SuroConnection(server, config, false);
+                try {
+                    connection.connect();
+                    outPoolSize.incrementAndGet();
+                    logger.info(connection + " is created out of the pool");
+                    break;
+                } catch (Exception e) {
+                    logger.error("Error in connecting to " + connection + " message: " + e.getMessage(), e);
+                    lb.markServerDown(server);
+                }
             }
+        }
+
+        if (connection == null) {
+            logger.error("No valid connection exists after " + config.getRetryCount() + " retries");
         }
 
         return connection;
@@ -294,7 +301,12 @@ public class ConnectionPool {
         }
 
         public void disconnect() {
-            transport.close();
+            try {
+                transport.flush();
+                transport.close();
+            } catch (TTransportException e) {
+                // ignore on closing
+            }
         }
 
         public Result send(TMessageSet messageSet) throws TException {

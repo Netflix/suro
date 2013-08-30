@@ -102,6 +102,7 @@ public class TestSuroServer {
             --count;
         }
 
+        client.shutdown();
         server.shutdown();
     }
 

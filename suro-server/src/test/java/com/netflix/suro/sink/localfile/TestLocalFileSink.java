@@ -25,7 +25,6 @@ import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetReader;
-import com.netflix.suro.message.serde.StringSerDe;
 import com.netflix.suro.queue.MessageQueue;
 import com.netflix.suro.queue.QueueManager;
 import com.netflix.suro.sink.Sink;
@@ -76,12 +75,12 @@ public class TestLocalFileSink {
         assertNull(sink.recvNotify());
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
-            sink.writeTo(m, new StringSerDe());
+            sink.writeTo(m);
         }
 
-        System.out.println(sink.getStat());
-
         sink.close();
+
+        System.out.println(sink.getStat());
 
         int count = 0;
         File dir = new File(TestTextFileWriter.dir);
@@ -133,7 +132,7 @@ public class TestLocalFileSink {
         assertNull(sink.recvNotify());
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100))) {
-            sink.writeTo(m, new StringSerDe());
+            sink.writeTo(m);
             Thread.sleep(100);
         }
 
@@ -201,6 +200,9 @@ public class TestLocalFileSink {
 
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
+
+        Thread.sleep(1000); // wait until thread starts
+
         assertEquals(queue.getStatus(), ServiceStatus.WARNING);
         assertEquals(queueManager.getStatus(), QueueManager.IN_ERROR);
         assertNull(sink.recvNotify());
@@ -208,7 +210,7 @@ public class TestLocalFileSink {
         when(spaceChecker.hasEnoughSpace()).thenReturn(true);
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
-            sink.writeTo(m, new StringSerDe());
+            sink.writeTo(m);
         }
 
         sink.close();
@@ -219,7 +221,6 @@ public class TestLocalFileSink {
         for (File file : files) {
             assertTrue(file.getName().contains(".done"));
             if (file.getName().contains("crc") == false) {
-                assertTrue(file.length() < 12000);
                 BufferedReader br = new BufferedReader(new FileReader(file));
                 String line = null;
                 while ((line = br.readLine()) != null) {
@@ -243,6 +244,7 @@ public class TestLocalFileSink {
                 "    \"maxFileSize\": 10240,\n" +
                 "    \"minPercentFreeDisk\": 50,\n" +
                 "    \"rotationPeriod\": \"PT1m\",\n" +
+                "    \"batchSize\": 1,\n" +
                 "    \"notify\": {\n" +
                 "        \"type\": \"queue\"\n" +
                 "    }\n" +
@@ -265,18 +267,22 @@ public class TestLocalFileSink {
         assertNull(sink.recvNotify());
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
-            sink.writeTo(m, new StringSerDe());
+            sink.writeTo(m);
         }
 
         sink.close();
 
         int count = 0;
+        int errorCount = 0;
         File dir = new File(TestTextFileWriter.dir);
         File[] files = dir.listFiles();
         for (File file : files) {
             assertTrue(file.getName().contains(".done"));
             if (file.getName().contains("crc") == false) {
-                assertTrue(file.length() < 12000);
+                if (file.length() > 12000) {
+                    ++errorCount;
+                    // last file can be bigger due to flushing
+                }
                 BufferedReader br = new BufferedReader(new FileReader(file));
                 String line = null;
                 while ((line = br.readLine()) != null) {
@@ -287,6 +293,7 @@ public class TestLocalFileSink {
             }
         }
         assertEquals(count, 100000);
+        assertTrue(errorCount <= 1);
     }
 
     @Test
@@ -321,7 +328,7 @@ public class TestLocalFileSink {
         assertNull(sink.recvNotify());
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100))) {
-            sink.writeTo(m, new StringSerDe());
+            sink.writeTo(m);
             Thread.sleep(100);
         }
 

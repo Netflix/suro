@@ -26,5 +26,5 @@ import com.netflix.suro.message.serde.SerDe;
         @JsonSubTypes.Type(name = "regex", value = RegexFilter.class)
 })
 public interface Filter {
-    public boolean doFilter(Message msg, SerDe serde);
+    public boolean doFilter(Message msg);
 }

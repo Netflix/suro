@@ -25,7 +25,6 @@ import com.google.common.base.Preconditions;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.nofify.Notify;
 import com.netflix.suro.nofify.QueueNotify;
 import com.netflix.suro.sink.Sink;
@@ -105,8 +104,8 @@ public class S3FileSink implements Sink {
     }
 
     @Override
-    public void writeTo(Message message, SerDe serde) {
-        localFileSink.writeTo(message, serde);
+    public void writeTo(Message message) {
+        localFileSink.writeTo(message);
     }
 
     private boolean running = false;
@@ -132,6 +131,8 @@ public class S3FileSink implements Sink {
         } catch (S3ServiceException e) {
             throw new RuntimeException(e);
         }
+
+        notify.init();
 
         running = true;
 
