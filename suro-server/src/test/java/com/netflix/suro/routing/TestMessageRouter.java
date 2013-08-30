@@ -30,7 +30,6 @@ import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetBuilder;
-import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.queue.MessageQueue;
 import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.sink.Sink;
@@ -60,14 +59,14 @@ public class TestMessageRouter {
         }
 
         @Override
-        public void writeTo(Message message, SerDe serde) {
+        public void writeTo(Message message) {
             Integer count = messageCount.get(this.message);
             if (count == null) {
                 messageCount.put(this.message, 1);
             } else {
                 messageCount.put(this.message, count + 1);
             }
-            messageList.add(serde.toString(message.getPayload()));
+            messageList.add(message.getSerDe().toString(message.getPayload()));
         }
 
         @Override

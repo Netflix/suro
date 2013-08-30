@@ -69,7 +69,7 @@ public class MessageSetReader implements Iterable<Message> {
                     byte[] payloadBytes = new byte[buffer.getInt()];
                     buffer.get(payloadBytes);
 
-                    return new Message(routingKey, getApp(), getHostname(), payloadBytes);
+                    return new Message(routingKey, getApp(), getHostname(), getSerDe(), payloadBytes);
                 }
 
                 @Override

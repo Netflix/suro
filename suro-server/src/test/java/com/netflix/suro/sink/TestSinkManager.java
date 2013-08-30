@@ -26,7 +26,6 @@ import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.SerDe;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -44,7 +43,7 @@ public class TestSinkManager {
         }
 
         @Override
-        public void writeTo(Message message, SerDe serde) {}
+        public void writeTo(Message message) {}
 
         @Override
         public void open() {

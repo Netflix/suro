@@ -92,6 +92,7 @@ public class TestLog4jAppender {
         map.put("one", "1");
         map.put("two", "2");
         map.put("three", "3");
+        map.put("routingKey", "routingKey");
 
         return map;
     }

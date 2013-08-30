@@ -16,14 +16,11 @@
 
 package com.netflix.suro.routing;
 
-import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetReader;
-import com.netflix.suro.message.serde.SerDe;
-import com.netflix.suro.message.serde.SerDeFactory;
 import com.netflix.suro.queue.MessageQueue;
 import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.sink.SinkManager;
@@ -32,7 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -46,8 +42,6 @@ public class MessageRouter {
     private final SinkManager sinkManager;
     private final ServerConfig config;
     private final ExecutorService executors;
-
-    private final Map<Byte, SerDe> serDeMap = Maps.newHashMap();
 
     private boolean isRunning;
 
@@ -119,14 +113,13 @@ public class MessageRouter {
 
         for (Message message : reader) {
             RoutingMap.RoutingInfo info = routingMap.getRoutingInfo(message.getRoutingKey());
-            SerDe serde = SerDeFactory.create(tMessageSet.getSerde());
 
             if (info == null) {
-                sinkManager.getSink("default").writeTo(message, serde);
-            } else if (info != null && info.doFilter(message, serde)) {
+                sinkManager.getSink("default").writeTo(message);
+            } else if (info != null && info.doFilter(message)) {
                 List<String> sinkList = info.getWhere();
                 for (String sink : sinkList) {
-                    sinkManager.getSink(sink).writeTo(message, serde);
+                    sinkManager.getSink(sink).writeTo(message);
                 }
             }
         }
