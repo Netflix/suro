@@ -16,6 +16,7 @@
 
 package com.netflix.suro.client.async;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
@@ -23,6 +24,7 @@ import com.netflix.servo.monitor.DynamicCounter;
 import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.ClientConfig;
+import com.netflix.suro.FileBlockingQueue;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.client.ISuroClient;
 import com.netflix.suro.client.SyncSuroClient;
@@ -73,7 +75,8 @@ public class AsyncSuroClient implements ISuroClient {
         return retriedCount.get();
     }
 
-    private ExecutorService poller = Executors.newSingleThreadExecutor();
+    private ExecutorService poller = Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder().setNameFormat("AsyncSuroClientPoller-%d").build());
 
     @Inject
     public AsyncSuroClient(
@@ -82,6 +85,7 @@ public class AsyncSuroClient implements ISuroClient {
             ConnectionPool connectionPool) {
         this.config = config;
         this.messageQueue = messageQueue;
+
         this.connectionPool = connectionPool;
         this.builder = new MessageSetBuilder()
                 .withApp(config.getApp())

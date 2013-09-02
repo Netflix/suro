@@ -31,7 +31,8 @@ public class FileQueue4Sink implements MessageQueue4Sink {
                 path,
                 name,
                 new Period(gcPeriod == null ? "PT1h" : gcPeriod).toStandardSeconds().getSeconds(),
-                new MessageSerDe());
+                new MessageSerDe(),
+                false);
     }
 
     @Override

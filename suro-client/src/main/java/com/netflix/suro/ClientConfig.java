@@ -139,6 +139,13 @@ public class ClientConfig {
         return asyncFileQueuePath;
     }
 
+    public static final String ASYNC_FILEQUEUE_AUTOCOMMIT = "SuroClient.asyncFileQueueAutoCommit";
+    @Configuration(ASYNC_FILEQUEUE_AUTOCOMMIT)
+    private boolean asyncFileQueueAutoCommit = true;
+    public boolean getAsyncFilequeueAutoCommit() {
+        return asyncFileQueueAutoCommit;
+    }
+
     public static final String LB_TYPE = "SuroClient.loadBalancerType";
     @Configuration(LB_TYPE)
     private String loadBalancerType;

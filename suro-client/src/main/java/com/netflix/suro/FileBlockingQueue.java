@@ -65,13 +65,15 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
 
     private final SerDe<E> serDe;
     private long consumedIndex;
+    private final boolean autoCommit;
 
     @Inject
     public FileBlockingQueue(ClientConfig config, SerDe<E> serDe) throws IOException {
-        this(config.getAsyncFileQueuePath(), "suroClient", config.getAsyncFileQueueGCInterval(), serDe);
+        this(config.getAsyncFileQueuePath(), "suroClient", config.getAsyncFileQueueGCInterval(), serDe,
+                config.getAsyncFilequeueAutoCommit());
     }
 
-    public FileBlockingQueue(String path, String name, int gcPeriodInSec, SerDe<E> serDe) throws IOException {
+    public FileBlockingQueue(String path, String name, int gcPeriodInSec, SerDe<E> serDe, boolean autoCommit) throws IOException {
         innerArray = new BigArrayImpl(path, name);
         // the ttl does not matter here since queue front index page is always cached
         this.queueFrontIndexPageFactory = new MappedPageFactoryImpl(QUEUE_FRONT_INDEX_PAGE_SIZE,
@@ -97,6 +99,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
         }, gcPeriodInSec, gcPeriodInSec, TimeUnit.SECONDS);
 
         this.serDe = serDe;
+        this.autoCommit = autoCommit;
     }
 
     private void gc() throws IOException {
@@ -108,15 +111,15 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
         }
         try {
             this.innerArray.removeBeforeIndex(beforeIndex);
-        } catch (IndexOutOfBoundsException ex) {
-            // ignore
+        } catch (IndexOutOfBoundsException e) {
+            log.error("Exception on gc: " + e.getMessage(), e);
         }
     }
 
     public void commit() {
         try {
             lock.lock();
-            commitInternal();
+            commitInternal(true);
         } catch (IOException e) {
             log.error("IOException on commit: " + e.getMessage(), e);
         } finally {
@@ -124,7 +127,9 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
         }
     }
 
-    private void commitInternal() throws IOException {
+    private void commitInternal(boolean doCommit) throws IOException {
+        if (doCommit == false) return;
+
         this.queueFrontIndex.set(consumedIndex);
         // persist the queue front
         IMappedPage queueFrontIndexPage = null;
@@ -162,7 +167,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
                     notEmpty.signal();
                 }
             }
-            commitInternal();
+            commitInternal(autoCommit);
         } catch (IOException e) {
             log.error("IOException while poll: " + e.getMessage(), e);
             return null;
@@ -220,7 +225,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
                 notEmpty.await();
             }
             x = consumeElement();
-            commitInternal();
+            commitInternal(autoCommit);
 
             if (isEmpty() == false) {
                 notEmpty.signal();
@@ -253,6 +258,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
                 nanos = notEmpty.awaitNanos(nanos);
             }
             x = consumeElement();
+            commitInternal(autoCommit);
 
             if (isEmpty() == false) {
                 notEmpty.signal();
@@ -285,9 +291,8 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
             throw new IllegalArgumentException();
 
         lock.lock();
-        long queueFrontIndex = this.queueFrontIndex.get();
         // restore consumedIndex if not committed
-        consumedIndex = queueFrontIndex;
+        consumedIndex = this.queueFrontIndex.get();
         try {
             int n = Math.min(maxElements, size());
             // count.get provides visibility to first n Nodes
@@ -297,6 +302,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
                 ++consumedIndex;
                 ++i;
             }
+            commitInternal(autoCommit);
             return n;
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -318,7 +324,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
             public E next() {
                 try {
                     E x = consumeElement();
-                    commitInternal();
+                    commitInternal(autoCommit);
                     return x;
                 } catch (IOException e) {
                     throw new RuntimeException(e);
