@@ -263,7 +263,11 @@ public class LocalFileSink extends Thread implements Sink {
         isRunning = false;
         log.info("Starting to close");
         do {
-            try { Thread.sleep(500); } catch (Exception ignored) {};
+            try {
+                Thread.sleep(500);
+            } catch (Exception ignored) {
+                log.error("ignoring an exception on close");
+            }
         } while (isStopped == false);
 
         try {

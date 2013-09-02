@@ -158,7 +158,11 @@ public class KafkaSink extends Thread implements Sink {
         isRunning = false;
         log.info("Starting to close");
         do {
-            try { Thread.sleep(500); } catch (Exception ignored) {};
+            try {
+                Thread.sleep(500);
+            } catch (Exception ignored) {
+                log.error("ignore an exception on close");
+            }
         } while (isStopped == false);
 
         queue4Sink.close();
