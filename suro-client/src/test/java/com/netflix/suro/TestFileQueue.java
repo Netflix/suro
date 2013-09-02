@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.client.async;
+package com.netflix.suro;
 
 import com.google.inject.Injector;
 import com.google.inject.Key;
@@ -24,7 +24,6 @@ import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
-import com.netflix.suro.ClientConfig;
 import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.message.serde.StringSerDe;
 import org.apache.commons.io.FileUtils;

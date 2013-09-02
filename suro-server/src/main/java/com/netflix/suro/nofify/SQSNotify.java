@@ -19,7 +19,10 @@ package com.netflix.suro.nofify;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.sqs.AmazonSQSClient;
-import com.amazonaws.services.sqs.model.*;
+import com.amazonaws.services.sqs.model.GetQueueUrlRequest;
+import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
+import com.amazonaws.services.sqs.model.ReceiveMessageResult;
+import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -30,17 +33,17 @@ import com.netflix.suro.TagKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class SQSNotify implements Notify {
+public class SQSNotify implements Notify<String> {
     static Logger log = LoggerFactory.getLogger(SQSNotify.class);
 
     public static final String TYPE = "sqs";
 
     private final List<String> queues;
-    private final List<String> queueUrls = new LinkedList<String>();
+    private final List<String> queueUrls = new ArrayList<String>();
 
     private AmazonSQSClient sqsClient;
     private final AWSCredentialsProvider credentialsProvider;

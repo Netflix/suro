@@ -27,7 +27,7 @@ import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.client.async.AsyncSuroClient;
-import com.netflix.suro.client.async.FileBlockingQueue;
+import com.netflix.suro.FileBlockingQueue;
 import com.netflix.suro.connection.ConnectionPool;
 import com.netflix.suro.connection.EurekaLoadBalancer;
 import com.netflix.suro.connection.StaticLoadBalancer;

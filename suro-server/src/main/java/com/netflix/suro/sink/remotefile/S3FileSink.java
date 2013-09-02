@@ -62,7 +62,7 @@ public class S3FileSink implements Sink {
     private final String s3Endpoint;
     private final long maxPartSize;
 
-    private final Notify notify;
+    private final Notify<String> notify;
     private final RemotePrefixFormatter prefixFormatter;
 
     private MultipartUtils mpUtils;
@@ -88,7 +88,7 @@ public class S3FileSink implements Sink {
         this.bucket = bucket;
         this.s3Endpoint = s3Endpoint == null ? "s3.amazonaws.com" : s3Endpoint;
         this.maxPartSize = maxPartSize == 0 ? 20 * 1024 * 1024 : maxPartSize;
-        this.notify = notify == null ? new QueueNotify() : notify;
+        this.notify = notify == null ? new QueueNotify<String>() : notify;
         this.prefixFormatter = prefixFormatter == null ? new SimpleDateFormatter("'P'yyyyMMdd'T'HHmmss") : prefixFormatter;
         this.mpUtils = mpUtils;
         this.credentialsProvider = credentialProvider;

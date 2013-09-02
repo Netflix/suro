@@ -32,11 +32,10 @@ import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
-import com.netflix.suro.client.async.FileBlockingQueue;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.serde.SerDe;
+import com.netflix.suro.queue.MessageQueue;
 import com.netflix.suro.queue.MessageSetSerDe;
-import com.netflix.suro.routing.MessageRouter;
 import com.netflix.suro.routing.RoutingMap;
 import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.server.StatusServer;
@@ -112,7 +111,7 @@ public class SuroServer {
         try {
             injector.getInstance(SinkManager.class).build(sinkDesc);
             injector.getInstance(RoutingMap.class).build(mapDesc);
-            injector.getInstance(MessageRouter.class).start();
+            injector.getInstance(MessageQueue.class).start();
             server.start();
             statusServer.start(injector);
         } catch (Exception e) {
@@ -132,7 +131,7 @@ public class SuroServer {
         try {
             server.shutdown();
             statusServer.shutdown();
-            injector.getInstance(MessageRouter.class).shutdown();
+            injector.getInstance(MessageQueue.class).shutdown();
             injector.getInstance(SinkManager.class).shutdown();
             injector.getInstance(LifecycleManager.class).close();
 

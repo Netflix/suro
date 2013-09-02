@@ -14,67 +14,136 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.client.async;
+package com.netflix.suro;
 
 import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
-import com.leansoft.bigqueue.BigQueueImpl;
-import com.leansoft.bigqueue.IBigQueue;
-import com.netflix.governator.guice.lazy.LazySingleton;
-import com.netflix.suro.ClientConfig;
+import com.leansoft.bigqueue.BigArrayImpl;
+import com.leansoft.bigqueue.IBigArray;
+import com.leansoft.bigqueue.page.IMappedPage;
+import com.leansoft.bigqueue.page.IMappedPageFactory;
+import com.leansoft.bigqueue.page.MappedPageFactoryImpl;
 import com.netflix.suro.message.serde.SerDe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.PreDestroy;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.AbstractQueue;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-@LazySingleton
 public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E> {
     static Logger log = LoggerFactory.getLogger(FileBlockingQueue.class);
 
     private final Lock lock = new ReentrantLock();
     private final Condition notEmpty = lock.newCondition();
 
-    private final IBigQueue queue;
+    final IBigArray innerArray;
+    // 2 ^ 3 = 8
+    final static int QUEUE_FRONT_INDEX_ITEM_LENGTH_BITS = 3;
+    // size in bytes of queue front index page
+    final static int QUEUE_FRONT_INDEX_PAGE_SIZE = 1 << QUEUE_FRONT_INDEX_ITEM_LENGTH_BITS;
+    // only use the first page
+    static final long QUEUE_FRONT_PAGE_INDEX = 0;
+
+    // folder name for queue front index page
+    final static String QUEUE_FRONT_INDEX_PAGE_FOLDER = "front_index";
+
+    // front index of the big queue,
+    final AtomicLong queueFrontIndex = new AtomicLong();
+
+    // factory for queue front index page management(acquire, release, cache)
+    IMappedPageFactory queueFrontIndexPageFactory;
+
     private final SerDe<E> serDe;
+    private long consumedIndex;
 
     @Inject
-    public FileBlockingQueue(ClientConfig config, SerDe<E> serDe) {
-        try {
-            queue = new BigQueueImpl(config.getAsyncFileQueuePath(), "suroClient");
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        this.serDe = serDe;
+    public FileBlockingQueue(ClientConfig config, SerDe<E> serDe) throws IOException {
+        this(config.getAsyncFileQueuePath(), "suroClient", config.getAsyncFileQueueGCInterval(), serDe);
+    }
+
+    public FileBlockingQueue(String path, String name, int gcPeriodInSec, SerDe<E> serDe) throws IOException {
+        innerArray = new BigArrayImpl(path, name);
+        // the ttl does not matter here since queue front index page is always cached
+        this.queueFrontIndexPageFactory = new MappedPageFactoryImpl(QUEUE_FRONT_INDEX_PAGE_SIZE,
+                ((BigArrayImpl)innerArray).getArrayDirectory() + QUEUE_FRONT_INDEX_PAGE_FOLDER,
+                10 * 1000/*does not matter*/);
+        IMappedPage queueFrontIndexPage = this.queueFrontIndexPageFactory.acquirePage(QUEUE_FRONT_PAGE_INDEX);
+
+        ByteBuffer queueFrontIndexBuffer = queueFrontIndexPage.getLocal(0);
+        long front = queueFrontIndexBuffer.getLong();
+        queueFrontIndex.set(front);
+
+        consumedIndex = front;
 
         Executors.newScheduledThreadPool(1).scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
                 try {
-                    queue.gc();
+                    gc();
                 } catch (IOException e) {
-                    log.error("IOException while FileBlockingQueue.gc: " + e.getMessage(), e);
+                    log.error("IOException while gc: " + e.getMessage(), e);
                 }
             }
-        }, config.getAsyncFileQueueGCInterval(), config.getAsyncFileQueueGCInterval(), TimeUnit.SECONDS);
+        }, gcPeriodInSec, gcPeriodInSec, TimeUnit.SECONDS);
+
+        this.serDe = serDe;
     }
 
-    @PreDestroy
-    public void gc() {
+    private void gc() throws IOException {
+        long beforeIndex = this.queueFrontIndex.get();
+        if (beforeIndex == 0L) { // wrap
+            beforeIndex = Long.MAX_VALUE;
+        } else {
+            beforeIndex--;
+        }
         try {
-            queue.gc();
+            this.innerArray.removeBeforeIndex(beforeIndex);
+        } catch (IndexOutOfBoundsException ex) {
+            // ignore
+        }
+    }
+
+    public void commit() {
+        try {
+            lock.lock();
+            commitInternal();
         } catch (IOException e) {
-            log.error("Exception while gc: " + e.getMessage(), e);
+            log.error("IOException on commit: " + e.getMessage(), e);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private void commitInternal() throws IOException {
+        this.queueFrontIndex.set(consumedIndex);
+        // persist the queue front
+        IMappedPage queueFrontIndexPage = null;
+        queueFrontIndexPage = this.queueFrontIndexPageFactory.acquirePage(QUEUE_FRONT_PAGE_INDEX);
+        ByteBuffer queueFrontIndexBuffer = queueFrontIndexPage.getLocal(0);
+        queueFrontIndexBuffer.putLong(consumedIndex);
+        queueFrontIndexPage.setDirty(true);
+    }
+
+    public void close() {
+        try {
+            gc();
+            if (this.queueFrontIndexPageFactory != null) {
+                this.queueFrontIndexPageFactory.releaseCachedPages();
+            }
+
+            this.innerArray.close();
+        } catch(IOException e) {
+            log.error("IOException while closing: " + e.getMessage(), e);
         }
     }
 
@@ -88,13 +157,15 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
         lock.lock();
         try {
             if (isEmpty() == false) {
-                x = serDe.deserialize(queue.dequeue());
+                x = consumeElement();
                 if (isEmpty() == false) {
                     notEmpty.signal();
                 }
             }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            commitInternal();
+        } catch (IOException e) {
+            log.error("IOException while poll: " + e.getMessage(), e);
+            return null;
         } finally {
             lock.unlock();
         }
@@ -109,9 +180,10 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
         }
         lock.lock();
         try {
-            return serDe.deserialize(queue.peek());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            return consumeElement();
+        } catch (IOException e) {
+            log.error("IOException while peek: " + e.getMessage(), e);
+            return null;
         } finally {
             lock.unlock();
         }
@@ -121,7 +193,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
     public boolean offer(E e) {
         Preconditions.checkNotNull(e);
         try {
-            queue.enqueue(serDe.serialize(e));
+            innerArray.append(serDe.serialize(e));
             signalNotEmpty();
             return true;
         } catch (IOException ex) {
@@ -147,12 +219,15 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
             while (isEmpty()) {
                 notEmpty.await();
             }
-            x = serDe.deserialize(queue.dequeue());
+            x = consumeElement();
+            commitInternal();
+
             if (isEmpty() == false) {
                 notEmpty.signal();
             }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (IOException e) {
+            log.error("IOException on take: " + e.getMessage(), e);
+            return null;
         } finally {
             lock.unlock();
         }
@@ -160,10 +235,15 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
         return x;
     }
 
+    private E consumeElement() throws IOException {
+        // restore consumedIndex if not committed
+        consumedIndex = this.queueFrontIndex.get();
+        return serDe.deserialize(innerArray.get(consumedIndex++));
+    }
+
     @Override
     public E poll(long timeout, TimeUnit unit) throws InterruptedException {
         E x = null;
-        int c = -1;
         long nanos = unit.toNanos(timeout);
         lock.lockInterruptibly();
         try {
@@ -172,12 +252,14 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
                     return null;
                 nanos = notEmpty.awaitNanos(nanos);
             }
-            x = serDe.deserialize(queue.dequeue());
+            x = consumeElement();
+
             if (isEmpty() == false) {
                 notEmpty.signal();
             }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (IOException e) {
+            log.error("IOException on poll: " + e.getMessage(), e);
+            return null;
         } finally {
             lock.unlock();
         }
@@ -203,12 +285,16 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
             throw new IllegalArgumentException();
 
         lock.lock();
+        long queueFrontIndex = this.queueFrontIndex.get();
+        // restore consumedIndex if not committed
+        consumedIndex = queueFrontIndex;
         try {
             int n = Math.min(maxElements, size());
             // count.get provides visibility to first n Nodes
             int i = 0;
-            while (i < n) {
-                c.add(serDe.deserialize(queue.dequeue()));
+            while (i < n && consumedIndex < innerArray.getHeadIndex()) {
+                c.add(serDe.deserialize(innerArray.get(consumedIndex)));
+                ++consumedIndex;
                 ++i;
             }
             return n;
@@ -225,14 +311,16 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
 
             @Override
             public boolean hasNext() {
-                return queue.isEmpty() == false;
+                return isEmpty() == false;
             }
 
             @Override
             public E next() {
                 try {
-                    return serDe.deserialize(queue.dequeue());
-                } catch (Exception e) {
+                    E x = consumeElement();
+                    commitInternal();
+                    return x;
+                } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             }
@@ -246,7 +334,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
 
     @Override
     public int size() {
-        return (int) queue.size();
+        return (int)(innerArray.getHeadIndex() - queueFrontIndex.get());
     }
 
     private void signalNotEmpty() {

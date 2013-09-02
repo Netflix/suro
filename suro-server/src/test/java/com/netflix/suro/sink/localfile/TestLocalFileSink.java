@@ -177,7 +177,7 @@ public class TestLocalFileSink {
 
         ObjectMapper mapper = new DefaultObjectMapper();
         final QueueManager queueManager = new QueueManager();
-        final MessageQueue queue = new MessageQueue(null, queueManager);
+        final MessageQueue queue = new MessageQueue(null, null, queueManager, null);
         queueManager.registerService(queue);
 
         final LocalFileSink.SpaceChecker spaceChecker = mock(LocalFileSink.SpaceChecker.class);
