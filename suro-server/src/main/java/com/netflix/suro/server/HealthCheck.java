@@ -25,6 +25,8 @@ import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TFramedTransport;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -33,6 +35,8 @@ import javax.ws.rs.Produces;
 @Path("/healthcheck")
 @Singleton
 public class HealthCheck {
+    static Logger log = LoggerFactory.getLogger(HealthCheck.class);
+
     private final ServerConfig config;
 
     @Inject
@@ -73,7 +77,7 @@ public class HealthCheck {
                     transport.flush();
                     transport.close();
                 } catch (Exception ex) {
-                    // ignore exception on closing
+                    log.error("ignoring an exception on checkConnection");
                 }
             }
         }
