@@ -158,7 +158,7 @@ public class FileQueueLoadTest {
     }
 
     private void createQueue() throws IOException {
-        bigQueue = new FileBlockingQueue<String>(testDir, "load_test", 1, new StringSerDe());
+        bigQueue = new FileBlockingQueue<String>(testDir, "load_test", 1, new StringSerDe(), true);
     }
 
     public void doRunProduceThenConsume() throws Exception {
