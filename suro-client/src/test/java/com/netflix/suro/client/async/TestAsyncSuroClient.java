@@ -25,6 +25,7 @@ import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.suro.ClientConfig;
+import com.netflix.suro.FileBlockingQueue;
 import com.netflix.suro.SuroServer4Test;
 import com.netflix.suro.connection.StaticLoadBalancer;
 import com.netflix.suro.connection.TestConnectionPool;

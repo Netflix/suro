@@ -10,6 +10,9 @@ buildscript {
 
 allprojects {
     repositories { 
+      maven {
+        url 'https://repository.apache.org/content/groups/public'
+      }
       mavenCentral()
       maven{
         name 'github.release.repo'
@@ -24,9 +27,8 @@ apply from: file('gradle/check.gradle')
 apply from: file('gradle/license.gradle')
 apply from: file('gradle/release.gradle')
 
-
 subprojects {
-    apply plugin: 'java'
+    apply plugin: 'scala'
     apply plugin: 'idea'
     apply plugin: 'project-report'
 
@@ -79,8 +81,12 @@ project(':suro-client') {
 }
 
 project(':suro-server') {
+  sourceSets.main.scala.srcDir "src/main/java"
+  sourceSets.main.java.srcDirs = []
+
   dependencies {
     compile project(':suro-client')
+
     compile 'net.java.dev.jets3t:jets3t:0.9.0'
 
     compile 'org.eclipse.jetty:jetty-servlet:7.6.7.v20120910'
@@ -89,6 +95,19 @@ project(':suro-server') {
     compile 'com.amazonaws:aws-java-sdk:1.4.7'
 
     compile 'commons-cli:commons-cli:1.2'
+    
+    /*
+    compile("org.apache.kafka:kafka_2.8.0:0.8.0-beta1") {
+      exclude module: 'jms'
+      exclude module: 'jmxtools'
+      exclude module: 'jmxri'
+    }
+    */
+    compile 'org.scala-lang:scala-library:2.8.0'
+    compile 'kafka:kafka:0.8.0.2'
+    compile 'com.yammer.metrics:metrics-core:2.2.0'
+    compile 'com.yammer.metrics:metrics-annotation:2.2.0'
+    runtime 'org.xerial.snappy:snappy-java:1.0.4.1'
 
     testCompile project(':suro-client').sourceSets.test.output
   }

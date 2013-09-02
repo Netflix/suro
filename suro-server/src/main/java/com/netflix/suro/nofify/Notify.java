@@ -25,9 +25,9 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(name = NoNotify.TYPE, value = NoNotify.class),
         @JsonSubTypes.Type(name = SQSNotify.TYPE, value = SQSNotify.class)
 })
-public interface Notify {
+public interface Notify<E> {
     void init();
-    boolean send(String message);
-    String recv();
+    boolean send(E message);
+    E recv();
     String getStat();
 }

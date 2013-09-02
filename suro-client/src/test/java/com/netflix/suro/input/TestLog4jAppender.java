@@ -17,7 +17,7 @@
 package com.netflix.suro.input;
 
 import com.netflix.suro.SuroServer4Test;
-import com.netflix.suro.client.async.TestFileQueue;
+import com.netflix.suro.TestFileQueue;
 import com.netflix.suro.connection.TestConnectionPool;
 import org.apache.log4j.Level;
 import org.apache.log4j.spi.LoggingEvent;

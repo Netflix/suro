@@ -43,6 +43,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class LocalFileSink extends Thread implements Sink {
@@ -58,10 +59,10 @@ public class LocalFileSink extends Thread implements Sink {
     private final long maxFileSize;
     private final Period rotationPeriod;
     private final int minPercentFreeDisk;
-    private final Notify notify;
+    private final Notify<String> notify;
     private final MessageQueue4Sink queue4Sink;
     private final int batchSize;
-    private final int sleepDelay;
+    private final int batchTimeout;
 
     private QueueManager queueManager;
     private SpaceChecker spaceChecker;
@@ -86,25 +87,25 @@ public class LocalFileSink extends Thread implements Sink {
             @JsonProperty("minPercentFreeDisk") int minPercentFreeDisk,
             @JsonProperty("queue4Sink") MessageQueue4Sink queue4Sink,
             @JsonProperty("batchSize") int batchSize,
-            @JsonProperty("sleepDelayOnIdle") int sleepDelay,
+            @JsonProperty("batchTimeout") int batchTimeout,
             @JacksonInject("queueManager") QueueManager queueManager,
             @JacksonInject("spaceChecker") SpaceChecker spaceChecker) {
         if (outputDir.endsWith("/") == false) {
             outputDir += "/";
         }
+        Preconditions.checkNotNull(outputDir, "outputDir is needed");
+
         this.outputDir = outputDir;
         this.writer = writer == null ? new TextFileWriter(null) : writer;
         this.maxFileSize = maxFileSize == 0 ? 100 * 1024 * 1024 : maxFileSize;
         this.rotationPeriod = new Period(rotationPeriod == null ? "PT1m" : rotationPeriod);
         this.minPercentFreeDisk = minPercentFreeDisk == 0 ? 50 : minPercentFreeDisk;
-        this.notify = notify == null ? new QueueNotify() : notify;
+        this.notify = notify == null ? new QueueNotify<String>() : notify;
         this.queue4Sink = queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink;
         this.batchSize = batchSize == 0 ? 200 : batchSize;
-        this.sleepDelay = sleepDelay == 0 ? 1000 : sleepDelay;
+        this.batchTimeout = batchTimeout == 0 ? 1000 : batchTimeout;
         this.queueManager = queueManager;
         this.spaceChecker = spaceChecker;
-
-        Preconditions.checkNotNull(outputDir, "outputDir is needed");
     }
 
     @Override
@@ -120,13 +121,14 @@ public class LocalFileSink extends Thread implements Sink {
             notify.init();
 
             writer.open(outputDir);
-            setName(LocalFileSink.class.getSimpleName());
+            setName(LocalFileSink.class.getSimpleName() + "-" + outputDir);
             start();
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }
 
+    private long lastBatch = System.currentTimeMillis();
     private boolean isRunning;
     private boolean isStopped;
 
@@ -143,9 +145,17 @@ public class LocalFileSink extends Thread implements Sink {
                         System.currentTimeMillis() > nextRotation)) {
                     rotate();
                 }
-                if (queue4Sink.retrieve(batchSize, msgList) == 0) {
-                    Thread.sleep(sleepDelay);
-                } else {
+
+                Message msg = queue4Sink.poll(
+                        Math.max(0, lastBatch + batchTimeout - System.currentTimeMillis()),
+                        TimeUnit.MILLISECONDS);
+                boolean expired = (msg == null);
+                if (expired == false) {
+                    msgList.add(msg);
+                    queue4Sink.drain(batchSize - msgList.size(), msgList);
+                }
+                boolean full = (msgList.size() >= batchSize);
+                if ((expired || full) && msgList.size() > 0) {
                     write(msgList);
                 }
             } catch (Exception e) {
@@ -155,7 +165,7 @@ public class LocalFileSink extends Thread implements Sink {
         log.info("Shutdown request exit loop ..., queue.size at exit time: " + queue4Sink.size());
         try {
             while (queue4Sink.isEmpty() == false) {
-                if (queue4Sink.retrieve(batchSize, msgList) > 0) {
+                if (queue4Sink.drain(batchSize, msgList) > 0) {
                     write(msgList);
                 }
             }
@@ -191,6 +201,7 @@ public class LocalFileSink extends Thread implements Sink {
             writer.sync();
             queue4Sink.commit();
             msgList.clear();
+            lastBatch = System.currentTimeMillis();
         } catch (Exception e) {
             log.error("Exception on write: " + e.getMessage(), e);
         }

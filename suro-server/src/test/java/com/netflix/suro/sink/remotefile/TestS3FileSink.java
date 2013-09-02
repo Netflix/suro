@@ -60,7 +60,7 @@ public class TestS3FileSink {
             "        \"writer\": {\n" +
             "            \"type\": \"text\"\n" +
             "        },\n" +
-            "        \"maxFileSize\": 10240,\n" +
+            //"        \"maxFileSize\": 10240,\n" +
             "        \"rotationPeriod\": \"PT1m\",\n" +
             "        \"minPercentFreeDisk\": 50,\n" +
             "        \"notify\": {\n" +

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.netflix.suro.message.Message;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
@@ -13,7 +14,8 @@ import java.util.List;
 })
 public interface MessageQueue4Sink {
     void put(Message msg);
-    int retrieve(int batchSize, List<Message> msgList);
+    Message poll(long timeout, TimeUnit timeUnit) throws InterruptedException;
+    int drain(int batchSize, List<Message> msgList);
     void commit();
     void close();
     boolean isEmpty();

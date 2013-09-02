@@ -15,7 +15,7 @@ public class TestMemoryQueue {
         MemoryQueue4Sink queue = new MemoryQueue4Sink(100);
         assertEquals(queue.size(), 0);
         assertEquals(queue.isEmpty(), true);
-        assertEquals(queue.retrieve(100, new LinkedList<Message>()), 0);
+        assertEquals(queue.drain(100, new LinkedList<Message>()), 0);
 
         for (int i = 0; i < 100; ++i) {
             queue.put(new Message("routingkey" + i, ("value" + i).getBytes()));
@@ -25,7 +25,7 @@ public class TestMemoryQueue {
         assertEquals(queue.isEmpty(), false);
 
         List<Message> msgList = new LinkedList<Message>();
-        assertEquals(queue.retrieve(100, msgList), 100);
+        assertEquals(queue.drain(100, msgList), 100);
         int i = 0;
         for (Message m : msgList) {
             assertEquals(m.getRoutingKey(), "routingkey" + i);

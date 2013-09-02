@@ -8,6 +8,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 @NotThreadSafe
 public class MemoryQueue4Sink implements MessageQueue4Sink {
@@ -30,7 +31,12 @@ public class MemoryQueue4Sink implements MessageQueue4Sink {
     }
 
     @Override
-    public int retrieve(int batchSize, List<Message> msgList) {
+    public Message poll(long timeout, TimeUnit timeUnit) throws InterruptedException {
+        return queue.poll(timeout, timeUnit);
+    }
+
+    @Override
+    public int drain(int batchSize, List<Message> msgList) {
         return queue.drainTo(msgList, batchSize);
     }
 

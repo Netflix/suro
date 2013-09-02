@@ -24,7 +24,6 @@ import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.SerDe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,22 +38,18 @@ public class RoutingMap {
 
     public static class RoutingInfo {
         private final List<String> where;
-        private final Converter converter;
         private final Filter filter;
 
         @JsonCreator
         public RoutingInfo(
                 @JsonProperty("where") List<String> where,
-                @JsonProperty("converter") Converter converter,
                 @JsonProperty("filter") Filter filter
         ) {
             this.where = where;
-            this.converter = converter;
             this.filter = filter;
         }
 
         public List<String> getWhere() { return where; }
-        public Converter getConverter() { return converter; }
         public boolean doFilter(Message message) {
             return filter != null ? filter.doFilter(message) : true;
         }

@@ -16,7 +16,7 @@
 
 package com.netflix.suro.nofify;
 
-public class NoNotify implements Notify {
+public class NoNotify implements Notify<String> {
     public static final String TYPE = "no";
 
     @Override

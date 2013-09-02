@@ -28,13 +28,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class QueueNotify implements Notify {
+public class QueueNotify<E> implements Notify<E> {
     public static final String TYPE = "queue";
 
     private static final int DEFAULT_LENGTH = 100;
     private static final long DEFAULT_TIMEOUT = 1000;
 
-    private final BlockingQueue<String> queue;
+    private final BlockingQueue<E> queue;
     private final long timeout;
 
     @Monitor(name = TagKey.SENT_COUNT, type = DataSourceType.COUNTER)
@@ -45,7 +45,7 @@ public class QueueNotify implements Notify {
     private AtomicLong lostMessageCount = new AtomicLong(0);
 
     public QueueNotify() {
-        queue = new LinkedBlockingQueue<String>(DEFAULT_LENGTH);
+        queue = new LinkedBlockingQueue<E>(DEFAULT_LENGTH);
         timeout = DEFAULT_TIMEOUT;
 
         Monitors.registerObject(this);
@@ -55,7 +55,7 @@ public class QueueNotify implements Notify {
     public QueueNotify(
             @JsonProperty("length") int length,
             @JsonProperty("recvTimeout") long timeout) {
-        this.queue = new LinkedBlockingQueue<String>(length > 0 ? length : DEFAULT_LENGTH);
+        this.queue = new LinkedBlockingQueue<E>(length > 0 ? length : DEFAULT_LENGTH);
         this.timeout = timeout > 0 ? timeout : DEFAULT_TIMEOUT;
     }
 
@@ -64,7 +64,7 @@ public class QueueNotify implements Notify {
     }
 
     @Override
-    public boolean send(String message) {
+    public boolean send(E message) {
         if (queue.offer(message)) {
             sentMessageCount.incrementAndGet();
             return true;
@@ -75,7 +75,7 @@ public class QueueNotify implements Notify {
     }
 
     @Override
-    public String recv() {
+    public E recv() {
         try {
             return queue.poll(timeout, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {

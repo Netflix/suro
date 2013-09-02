@@ -122,9 +122,10 @@ public class TestMessageRouter {
 
         SinkManager sinkManager = startSinkMakager(injector);
 
-        MessageRouter router = startMessageRouter(injector);
+        startMessageRouter(injector);
 
         MessageQueue queue = injector.getInstance(MessageQueue.class);
+        queue.start();
 
         MessageSetBuilder builder = new MessageSetBuilder();
         builder = builder.withApp("app").withHostname("testhost");
@@ -156,7 +157,7 @@ public class TestMessageRouter {
         }
         assertTrue(count > 0);
 
-        router.shutdown();
+        queue.shutdown();
         sinkManager.shutdown();
     }
 
@@ -177,7 +178,6 @@ public class TestMessageRouter {
         RoutingMap routingMap = injector.getInstance(RoutingMap.class);
         routingMap.build(mapDesc);
         MessageRouter router = injector.getInstance(MessageRouter.class);
-        router.start();
         return router;
     }
 

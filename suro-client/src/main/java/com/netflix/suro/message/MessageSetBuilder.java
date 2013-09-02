@@ -23,7 +23,7 @@ import com.netflix.suro.thrift.TMessageSet;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.zip.CRC32;
@@ -36,7 +36,7 @@ public class MessageSetBuilder {
     private SerDe serde = new StringSerDe();
 
     public MessageSetBuilder() {
-        messageList = new LinkedList<Message>();
+        messageList = new ArrayList<Message>();
         try {
             hostname = InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {

@@ -20,107 +20,38 @@ import com.google.inject.Inject;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.MessageSetReader;
-import com.netflix.suro.queue.MessageQueue;
-import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.sink.SinkManager;
-import com.netflix.suro.thrift.TMessageSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 @LazySingleton
 public class MessageRouter {
     static Logger log = LoggerFactory.getLogger(MessageRouter.class);
 
-    private final MessageQueue messageQueue;
     private final RoutingMap routingMap;
     private final SinkManager sinkManager;
-    private final ServerConfig config;
-    private final ExecutorService executors;
-
-    private boolean isRunning;
 
     @Inject
     public MessageRouter(
-            MessageQueue messageQueue,
             RoutingMap routingMap,
-            SinkManager sinkManager,
-            ServerConfig config) {
-        this.messageQueue = messageQueue;
+            SinkManager sinkManager) {
         this.routingMap = routingMap;
         this.sinkManager = sinkManager;
-        this.config = config;
-
-        executors = Executors.newFixedThreadPool(config.getMessageRouterThreads());
 
         Monitors.registerObject(this);
     }
 
-    public void start() {
-        isRunning = true;
+    public void process(Message msg) {
+        RoutingMap.RoutingInfo info = routingMap.getRoutingInfo(msg.getRoutingKey());
 
-        for (int i = 0; i < config.getMessageRouterThreads(); ++i) {
-            executors.execute(new Runnable() {
-                @Override
-                public void run() {
-                    TMessageSet tMessageSet;
-
-                    long waitTime = config.messageRouterDefaultPollTimeout;
-
-                    while (isRunning) {
-                        tMessageSet = messageQueue.poll(waitTime, TimeUnit.MILLISECONDS);
-                        if (tMessageSet == null) {
-                            if (waitTime < config.messageRouterMaxPollTimeout) {
-                                waitTime += config.messageRouterDefaultPollTimeout;
-                            }
-                            continue;
-                        }
-
-                        waitTime = config.messageRouterDefaultPollTimeout;
-                        processMessageSet(tMessageSet);
-                    }
-                    // drain remains when shutdown
-                    while ((tMessageSet = messageQueue.poll(0, TimeUnit.MILLISECONDS)) != null) {
-                        processMessageSet(tMessageSet);
-                    }
-                }
-            });
-        }
-    }
-
-    public void shutdown() {
-        log.info("MessageRouter is shutting down");
-        isRunning = false;
-        try {
-            executors.shutdown();
-            executors.awaitTermination(5, TimeUnit.SECONDS);
-            if (executors.isTerminated() == false) {
-                log.error("MessageDispatcher was not shutdown gracefully within 5 seconds");
-            }
-            executors.shutdownNow();
-        } catch (InterruptedException e) {
-            // ignore exceptions while shutting down
-        }
-    }
-
-    private void processMessageSet(TMessageSet tMessageSet) {
-        MessageSetReader reader = new MessageSetReader(tMessageSet);
-
-        for (Message message : reader) {
-            RoutingMap.RoutingInfo info = routingMap.getRoutingInfo(message.getRoutingKey());
-
-            if (info == null) {
-                sinkManager.getSink("default").writeTo(message);
-            } else if (info != null && info.doFilter(message)) {
-                List<String> sinkList = info.getWhere();
-                for (String sink : sinkList) {
-                    sinkManager.getSink(sink).writeTo(message);
-                }
+        if (info == null) {
+            sinkManager.getSink("default").writeTo(msg);
+        } else if (info != null && info.doFilter(msg)) {
+            List<String> sinkList = info.getWhere();
+            for (String sink : sinkList) {
+                sinkManager.getSink(sink).writeTo(msg);
             }
         }
     }

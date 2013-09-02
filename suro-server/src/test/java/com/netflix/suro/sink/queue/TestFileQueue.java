@@ -27,7 +27,7 @@ public class TestFileQueue {
         FileQueue4Sink queue = new FileQueue4Sink(dir, "testqueue", "PT1m");
         assertEquals(queue.size(), 0);
         assertEquals(queue.isEmpty(), true);
-        assertEquals(queue.retrieve(100, new LinkedList<Message>()), 0);
+        assertEquals(queue.drain(100, new LinkedList<Message>()), 0);
 
         for (int i = 0; i < 100; ++i) {
             queue.put(new Message("routingkey" + i, ("value" + i).getBytes()));
@@ -37,7 +37,7 @@ public class TestFileQueue {
         assertEquals(queue.isEmpty(), false);
 
         List<Message> msgList = new LinkedList<Message>();
-        assertEquals(queue.retrieve(100, msgList), 100);
+        assertEquals(queue.drain(100, msgList), 100);
         int i = 0;
         for (Message m : msgList) {
             assertEquals(m.getRoutingKey(), "routingkey" + i);
@@ -50,7 +50,7 @@ public class TestFileQueue {
         assertEquals(queue.size(), 100);
         assertEquals(queue.isEmpty(), false);
 
-        assertEquals(queue.retrieve(100, msgList), 100);
+        assertEquals(queue.drain(100, msgList), 100);
         i = 0;
         for (Message m : msgList) {
             assertEquals(m.getRoutingKey(), "routingkey" + i);
@@ -62,7 +62,7 @@ public class TestFileQueue {
         queue.commit();
         assertEquals(queue.size(), 0);
         assertEquals(queue.isEmpty(), true);
-        assertEquals(queue.retrieve(100, msgList), 0);
+        assertEquals(queue.drain(100, msgList), 0);
     }
 
     @Test
@@ -70,14 +70,14 @@ public class TestFileQueue {
         FileQueue4Sink queue = new FileQueue4Sink(dir, "testqueue", "PT1s");
         assertEquals(queue.size(), 0);
         assertEquals(queue.isEmpty(), true);
-        assertEquals(queue.retrieve(100, new LinkedList<Message>()), 0);
+        assertEquals(queue.drain(100, new LinkedList<Message>()), 0);
 
         for (int i = 0; i < 100; ++i) {
             queue.put(new Message("routingkey" + i, ("value" + i).getBytes()));
         }
 
         LinkedList<Message> msgList = new LinkedList<Message>();
-        queue.retrieve(50, msgList);
+        queue.drain(50, msgList);
         Thread.sleep(2000); // wait until gc kicks in
         assertEquals(queue.size(), 100);
         queue.commit();
@@ -85,7 +85,7 @@ public class TestFileQueue {
         Thread.sleep(2000);
         assertEquals(queue.size(), 50);
 
-        queue.retrieve(50, msgList);
+        queue.drain(50, msgList);
         int i = 50;
         for (Message m : msgList) {
             assertEquals(m.getRoutingKey(), "routingkey" + i);
