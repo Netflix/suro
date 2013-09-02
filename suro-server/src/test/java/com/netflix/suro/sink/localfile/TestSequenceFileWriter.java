@@ -62,10 +62,10 @@ public class TestSequenceFileWriter {
                     new Message("routingKey", "app", "hostname", new StringSerDe(), ("message0" + i).getBytes()));
         }
         System.out.println("length: " + writer.getLength());
-        assertEquals(writer.getLength(), 1149);
+        assertEquals(writer.getLength(), 1115);
 
         writer.rotate(dir + "testfile1.suro");
-        assertEquals(writer.getLength(), 119); // empty sequence file length
+        assertEquals(writer.getLength(), 85); // empty sequence file length
         assertEquals(checkFileContents(dir + "testfile0.suro", "message0"), 10);
 
         writer.setDone(dir + "testfile0.suro", dir + "testfile0.done");

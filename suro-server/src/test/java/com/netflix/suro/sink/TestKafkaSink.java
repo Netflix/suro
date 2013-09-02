@@ -17,7 +17,7 @@ public class TestKafkaSink {
         String description = "{\n" +
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
-                "    \"metadata.broker.list\": \"ec2-54-234-153-254.compute-1.amazonaws.com:9092\",\n" +
+                "    \"metadata.broker.list\": \"ec2-54-226-226-193.compute-1.amazonaws.com:9092\",\n" +
                 "    \"request.required.acks\": 1\n" +
                 "}";
 

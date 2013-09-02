@@ -305,7 +305,7 @@ public class ConnectionPool {
                 transport.flush();
                 transport.close();
             } catch (TTransportException e) {
-                // ignore on closing
+                logger.error("Exception on disconnect: " + e.getMessage(), e);
             }
         }
 
