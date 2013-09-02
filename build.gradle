@@ -96,18 +96,18 @@ project(':suro-server') {
 
     compile 'commons-cli:commons-cli:1.2'
     
-    /*
     compile('org.apache.kafka:kafka_2.8.0:0.8.0-beta1') {
       exclude module: 'jms'
       exclude module: 'jmxtools'
       exclude module: 'jmxri'
     }
-    */
+    /*
     compile 'kafka:kafka:0.8.0.2'
     compile 'org.scala-lang:scala-library:2.8.0'
     compile 'com.yammer.metrics:metrics-core:2.2.0'
     compile 'com.yammer.metrics:metrics-annotation:2.2.0'
     runtime 'org.xerial.snappy:snappy-java:1.0.4.1'
+    */
 
     testCompile project(':suro-client').sourceSets.test.output
   }
