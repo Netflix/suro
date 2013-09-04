@@ -62,8 +62,6 @@ public class SuroServer {
     private ThriftServer server;
 
     private final Properties properties;
-    private final String mapDesc;
-    private final String sinkDesc;
 
     private final DynamicStringProperty routingMap;
     private final DynamicStringProperty sinkConfig;
@@ -79,8 +77,6 @@ public class SuroServer {
         Preconditions.checkNotNull(sinkDesc);
 
         this.properties = properties;
-        this.mapDesc = mapDesc;
-        this.sinkDesc = sinkDesc;
 
         routingMap = new DynamicStringProperty("SuroServer.routingMap", mapDesc) {
             @Override
@@ -109,8 +105,8 @@ public class SuroServer {
         server = injector.getInstance(ThriftServer.class);
 
         try {
-            injector.getInstance(SinkManager.class).build(sinkDesc);
-            injector.getInstance(RoutingMap.class).build(mapDesc);
+            injector.getInstance(SinkManager.class).build(routingMap.get());
+            injector.getInstance(RoutingMap.class).build(sinkConfig.get());
             injector.getInstance(MessageQueue.class).start();
             server.start();
             statusServer.start(injector);

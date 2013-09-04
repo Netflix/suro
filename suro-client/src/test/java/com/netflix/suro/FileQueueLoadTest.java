@@ -3,6 +3,8 @@ package com.netflix.suro;
 import com.netflix.suro.message.serde.StringSerDe;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
+import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -19,6 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
 
+@Ignore
 public class FileQueueLoadTest {
 
     private static String testDir = "/tmp/filequeue/load";
@@ -29,7 +32,7 @@ public class FileQueueLoadTest {
     private static int loop = 5;
     private static int totalItemCount = 100000;
     private static int producerNum = 4;
-    private static int consumerNum = 4;
+    private static int consumerNum = 1;
     private static int messageLength = 1024;
     //////////////////////////////////////////////////////////////////
 
@@ -42,11 +45,10 @@ public class FileQueueLoadTest {
         Status status;
     }
 
+    @Before
     @After
     public void clean() throws IOException {
-        if (bigQueue != null) {
-            FileUtils.deleteDirectory(new File(testDir));
-        }
+        FileUtils.deleteDirectory(new File(testDir));
     }
 
     private static final AtomicInteger producingItemCount = new AtomicInteger(0);

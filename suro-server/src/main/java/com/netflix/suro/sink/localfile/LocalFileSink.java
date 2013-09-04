@@ -30,6 +30,7 @@ import com.netflix.suro.message.Message;
 import com.netflix.suro.nofify.Notify;
 import com.netflix.suro.nofify.QueueNotify;
 import com.netflix.suro.queue.QueueManager;
+import com.netflix.suro.sink.QueuedSink;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.queue.MemoryQueue4Sink;
 import com.netflix.suro.sink.queue.MessageQueue4Sink;
@@ -41,12 +42,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class LocalFileSink extends Thread implements Sink {
+public class LocalFileSink extends QueuedSink implements Sink {
     static Logger log = LoggerFactory.getLogger(LocalFileSink.class);
 
     public static final String TYPE = "LocalFileSink";
@@ -60,9 +59,6 @@ public class LocalFileSink extends Thread implements Sink {
     private final Period rotationPeriod;
     private final int minPercentFreeDisk;
     private final Notify<String> notify;
-    private final MessageQueue4Sink queue4Sink;
-    private final int batchSize;
-    private final int batchTimeout;
 
     private QueueManager queueManager;
     private SpaceChecker spaceChecker;
@@ -101,11 +97,11 @@ public class LocalFileSink extends Thread implements Sink {
         this.rotationPeriod = new Period(rotationPeriod == null ? "PT1m" : rotationPeriod);
         this.minPercentFreeDisk = minPercentFreeDisk == 0 ? 50 : minPercentFreeDisk;
         this.notify = notify == null ? new QueueNotify<String>() : notify;
-        this.queue4Sink = queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink;
-        this.batchSize = batchSize == 0 ? 200 : batchSize;
-        this.batchTimeout = batchTimeout == 0 ? 1000 : batchTimeout;
         this.queueManager = queueManager;
         this.spaceChecker = spaceChecker;
+
+        Monitors.registerObject(LocalFileSink.class.getSimpleName() + "-" + outputDir, this);
+        initialize(queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
     }
 
     @Override
@@ -128,88 +124,9 @@ public class LocalFileSink extends Thread implements Sink {
         }
     }
 
-    private long lastBatch = System.currentTimeMillis();
-    private boolean isRunning;
-    private boolean isStopped;
-
-    @Override
-    public void run() {
-        isRunning = true;
-        List<Message> msgList = new LinkedList<Message>();
-
-        while (isRunning) {
-            try {
-                // Don't rotate if we are not running
-                if (isRunning &&
-                        (writer.getLength() > maxFileSize ||
-                        System.currentTimeMillis() > nextRotation)) {
-                    rotate();
-                }
-
-                Message msg = queue4Sink.poll(
-                        Math.max(0, lastBatch + batchTimeout - System.currentTimeMillis()),
-                        TimeUnit.MILLISECONDS);
-                boolean expired = (msg == null);
-                if (expired == false) {
-                    msgList.add(msg);
-                    queue4Sink.drain(batchSize - msgList.size(), msgList);
-                }
-                boolean full = (msgList.size() >= batchSize);
-                if ((expired || full) && msgList.size() > 0) {
-                    write(msgList);
-                }
-            } catch (Exception e) {
-                log.error("Exception on running: " + e.getMessage(), e);
-            }
-        }
-        log.info("Shutdown request exit loop ..., queue.size at exit time: " + queue4Sink.size());
-        try {
-            while (queue4Sink.isEmpty() == false) {
-                if (queue4Sink.drain(batchSize, msgList) > 0) {
-                    write(msgList);
-                }
-            }
-
-            log.info("Shutdown request internalClose done ...");
-        } catch (Exception e) {
-            log.error("Exception on terminating: " + e.getMessage(), e);
-        } finally {
-            isStopped = true;
-        }
-    }
-
-    private void write(List<Message> msgList) {
-        try {
-            for (Message msg : msgList) {
-                writer.writeTo(msg);
-                DynamicCounter.increment(
-                        MonitorConfig.builder("writtenMessages")
-                                .withTag(TagKey.APP, msg.getApp())
-                                .withTag(TagKey.DATA_SOURCE, msg.getRoutingKey())
-                                .build());
-                writtenMessages.incrementAndGet();
-                DynamicCounter.increment(
-                        MonitorConfig.builder("writtenBytes")
-                                .withTag(TagKey.APP, msg.getApp())
-                                .withTag(TagKey.DATA_SOURCE, msg.getRoutingKey())
-                                .build(), msg.getPayload().length);
-                writtenBytes.addAndGet(msg.getPayload().length);
-
-                messageWrittenInRotation = true;
-            }
-
-            writer.sync();
-            queue4Sink.commit();
-            msgList.clear();
-            lastBatch = System.currentTimeMillis();
-        } catch (Exception e) {
-            log.error("Exception on write: " + e.getMessage(), e);
-        }
-    }
-
     @Override
     public void writeTo(Message message) {
-        queue4Sink.put(message);
+        queue4Sink.offer(message);
     }
 
     public static class SpaceChecker {
@@ -259,26 +176,45 @@ public class LocalFileSink extends Thread implements Sink {
     }
 
     @Override
-    public void close() {
-        isRunning = false;
-        log.info("Starting to close");
-        do {
-            try {
-                Thread.sleep(500);
-            } catch (Exception ignored) {
-                log.error("ignoring an exception on close");
-            }
-        } while (isStopped == false);
-
-        try {
-            writer.close();
-            renameNotify(fileName);
-        } catch (IOException e) {
-            // ignore exceptions when closing
-            log.error("Exception while closing: " + e.getMessage(), e);
-        } finally {
-            log.info("close finished");
+    protected void beforePolling() throws IOException {
+        // Don't rotate if we are not running
+        if (isRunning &&
+                (writer.getLength() > maxFileSize ||
+                        System.currentTimeMillis() > nextRotation)) {
+            rotate();
         }
+    }
+
+    @Override
+    protected void write(List<Message> msgList) throws IOException {
+        for (Message msg : msgList) {
+            writer.writeTo(msg);
+            DynamicCounter.increment(
+                    MonitorConfig.builder("writtenMessages")
+                            .withTag(TagKey.APP, msg.getApp())
+                            .withTag(TagKey.DATA_SOURCE, msg.getRoutingKey())
+                            .build());
+            writtenMessages.incrementAndGet();
+            DynamicCounter.increment(
+                    MonitorConfig.builder("writtenBytes")
+                            .withTag(TagKey.APP, msg.getApp())
+                            .withTag(TagKey.DATA_SOURCE, msg.getRoutingKey())
+                            .build(), msg.getPayload().length);
+            writtenBytes.addAndGet(msg.getPayload().length);
+
+            messageWrittenInRotation = true;
+        }
+
+        writer.sync();
+        queue4Sink.commit();
+        msgList.clear();
+        lastBatch = System.currentTimeMillis();
+    }
+
+    @Override
+    protected void innerClose() throws IOException {
+        writer.close();
+        renameNotify(fileName);
     }
 
     @Override

@@ -23,7 +23,6 @@ import org.apache.hadoop.io.Writable;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 public class Message implements Writable {
@@ -56,29 +55,6 @@ public class Message implements Writable {
         this.payload = payload;
     }
 
-    public void writeTo(ByteBuffer buffer) {
-        buffer.putInt(routingKey.length());
-        buffer.put(routingKey.getBytes());
-        //payload_len payload
-        buffer.putInt(payload.length);
-        buffer.put(payload);
-    }
-
-    public static Message createFrom(byte[] bytes) {
-        ByteBuffer buffer = ByteBuffer.wrap(bytes);
-        byte[] routingKeyBytes = new byte[buffer.getInt()];
-        buffer.get(routingKeyBytes);
-        byte[] payloadBytes = new byte[buffer.getInt()];
-        buffer.get(payloadBytes);
-        return new Message(
-                new String(routingKeyBytes),
-                payloadBytes);
-    }
-
-    public int getByteSize() {
-        return 4 + routingKey.length() + 4 + payload.length;
-    }
-
     public String getRoutingKey() {
         return routingKey;
     }
@@ -101,7 +77,12 @@ public class Message implements Writable {
 
     @Override
     public String toString() {
-        return String.format("routingKey: %s, byte size: %d", routingKey, getByteSize());
+        return String.format("routingKey: %s, hostname: %s, app: %s, serde: %s, payload byte size: %d",
+                routingKey,
+                hostname == null ? "N/A" : hostname,
+                app == null ? "N/A" : app,
+                serde.getClass().getName(),
+                payload.length);
     }
 
     @Override

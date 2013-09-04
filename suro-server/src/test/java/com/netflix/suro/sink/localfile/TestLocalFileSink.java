@@ -74,7 +74,7 @@ public class TestLocalFileSink {
 
         assertNull(sink.recvNotify());
 
-        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
+        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(10000))) {
             sink.writeTo(m);
         }
 
@@ -97,7 +97,7 @@ public class TestLocalFileSink {
                 br.close();
             }
         }
-        assertEquals(count, 100000);
+        assertEquals(count, 10000);
     }
 
     @Test
@@ -209,7 +209,7 @@ public class TestLocalFileSink {
 
         when(spaceChecker.hasEnoughSpace()).thenReturn(true);
 
-        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
+        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(10000))) {
             sink.writeTo(m);
         }
 
@@ -230,7 +230,7 @@ public class TestLocalFileSink {
                 br.close();
             }
         }
-        assertEquals(count, 100000);
+        assertEquals(count, 10000);
     }
 
     @Test
@@ -266,7 +266,7 @@ public class TestLocalFileSink {
         sink.open();
         assertNull(sink.recvNotify());
 
-        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
+        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(10000))) {
             sink.writeTo(m);
         }
 
@@ -292,7 +292,7 @@ public class TestLocalFileSink {
                 br.close();
             }
         }
-        assertEquals(count, 100000);
+        assertEquals(count, 10000);
         assertTrue(errorCount <= 1);
     }
 

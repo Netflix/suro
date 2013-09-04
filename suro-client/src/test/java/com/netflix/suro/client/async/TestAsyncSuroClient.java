@@ -32,6 +32,7 @@ import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.serde.MessageSerDe;
 import com.netflix.suro.message.serde.SerDe;
+import com.netflix.suro.message.serde.StringSerDe;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -111,7 +112,7 @@ public class TestAsyncSuroClient {
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
 
         for (int i = 0; i < 3000; ++i) {
-            client.send(new Message("routingKey", "testMessage".getBytes()));
+            client.send(new Message("routingKey", "appp", "hostname", new StringSerDe(), "testMessage".getBytes()));
         }
 
         client.shutdown();
@@ -128,7 +129,7 @@ public class TestAsyncSuroClient {
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
 
         for (int i = 0; i < 3000; ++i) {
-            client.send(new Message("routingKey", "testMessage".getBytes()));
+            client.send(new Message("routingKey", "appp", "hostname", new StringSerDe(), "testMessage".getBytes()));
         }
 
         client.shutdown();
@@ -149,7 +150,7 @@ public class TestAsyncSuroClient {
         }
 
         for (int i = 0; i < 3000; ++i) {
-            client.send(new Message("routingKey", "testMessage".getBytes()));
+            client.send(new Message("routingKey", "appp", "hostname", new StringSerDe(), "testMessage".getBytes()));
         }
 
         // wait until some messages are restored

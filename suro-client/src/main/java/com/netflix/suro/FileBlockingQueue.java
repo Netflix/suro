@@ -158,7 +158,6 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
             return null;
         }
         E x = null;
-        int c = -1;
         lock.lock();
         try {
             if (isEmpty() == false) {
@@ -167,7 +166,6 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
                     notEmpty.signal();
                 }
             }
-            commitInternal(autoCommit);
         } catch (IOException e) {
             log.error("IOException while poll: " + e.getMessage(), e);
             return null;
@@ -225,11 +223,6 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
                 notEmpty.await();
             }
             x = consumeElement();
-            commitInternal(autoCommit);
-
-            if (isEmpty() == false) {
-                notEmpty.signal();
-            }
         } catch (IOException e) {
             log.error("IOException on take: " + e.getMessage(), e);
             return null;
@@ -243,7 +236,10 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
     private E consumeElement() throws IOException {
         // restore consumedIndex if not committed
         consumedIndex = this.queueFrontIndex.get();
-        return serDe.deserialize(innerArray.get(consumedIndex++));
+        E x = serDe.deserialize(innerArray.get(consumedIndex));
+        ++consumedIndex;
+        commitInternal(autoCommit);
+        return x;
     }
 
     @Override
@@ -258,11 +254,6 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
                 nanos = notEmpty.awaitNanos(nanos);
             }
             x = consumeElement();
-            commitInternal(autoCommit);
-
-            if (isEmpty() == false) {
-                notEmpty.signal();
-            }
         } catch (IOException e) {
             log.error("IOException on poll: " + e.getMessage(), e);
             return null;
@@ -324,7 +315,6 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
             public E next() {
                 try {
                     E x = consumeElement();
-                    commitInternal(autoCommit);
                     return x;
                 } catch (IOException e) {
                     throw new RuntimeException(e);

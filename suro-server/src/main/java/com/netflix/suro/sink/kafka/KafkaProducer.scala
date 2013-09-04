@@ -13,18 +13,6 @@ class KafkaProducer(props: Properties) {
 
   KafkaMetricsReporter.startReporters(new VerifiableProperties(props))
 
-  def send(msgList: java.util.List[Message], serde: SerDe[Message]) {
-    messageBuffer.clear()
-
-    val i = msgList.iterator()
-    while (i.hasNext) {
-      val m = i.next()
-      messageBuffer += new KeyedMessage[String, Array[Byte]](m.getRoutingKey, serde.serialize(m))
-    }
-
-    producer.send(messageBuffer: _*)
-  }
-
   def send(keyedMsgList: java.util.List[KeyedMessage[String, Array[Byte]]]) {
     messageBuffer.clear()
 
@@ -39,5 +27,4 @@ class KafkaProducer(props: Properties) {
   def close {
     producer.close()
   }
-
 }

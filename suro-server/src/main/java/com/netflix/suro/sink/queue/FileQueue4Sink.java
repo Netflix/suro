@@ -36,11 +36,12 @@ public class FileQueue4Sink implements MessageQueue4Sink {
     }
 
     @Override
-    public void put(Message msg) {
+    public boolean offer(Message msg) {
         try {
-            queue.put(msg);
+            return queue.offer(msg);
         } catch (Exception e) {
-            log.error("Exception on put: " + e.getMessage(), e);
+            log.error("Exception on offer: " + e.getMessage(), e);
+            return false;
         }
     }
 

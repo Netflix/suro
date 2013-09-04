@@ -6,8 +6,8 @@ import com.netflix.suro.message.Message;
 
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 @NotThreadSafe
@@ -18,16 +18,12 @@ public class MemoryQueue4Sink implements MessageQueue4Sink {
 
     @JsonCreator
     public MemoryQueue4Sink(@JsonProperty("capacity") int capacity) {
-        this.queue = new LinkedBlockingQueue(capacity);
+        this.queue = new ArrayBlockingQueue(capacity);
     }
 
     @Override
-    public void put(Message msg) {
-        try {
-            queue.put(msg);
-        } catch (InterruptedException e) {
-            // do nothing
-        }
+    public boolean offer(Message msg) {
+        return queue.offer(msg);
     }
 
     @Override
