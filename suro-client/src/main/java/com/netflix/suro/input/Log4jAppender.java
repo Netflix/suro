@@ -19,15 +19,24 @@ package com.netflix.suro.input;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.client.SuroClient;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.message.serde.SerDe;
+import com.netflix.suro.message.serde.StringSerDe;
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.spi.LoggingEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Properties;
 
 public class Log4jAppender extends AppenderSkeleton {
-    static final Logger log = LoggerFactory.getLogger(Log4jAppender.class);
+    protected static String localHostAddr = null;
+    static {
+        try {
+            localHostAddr = InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            localHostAddr = "N/A";
+        }
+    }
 
     private String formatterClass = JsonLog4jFormatter.class.toString();
     public void setFormatterClass(String formatterClass) {
@@ -144,11 +153,15 @@ public class Log4jAppender extends AppenderSkeleton {
         this.append(event);
     }
 
+    private SerDe<String> serDe = new StringSerDe();
     @Override
     protected void append(LoggingEvent event) {
         String result = formatter.format(event);
         client.send(new Message(
                 formatter.getRoutingKey(),
+                getApp(),
+                localHostAddr,
+                serDe,
                 result.getBytes()));
     }
 

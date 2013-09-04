@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
         @JsonSubTypes.Type(name = FileQueue4Sink.TYPE, value = FileQueue4Sink.class)
 })
 public interface MessageQueue4Sink {
-    void put(Message msg);
+    boolean offer(Message msg);
     Message poll(long timeout, TimeUnit timeUnit) throws InterruptedException;
     int drain(int batchSize, List<Message> msgList);
     void commit();

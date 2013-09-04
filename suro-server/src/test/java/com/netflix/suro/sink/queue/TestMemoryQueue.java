@@ -18,7 +18,7 @@ public class TestMemoryQueue {
         assertEquals(queue.drain(100, new LinkedList<Message>()), 0);
 
         for (int i = 0; i < 100; ++i) {
-            queue.put(new Message("routingkey" + i, ("value" + i).getBytes()));
+            queue.offer(new Message("routingkey" + i, ("value" + i).getBytes()));
         }
 
         assertEquals(queue.size(), 100);

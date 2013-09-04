@@ -91,17 +91,25 @@ public class MessageSetBuilder {
     public static byte[] createPayload(List<Message> messageList, Compression compression) {
         ByteBuffer buffer = ByteBuffer.allocate(getByteSize(messageList));
         for (Message message : messageList) {
-            message.writeTo(buffer);
+            writeTo(message, buffer);
         }
         buffer.rewind();
 
         return compression.compress(buffer.array());
     }
 
+    public static void writeTo(Message message, ByteBuffer buffer) {
+        buffer.putInt(message.getRoutingKey().length());
+        buffer.put(message.getRoutingKey().getBytes());
+        //payload_len payload
+        buffer.putInt(message.getPayload().length);
+        buffer.put(message.getPayload());
+    }
+
     public static int getByteSize(List<Message> messageList) {
         int size = 0;
         for (Message message : messageList) {
-            size += message.getByteSize();
+            size += (4 + message.getRoutingKey().length() + 4 + message.getPayload().length);
         }
         return size;
     }

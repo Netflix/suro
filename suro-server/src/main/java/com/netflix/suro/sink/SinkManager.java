@@ -80,7 +80,7 @@ public class SinkManager {
     public String reportSinkStat() {
         StringBuilder sb = new StringBuilder();
         for (Map.Entry<String, Sink> entry : sinkMap.entrySet()) {
-            sb.append(entry.getKey()).append(':').append(entry.getValue().getStat()).append('\n');
+            sb.append(entry.getKey()).append(':').append(entry.getValue().getStat()).append("\n\n");
         }
 
         return sb.toString();
