@@ -38,23 +38,31 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 
 import static junit.framework.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class TestLocalFileSink {
+    private static final String testdir = "/tmp/surotest/testlocalfilesink";
+
     @Before
     @After
     public void clean() throws IOException {
-        FileUtils.deleteDirectory(new File(TestTextFileWriter.dir));
+        try {
+            FileUtils.deleteDirectory(new File(testdir));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Test
     public void testDefaultParameters() throws IOException {
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"LocalFileSink\",\n" +
-                "    \"outputDir\": \"" + TestTextFileWriter.dir + "\"\n" +
+                "    \"outputDir\": \"" + testdir + "\"\n" +
                 "    }\n" +
                 "}";
 
@@ -83,7 +91,7 @@ public class TestLocalFileSink {
         System.out.println(sink.getStat());
 
         int count = 0;
-        File dir = new File(TestTextFileWriter.dir);
+        File dir = new File(testdir);
         File[] files = dir.listFiles();
         for (File file : files) {
             assertTrue(file.getName().contains(".done"));
@@ -104,7 +112,7 @@ public class TestLocalFileSink {
     public void testWithPeriodRotation() throws IOException, InterruptedException {
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"LocalFileSink\",\n" +
-                "    \"outputDir\": \"" + TestTextFileWriter.dir + "\",\n" +
+                "    \"outputDir\": \"" + testdir + "\",\n" +
                 "    \"writer\": {\n" +
                 "        \"type\": \"text\"\n" +
                 "    },\n" +
@@ -140,7 +148,7 @@ public class TestLocalFileSink {
 
         int count = 0;
         int fileCount = 0;
-        File dir = new File(TestTextFileWriter.dir);
+        File dir = new File(testdir);
         File[] files = dir.listFiles();
         for (File file : files) {
             assertTrue(file.getName().contains(".done"));
@@ -163,7 +171,7 @@ public class TestLocalFileSink {
     public void testSpaceChecker() throws Exception {
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"LocalFileSink\",\n" +
-                "    \"outputDir\": \"" + TestTextFileWriter.dir + "\",\n" +
+                "    \"outputDir\": \"" + testdir + "\",\n" +
                 "    \"writer\": {\n" +
                 "        \"type\": \"text\"\n" +
                 "    },\n" +
@@ -216,7 +224,7 @@ public class TestLocalFileSink {
         sink.close();
 
         int count = 0;
-        File dir = new File(TestTextFileWriter.dir);
+        File dir = new File(testdir);
         File[] files = dir.listFiles();
         for (File file : files) {
             assertTrue(file.getName().contains(".done"));
@@ -237,13 +245,13 @@ public class TestLocalFileSink {
     public void testWithSizeRotation() throws IOException {
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"LocalFileSink\",\n" +
-                "    \"outputDir\": \"" + TestTextFileWriter.dir + "\",\n" +
+                "    \"outputDir\": \"" + testdir + "\",\n" +
                 "    \"writer\": {\n" +
                 "        \"type\": \"text\"\n" +
                 "    },\n" +
                 "    \"maxFileSize\": 10240,\n" +
                 "    \"minPercentFreeDisk\": 50,\n" +
-                "    \"rotationPeriod\": \"PT1m\",\n" +
+                "    \"rotationPeriod\": \"PT10m\",\n" +
                 "    \"batchSize\": 1,\n" +
                 "    \"notify\": {\n" +
                 "        \"type\": \"queue\"\n" +
@@ -274,9 +282,10 @@ public class TestLocalFileSink {
 
         int count = 0;
         int errorCount = 0;
-        File dir = new File(TestTextFileWriter.dir);
+        File dir = new File(testdir);
         File[] files = dir.listFiles();
         for (File file : files) {
+            System.out.println(file.getName());
             assertTrue(file.getName().contains(".done"));
             if (file.getName().contains("crc") == false) {
                 if (file.length() > 12000) {
@@ -300,7 +309,7 @@ public class TestLocalFileSink {
     public void rotateEmptyFile() throws IOException, InterruptedException {
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"LocalFileSink\",\n" +
-                "    \"outputDir\": \"" + TestTextFileWriter.dir + "\",\n" +
+                "    \"outputDir\": \"" + testdir + "\",\n" +
                 "    \"writer\": {\n" +
                 "        \"type\": \"text\"\n" +
                 "    },\n" +
@@ -338,7 +347,7 @@ public class TestLocalFileSink {
 
         int count = 0;
         int fileCount = 0;
-        File dir = new File(TestTextFileWriter.dir);
+        File dir = new File(testdir);
         File[] files = dir.listFiles();
         for (File file : files) {
             assertTrue(file.getName().contains(".done"));
@@ -356,5 +365,50 @@ public class TestLocalFileSink {
         }
         assertEquals(count, 100);
         assertTrue(fileCount > 1);
+    }
+
+    @Test
+    public void testCleanUp() throws IOException, InterruptedException {
+        new File(testdir).mkdir();
+
+        // create files
+        final int numFiles = 5;
+        Set<String> filePathSet = new HashSet<String>();
+        for (int i = 0; i < numFiles - 1; ++i) {
+            String fileName = "testFile" + i + LocalFileSink.done;
+            File f = new File(testdir, fileName);
+            f.createNewFile();
+            filePathSet.add(f.getAbsolutePath());
+        }
+        new File(testdir, "testFile" + (numFiles - 1) + LocalFileSink.suffix).createNewFile();
+        filePathSet.add(new File(testdir, "testFile" + (numFiles - 1) + LocalFileSink.done).getAbsolutePath());
+
+        final String localFileSinkSpec = "{\n" +
+                "    \"type\": \"LocalFileSink\",\n" +
+                "    \"rotationPeriod\": \"PT1s\",\n" +
+                "    \"outputDir\": \"" + testdir + "\"\n" +
+                "    }\n" +
+                "}";
+
+        Thread.sleep(3000); // wait until .suro file is expired
+        ObjectMapper mapper = new DefaultObjectMapper();
+        mapper.setInjectableValues(new InjectableValues() {
+            @Override
+            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
+                if (valueId.equals("queueManager")) {
+                    return new QueueManager();
+                } else {
+                    return null;
+                }
+            }
+        });
+        LocalFileSink sink = (LocalFileSink)mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
+        sink.cleanUp();
+
+        Set<String> filePathSetResult = new HashSet<String>();
+        for (int i = 0; i < numFiles; ++i) {
+            filePathSetResult.add(sink.recvNotify());
+        }
+        assertEquals(filePathSet, filePathSetResult);
     }
 }

@@ -16,8 +16,8 @@ public abstract class QueuedSink extends Thread {
     static Logger log = LoggerFactory.getLogger(QueuedSink.class);
 
     protected long lastBatch = System.currentTimeMillis();
-    protected boolean isRunning;
-    protected boolean isStopped;
+    protected boolean isRunning = false;
+    protected boolean isStopped = false;
 
     protected MessageQueue4Sink queue4Sink;
     private int batchSize;

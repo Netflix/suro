@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Properties;
 
 public class KafkaSink extends QueuedSink implements Sink {
-    public final static String TYPE = "kafka";
+    public final static String TYPE = "Kafka";
 
     private String clientId;
 

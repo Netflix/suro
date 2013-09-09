@@ -19,6 +19,8 @@ package com.netflix.suro.sink.localfile;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.netflix.suro.message.Message;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.slf4j.Logger;
@@ -37,7 +39,7 @@ public class SequenceFileWriter implements FileWriter {
 
     @JsonCreator
     public SequenceFileWriter(@JsonProperty("codec") String codec) {
-        base = new FileWriterBase(codec, log);
+        base = new FileWriterBase(codec, log, new Configuration());
     }
 
     @Override
@@ -72,6 +74,11 @@ public class SequenceFileWriter implements FileWriter {
         }
 
         seqFileWriter = base.createSequenceFile(newPath);
+    }
+
+    @Override
+    public FileSystem getFS() {
+        return base.getFS();
     }
 
 

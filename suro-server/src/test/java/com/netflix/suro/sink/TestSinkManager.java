@@ -97,8 +97,8 @@ public class TestSinkManager {
         assertEquals(sinkManager.getSink("default").getStat(), "defaultTestSink open");
         assertEquals(sinkManager.getSink("topic7").getStat(), "defaultTestSink open");
         assertTrue(
-                sinkManager.reportSinkStat().equals("default:defaultTestSink open\ntopic1:topic1TestSink open\n") ||
-                sinkManager.reportSinkStat().equals("topic1:topic1TestSink open\ndefault:defaultTestSink open\n"));
+                sinkManager.reportSinkStat().equals("default:defaultTestSink open\n\ntopic1:topic1TestSink open\n\n") ||
+                sinkManager.reportSinkStat().equals("topic1:topic1TestSink open\n\ndefault:defaultTestSink open\n\n"));
         assertEquals(numOfSinks, 2);
 
 
@@ -113,7 +113,7 @@ public class TestSinkManager {
         assertEquals(sinkManager.getSink("topic1").getStat(), "defaultTestSink open");
         assertEquals(sinkManager.getSink("default").getStat(), "defaultTestSink open");
         assertEquals(sinkManager.reportSinkStat(),
-                String.format("default:defaultTestSink open\n"));
+                String.format("default:defaultTestSink open\n\n"));
         assertEquals(numOfSinks, 1);
 
         // change desc - test addition
@@ -132,8 +132,8 @@ public class TestSinkManager {
         assertEquals(sinkManager.getSink("default").getStat(), "defaultTestSink open");
         assertEquals(sinkManager.getSink("topic2").getStat(), "topic2TestSink open");
         assertTrue(
-                sinkManager.reportSinkStat().equals("default:defaultTestSink open\ntopic2:topic2TestSink open\n") ||
-                        sinkManager.reportSinkStat().equals("topic2:topic2TestSink open\ndefault:defaultTestSink open\n"));
+                sinkManager.reportSinkStat().equals("default:defaultTestSink open\n\ntopic2:topic2TestSink open\n\n") ||
+                        sinkManager.reportSinkStat().equals("topic2:topic2TestSink open\n\ndefault:defaultTestSink open\n\n"));
         assertEquals(numOfSinks, 2);
 
         // test exception - nothing changed
@@ -152,8 +152,8 @@ public class TestSinkManager {
         assertEquals(sinkManager.getSink("default").getStat(), "defaultTestSink open");
         assertEquals(sinkManager.getSink("topic2").getStat(), "topic2TestSink open");
         assertTrue(
-                sinkManager.reportSinkStat().equals("default:defaultTestSink open\ntopic2:topic2TestSink open\n") ||
-                        sinkManager.reportSinkStat().equals("topic2:topic2TestSink open\ndefault:defaultTestSink open\n"));
+                sinkManager.reportSinkStat().equals("default:defaultTestSink open\n\ntopic2:topic2TestSink open\n\n") ||
+                        sinkManager.reportSinkStat().equals("topic2:topic2TestSink open\n\ndefault:defaultTestSink open\n\n"));
         assertEquals(numOfSinks, 2);
 
         // test destroy

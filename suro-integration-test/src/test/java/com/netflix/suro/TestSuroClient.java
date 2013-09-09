@@ -19,6 +19,7 @@ package com.netflix.suro;
 import com.google.inject.Injector;
 import com.netflix.suro.client.SuroClient;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.queue.MessageQueue;
 import com.netflix.suro.routing.TestMessageRouter;
 import com.netflix.suro.server.TestServer;
 import com.netflix.suro.sink.SinkManager;
@@ -41,6 +42,7 @@ public class TestSuroClient {
         serverInjector = TestServer.start();
         sinkManager = TestMessageRouter.startSinkMakager(serverInjector);
         TestMessageRouter.startMessageRouter(serverInjector);
+        serverInjector.getInstance(MessageQueue.class).start();
     }
 
     @After
@@ -79,7 +81,10 @@ public class TestSuroClient {
 
         SuroClient client = new SuroClient(clientProperties);
 
-        for (int i = 0; i < 1000; ++i) {
+        final int numMessages = 2;
+        final int waitTime = 10;
+
+        for (int i = 0; i < numMessages; ++i) {
             client.send(new Message("routingKey", "testMessage".getBytes()));
         }
 
@@ -87,18 +92,18 @@ public class TestSuroClient {
         TestMessageRouter.TestSink testSink = (TestMessageRouter.TestSink) sinkManager.getSink("default");
 
         int count = 0;
-        while (client.getSentMessageCount() < 1000 && count < 10) {
+        while (client.getSentMessageCount() < numMessages && count < waitTime) {
             Thread.sleep(1000);
             ++count;
         }
-        assertEquals(client.getSentMessageCount(), 1000);
+        assertEquals(client.getSentMessageCount(), numMessages);
         count = 0;
-        while (testSink.getMessageList().size() < 1000 && count < 10) {
+        while (testSink.getMessageList().size() < numMessages && count < waitTime) {
             Thread.sleep(1000);
             ++count;
         }
-        assertEquals(testSink.getMessageList().size(), 1000);
-        for (int i = 0; i < 1000; ++i) {
+        assertEquals(testSink.getMessageList().size(), numMessages);
+        for (int i = 0; i < numMessages; ++i) {
             assertEquals(testSink.getMessageList().get(0), "testMessage");
         }
     }

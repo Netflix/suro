@@ -25,7 +25,6 @@ import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.message.serde.SerDeFactory;
 import com.netflix.suro.routing.TestMessageRouter;
 import com.netflix.suro.thrift.TMessageSet;
 import org.apache.thrift.transport.TTransportException;

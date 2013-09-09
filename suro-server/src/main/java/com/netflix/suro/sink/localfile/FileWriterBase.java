@@ -33,15 +33,16 @@ import java.io.IOException;
 
 public class FileWriterBase {
     private final FileSystem fs;
-    private final Configuration conf = new Configuration();
     private final CompressionCodec codec;
+    private final Configuration conf;
     private final Logger log;
 
-    public FileWriterBase(String codecClass, Logger log) {
+    public FileWriterBase(String codecClass, Logger log, Configuration conf) {
         this.log = log;
+        this.conf = conf;
 
         try {
-            fs = FileSystem.getLocal(conf);
+            fs = FileSystem.get(conf);
             fs.setVerifyChecksum(false);
             if (codecClass != null) {
                 codec = createCodecInstance(codecClass);
@@ -55,7 +56,13 @@ public class FileWriterBase {
     }
 
     public void setDone(String oldName, String newName) throws IOException {
-        fs.rename(new Path(oldName), new Path(newName));
+        Path oldPath = new Path(oldName);
+        fs.rename(oldPath, new Path(newName));
+        fs.delete(new Path(oldPath.getParent(), "." + oldPath.getName() + ".crc"), true);
+    }
+
+    public FileSystem getFS() {
+        return fs;
     }
 
     public void createOutputDir(String outputDir) throws IOException {

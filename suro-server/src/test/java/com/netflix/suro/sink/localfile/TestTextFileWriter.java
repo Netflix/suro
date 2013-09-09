@@ -37,7 +37,7 @@ import static junit.framework.Assert.assertEquals;
 import static junit.framework.TestCase.assertFalse;
 
 public class TestTextFileWriter {
-    public static String dir = System.getProperty("java.io.tmpdir") + "filewritertest/";
+    public static String dir = "/tmp/surotest/filewritertest/";
 
     @Before
     @After

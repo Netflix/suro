@@ -1,6 +1,5 @@
 package com.netflix.suro.sink.kafka
 
-import kafka.server.KafkaConfig
 import org.scalatest.junit.JUnit3Suite
 import kafka.utils._
 import kafka.server.{KafkaConfig, KafkaServer}

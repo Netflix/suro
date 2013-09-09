@@ -104,15 +104,13 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
 
     private void gc() throws IOException {
         long beforeIndex = this.queueFrontIndex.get();
-        if (beforeIndex == 0L) { // wrap
-            beforeIndex = Long.MAX_VALUE;
-        } else {
+        if (beforeIndex > 0L) { // wrap
             beforeIndex--;
-        }
-        try {
-            this.innerArray.removeBeforeIndex(beforeIndex);
-        } catch (IndexOutOfBoundsException e) {
-            log.error("Exception on gc: " + e.getMessage(), e);
+            try {
+                this.innerArray.removeBeforeIndex(beforeIndex);
+            } catch (IndexOutOfBoundsException e) {
+                log.error("Exception on gc: " + e.getMessage(), e);
+            }
         }
     }
 
