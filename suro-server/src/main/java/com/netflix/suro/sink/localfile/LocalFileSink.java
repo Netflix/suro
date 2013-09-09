@@ -35,6 +35,9 @@ import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.queue.MemoryQueue4Sink;
 import com.netflix.suro.sink.queue.MessageQueue4Sink;
 import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
 import org.slf4j.Logger;
@@ -43,7 +46,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class LocalFileSink extends QueuedSink implements Sink {
     static Logger log = LoggerFactory.getLogger(LocalFileSink.class);
@@ -63,13 +65,15 @@ public class LocalFileSink extends QueuedSink implements Sink {
     private QueueManager queueManager;
     private SpaceChecker spaceChecker;
 
-    private String fileName;
+    private String filePath;
     private long nextRotation;
 
     @Monitor(name = "writtenMessages", type = DataSourceType.COUNTER)
-    private AtomicLong writtenMessages = new AtomicLong(0);
+    private long writtenMessages;
     @Monitor(name = "writtenBytes", type = DataSourceType.COUNTER)
-    private AtomicLong writtenBytes = new AtomicLong(0);
+    private long writtenBytes;
+    @Monitor(name = "errorClosedFiles", type = DataSourceType.COUNTER)
+    private long errorClosedFiles;
 
     private boolean messageWrittenInRotation = false;
 
@@ -160,9 +164,9 @@ public class LocalFileSink extends QueuedSink implements Sink {
         String newName = FileNameFormatter.get(outputDir) + suffix;
         writer.rotate(newName);
 
-        renameNotify(fileName);
+        renameNotify(filePath);
 
-        fileName = newName;
+        filePath = newName;
 
         nextRotation = new DateTime().plus(rotationPeriod).getMillis();
 
@@ -194,13 +198,13 @@ public class LocalFileSink extends QueuedSink implements Sink {
                             .withTag(TagKey.APP, msg.getApp())
                             .withTag(TagKey.DATA_SOURCE, msg.getRoutingKey())
                             .build());
-            writtenMessages.incrementAndGet();
+            ++writtenMessages;
             DynamicCounter.increment(
                     MonitorConfig.builder("writtenBytes")
                             .withTag(TagKey.APP, msg.getApp())
                             .withTag(TagKey.DATA_SOURCE, msg.getRoutingKey())
                             .build(), msg.getPayload().length);
-            writtenBytes.addAndGet(msg.getPayload().length);
+            writtenBytes += msg.getPayload().length;
 
             messageWrittenInRotation = true;
         }
@@ -214,7 +218,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
     @Override
     protected void innerClose() throws IOException {
         writer.close();
-        renameNotify(fileName);
+        renameNotify(filePath);
     }
 
     @Override
@@ -239,12 +243,37 @@ public class LocalFileSink extends QueuedSink implements Sink {
         }
     }
 
+    public void cleanUp() {
+        try {
+            FileSystem fs = writer.getFS();
+            FileStatus[] files = fs.listStatus(new Path(outputDir));
+            for (FileStatus file: files) {
+                String fileName = file.getPath().getName();
+                if (fileName.endsWith(done)) {
+                    notify.send(outputDir + fileName);
+                } else if (fileName.endsWith(suffix)) {
+                    long lastPeriod =
+                            new DateTime().minus(rotationPeriod).minus(rotationPeriod).getMillis();
+                    if (file.getModificationTime() < lastPeriod) {
+                        ++errorClosedFiles;
+                        log.error(outputDir + fileName + " is not closed properly!!!");
+                        String doneFile = fileName.replace(suffix, done);
+                        writer.setDone(outputDir + fileName, outputDir + doneFile);
+                        notify.send(outputDir + doneFile);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Exception while on cleanUp: " + e.getMessage(), e);
+        }
+    }
+
     @Override
     public String getStat() {
         return String.format(
                 "%d msgs, %s bytes written",
-                writtenMessages.get(),
-                FileUtils.byteCountToDisplaySize(writtenBytes.get()));
+                writtenMessages,
+                FileUtils.byteCountToDisplaySize(writtenBytes));
     }
 
     public static void deleteFile(String filePath) {

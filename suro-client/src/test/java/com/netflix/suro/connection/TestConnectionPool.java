@@ -42,7 +42,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static junit.framework.Assert.assertEquals;
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class TestConnectionPool {
     private Injector injector;
@@ -228,7 +231,7 @@ public class TestConnectionPool {
         }
         assertEquals(messageSetCount, 10);
 
-        assertEquals(prevCount, servers.get(0).getMessageSetCount());
+        assertTrue(servers.get(0).getMessageSetCount() - prevCount <= 1);
     }
 
     @Test
@@ -268,5 +271,45 @@ public class TestConnectionPool {
         connection = pool.chooseConnection();
 
         assertEquals(connection.getSentCount(), 0);
+    }
+
+    @Test
+    public void testPopulation() throws Exception {
+        props.setProperty(ClientConfig.ASYNC_SENDER_THREADS, "1");
+
+        createInjector();
+
+        ILoadBalancer lb = mock(ILoadBalancer.class);
+        List<Server> servers = new LinkedList<Server>();
+        servers.add(new Server("localhost", 8300));
+        servers.add(new Server("localhost", 8301));
+        servers.add(new Server("localhost", 8302));
+        when(lb.getServerList(true)).thenReturn(servers);
+
+        ConnectionPool pool = new ConnectionPool(injector.getInstance(ClientConfig.class), lb);
+        assertEquals(pool.getPoolSize(), 1);
+        for (int i = 0; i < 10; ++i) {
+            if (pool.getPoolSize() != 3) {
+                Thread.sleep(1000);
+            }
+        }
+        assertEquals(pool.getPoolSize(), 3);
+    }
+
+    @Test
+    public void testPopulation2() throws Exception {
+        props.setProperty(ClientConfig.ASYNC_SENDER_THREADS, "10");
+
+        createInjector();
+
+        ILoadBalancer lb = mock(ILoadBalancer.class);
+        List<Server> servers = new LinkedList<Server>();
+        servers.add(new Server("localhost", 8300));
+        servers.add(new Server("localhost", 8301));
+        servers.add(new Server("localhost", 8302));
+        when(lb.getServerList(true)).thenReturn(servers);
+
+        ConnectionPool pool = new ConnectionPool(injector.getInstance(ClientConfig.class), lb);
+        assertEquals(pool.getPoolSize(), 3);
     }
 }

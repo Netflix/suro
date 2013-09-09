@@ -101,6 +101,8 @@ public class S3FileSink implements Sink {
 
         Preconditions.checkNotNull(localFileSink, "localFileSink is needed");
         Preconditions.checkNotNull(bucket, "bucket is needed");
+
+        localFileSink.cleanUp();
     }
 
     @Override
@@ -144,6 +146,7 @@ public class S3FileSink implements Sink {
                     if (note != null) {
                         uploadFile(note);
                     }
+                    localFileSink.cleanUp();
                 }
                 String note = localFileSink.recvNotify();
                 while (note != null) {
@@ -193,7 +196,6 @@ public class S3FileSink implements Sink {
 
     private Set<String> processingFileSet = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     private BlockingQueue<String> processedFileQueue = new LinkedBlockingQueue<String>();
-    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     private void uploadFile(final String filePath) {
         // to prevent multiple uploading in any situations

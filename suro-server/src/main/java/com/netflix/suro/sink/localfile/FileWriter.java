@@ -19,6 +19,7 @@ package com.netflix.suro.sink.localfile;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.netflix.suro.message.Message;
+import org.apache.hadoop.fs.FileSystem;
 
 import java.io.IOException;
 
@@ -33,6 +34,7 @@ public interface FileWriter {
     void writeTo(Message message) throws IOException;
     void sync() throws IOException;
     void rotate(String newPath) throws IOException;
+    FileSystem getFS();
 
     void close() throws IOException;
     void setDone(String oldName, String newName) throws IOException;

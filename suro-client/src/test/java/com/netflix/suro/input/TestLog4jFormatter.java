@@ -87,10 +87,11 @@ public class TestLog4jFormatter {
         assertEquals(formattedEvent.get("Exception").toString(), "[StackTrace0, StackTrace1]");
 
         // can't compare datetime because of millisecond
-        // just check the time with second
+        // just check the time with minute
         DateTime now = new DateTime();
         DateTimeFormatter fmt = DateTimeFormat.forPattern(config.getLog4jDateTimeFormat());
         String nowStr = fmt.print(now);
-        assertEquals(nowStr.split(",")[0], ((String)formattedEvent.get("datetime")).split(",")[0]);
+        assertEquals(nowStr.split(":")[0]+nowStr.split(":")[1],
+                ((String)formattedEvent.get("datetime")).split(":")[0] + ((String)formattedEvent.get("datetime")).split(":")[1]);
     }
 }

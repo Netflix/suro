@@ -30,7 +30,6 @@ import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.queue.QueueManager;
 import com.netflix.suro.sink.Sink;
-import com.netflix.suro.sink.localfile.TestTextFileWriter;
 import org.apache.commons.io.FileUtils;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.multi.s3.S3ServiceEventListener;
@@ -52,11 +51,13 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 
 public class TestS3FileSink {
+    private static final String testdir = "/tmp/surotest/tests3filesink";
+
     public static final String s3FileSink = "{\n" +
             "    \"type\": \"S3FileSink\",\n" +
             "    \"localFileSink\": {\n" +
             "        \"type\": \"LocalFileSink\",\n" +
-            "        \"outputDir\": \"" + TestTextFileWriter.dir + "\",\n" +
+            "        \"outputDir\": \"" + testdir + "\",\n" +
             "        \"writer\": {\n" +
             "            \"type\": \"text\"\n" +
             "        },\n" +
@@ -81,7 +82,7 @@ public class TestS3FileSink {
     @Before
     @After
     public void clean() throws IOException {
-        FileUtils.deleteDirectory(new File(TestTextFileWriter.dir));
+        FileUtils.deleteDirectory(new File(testdir));
     }
 
     @Test
@@ -90,7 +91,7 @@ public class TestS3FileSink {
                 "    \"type\": \"S3FileSink\",\n" +
                 "    \"localFileSink\": {\n" +
                 "        \"type\": \"LocalFileSink\",\n" +
-                "        \"outputDir\": \"" + TestTextFileWriter.dir + "\"\n" +
+                "        \"outputDir\": \"" + testdir + "\"\n" +
                 "    },\n" +
                 "    \"bucket\": \"s3bucket\"\n" +
                 "}";
@@ -146,7 +147,7 @@ public class TestS3FileSink {
         sink.close();
 
         // check every file uploaded, deleted, and notified
-        File dir = new File(TestTextFileWriter.dir);
+        File dir = new File(testdir);
         File[] files = dir.listFiles(new FilenameFilter() {
             @Override
             public boolean accept(File file, String name) {
@@ -221,7 +222,7 @@ public class TestS3FileSink {
         sink.close();
 
         // check every file uploaded, deleted, and notified
-        File dir = new File(TestTextFileWriter.dir);
+        File dir = new File(testdir);
         File[] files = dir.listFiles(new FilenameFilter() {
             @Override
             public boolean accept(File file, String name) {

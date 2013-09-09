@@ -26,7 +26,6 @@ import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.message.serde.SerDeFactory;
 import com.netflix.suro.routing.TestMessageRouter;
 import com.netflix.suro.sink.SinkManager;
 import com.netflix.suro.thrift.*;
@@ -52,8 +51,6 @@ import static org.junit.Assert.assertEquals;
 
 public class TestStatusServer {
     private static class TestServer implements SuroServer.Iface {
-        private int count = 0;
-
         private Result result;
         public TestServer(Result result) {
             this.result = result;
@@ -199,6 +196,6 @@ public class TestStatusServer {
             e.printStackTrace();
         }
 
-        assertEquals(sb.toString(), "sink1:sink1 open\ndefault:default open\n");
+        assertEquals(sb.toString(), "sink1:sink1 open\n\ndefault:default open\n\n");
     }
 }

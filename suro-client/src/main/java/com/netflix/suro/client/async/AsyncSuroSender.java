@@ -51,7 +51,8 @@ public class AsyncSuroSender implements Runnable {
         for (int i = 0; i < config.getRetryCount(); ++i) {
             ConnectionPool.SuroConnection connection = connectionPool.chooseConnection();
             try {
-                if (connection.send(messageSet).getResultCode() == ResultCode.OK) {
+                ResultCode result = connection.send(messageSet).getResultCode();
+                if (result == ResultCode.OK) {
                     sent = true;
                     connectionPool.endConnection(connection);
                     retried = i > 0;

@@ -105,8 +105,8 @@ public class SuroServer {
         server = injector.getInstance(ThriftServer.class);
 
         try {
-            injector.getInstance(SinkManager.class).build(routingMap.get());
-            injector.getInstance(RoutingMap.class).build(sinkConfig.get());
+            injector.getInstance(SinkManager.class).build(sinkConfig.get());
+            injector.getInstance(RoutingMap.class).build(routingMap.get());
             injector.getInstance(MessageQueue.class).start();
             server.start();
             statusServer.start(injector);

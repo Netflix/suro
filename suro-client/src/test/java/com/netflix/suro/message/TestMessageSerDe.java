@@ -10,14 +10,16 @@ public class TestMessageSerDe {
     @Test
     public void test() {
         MessageSerDe serde = new MessageSerDe();
-        Message msg = new Message("routingKey",
-                "app",
-                "hostname",
-                new StringSerDe(),
-                "payload".getBytes());
-        byte[] bytes = serde.serialize(msg);
-        for (int i = 0; i < 100; ++i) {
-            assertEquals(msg, serde.deserialize(bytes));
+        for (int k = 0; k < 10; ++k) {
+            Message msg = new Message("routingKey",
+                    "app",
+                    "hostname",
+                    new StringSerDe(),
+                    "payload".getBytes());
+            byte[] bytes = serde.serialize(msg);
+            for (int i = 0; i < 100; ++i) {
+                assertEquals(msg, serde.deserialize(bytes));
+            }
         }
     }
 }

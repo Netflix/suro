@@ -59,6 +59,7 @@ public class ConnectionPool {
     private ScheduledExecutorService connectionSweeper;
     private ExecutorService newConnectionBuilder;
     private BlockingQueue<SuroConnection> connectionQueue = new LinkedBlockingQueue<SuroConnection>();
+    private CountDownLatch populationLatch;
 
     @Inject
     public ConnectionPool(ClientConfig config, ILoadBalancer lb) {
@@ -70,7 +71,20 @@ public class ConnectionPool {
 
         Monitors.registerObject(this);
 
-        populateClients();
+        populationLatch = new CountDownLatch(Math.min(lb.getServerList(true).size(), config.getAsyncSenderThreads()));
+        Executors.newSingleThreadExecutor().submit(new Runnable() {
+            @Override
+            public void run() {
+                populateClients();
+            };
+        });
+        try {
+            populationLatch.await();
+        } catch (InterruptedException e) {
+            logger.error("Exception on CountDownLatch awaitin: " + e.getMessage(), e);
+        }
+        logger.info("ConnectionPool population finished with the size: " + getPoolSize()
+                + ", will continue up to: " + lb.getServerList(true).size());
     }
 
     @PreDestroy
@@ -125,6 +139,9 @@ public class ConnectionPool {
     private void addConnection(Server server, SuroConnection connection, boolean inPool) {
         if (inPool) {
             connectionPool.put(server, connection);
+            if (populationLatch.getCount() > 0) {
+                populationLatch.countDown();
+            }
         }
         serverSet.add(server);
         connectionList.add(connection);
