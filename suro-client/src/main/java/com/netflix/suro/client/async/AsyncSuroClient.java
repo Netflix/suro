@@ -18,13 +18,13 @@ package com.netflix.suro.client.async;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
+import com.netflix.config.DynamicIntProperty;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.servo.monitor.DynamicCounter;
 import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.ClientConfig;
-import com.netflix.suro.FileBlockingQueue;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.client.ISuroClient;
 import com.netflix.suro.client.SyncSuroClient;
@@ -78,6 +78,15 @@ public class AsyncSuroClient implements ISuroClient {
     private ExecutorService poller = Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder().setNameFormat("AsyncSuroClientPoller-%d").build());
 
+    public static final String asyncRateLimitConfig = "SuroClient.asyncRateLimit";
+    private final DynamicIntProperty rateLimitMsgPerSec = new DynamicIntProperty(asyncRateLimitConfig, 1000) {
+        @Override
+        protected void propertyChanged() {
+            rateLimiter.setMsgPerSec(get());
+        }
+    };
+    private final RateLimiter rateLimiter;
+
     @Inject
     public AsyncSuroClient(
             ClientConfig config,
@@ -110,6 +119,7 @@ public class AsyncSuroClient implements ISuroClient {
                     }
                 });
 
+        rateLimiter = new RateLimiter(rateLimitMsgPerSec.get());
         Monitors.registerObject(this);
     }
 
@@ -161,6 +171,7 @@ public class AsyncSuroClient implements ISuroClient {
                         boolean full = (builder.size() >= config.getAsyncBatchSize());
                         if ((expired || full) && builder.size() > 0) {
                             lastBatch = System.currentTimeMillis();
+                            rateLimiter.pause(builder.size());
                             senders.execute(new AsyncSuroSender(builder.build(), client, config));
                         } else if (builder.size() == 0) {
                             Thread.sleep(config.getAsyncTimeout());

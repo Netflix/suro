@@ -271,7 +271,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
     @Override
     public String getStat() {
         return String.format(
-                "%d msgs, %s bytes written",
+                "%d msgs, %s written",
                 writtenMessages,
                 FileUtils.byteCountToDisplaySize(writtenBytes));
     }
