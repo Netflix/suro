@@ -139,6 +139,13 @@ public class ClientConfig {
         return asyncFileQueuePath;
     }
 
+    public static final String ASYNC_FILEQUEUE_NAME = "SuroClient.asyncFileQueueName";
+    @Configuration(ASYNC_FILEQUEUE_NAME)
+    private String asyncFileQueueName = "default";
+    public String getAsyncFileQueueName() {
+        return asyncFileQueueName;
+    }
+
     public static final String ASYNC_FILEQUEUE_AUTOCOMMIT = "SuroClient.asyncFileQueueAutoCommit";
     @Configuration(ASYNC_FILEQUEUE_AUTOCOMMIT)
     private boolean asyncFileQueueAutoCommit = true;

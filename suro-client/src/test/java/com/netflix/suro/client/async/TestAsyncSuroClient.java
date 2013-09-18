@@ -45,6 +45,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class TestAsyncSuroClient {
     private Injector injector;
@@ -73,10 +74,9 @@ public class TestAsyncSuroClient {
         injector.getInstance(LifecycleManager.class).start();
     }
 
-    private void setupFile() throws Exception {
+    private void setupFile(final Properties props) throws Exception {
         servers = TestConnectionPool.startServers(3, 8100);
 
-        final Properties props = new Properties();
         props.put(ClientConfig.LB_SERVER, "localhost:8100,localhost:8101,localhost:8102");
         props.put(ClientConfig.ASYNC_FILEQUEUE_PATH, System.getProperty("java.io.tmpdir"));
 
@@ -124,7 +124,7 @@ public class TestAsyncSuroClient {
     @Test
     public void testFile() throws Exception {
         clean();
-        setupFile();
+        setupFile(new Properties());
 
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
 
@@ -141,7 +141,7 @@ public class TestAsyncSuroClient {
     @Test
     public void testRestore() throws Exception {
         clean();
-        setupFile();
+        setupFile(new Properties());
 
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
 
@@ -172,5 +172,26 @@ public class TestAsyncSuroClient {
         assertEquals(client.getSentMessageCount(), 3000);
 
         TestConnectionPool.checkMessageCount(servers, 3000);
+    }
+
+    @Test
+    public void testRateLimit() throws Exception {
+        Properties props = new Properties();
+        props.put(AsyncSuroClient.asyncRateLimitConfig, "10");
+
+        setupFile(props);
+
+        AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
+        for (int i = 0; i < 50; ++i) {
+            client.send(new Message("routingKey", "appp", "hostname", new StringSerDe(), "testMessage".getBytes()));
+        }
+
+        long start = System.currentTimeMillis();
+        while (client.getSentMessageCount() < 50) {
+            Thread.sleep(100);
+        }
+        long duration = System.currentTimeMillis() - start;
+
+        assertTrue(duration > 5000);
     }
 }

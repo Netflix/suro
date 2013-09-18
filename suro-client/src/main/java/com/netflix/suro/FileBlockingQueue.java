@@ -69,7 +69,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
 
     @Inject
     public FileBlockingQueue(ClientConfig config, SerDe<E> serDe) throws IOException {
-        this(config.getAsyncFileQueuePath(), "suroClient", config.getAsyncFileQueueGCInterval(), serDe,
+        this(config.getAsyncFileQueuePath(), config.getAsyncFileQueueName(), config.getAsyncFileQueueGCInterval(), serDe,
                 config.getAsyncFilequeueAutoCommit());
     }
 
