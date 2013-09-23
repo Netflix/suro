@@ -29,6 +29,7 @@ import kafka.common.TopicAndPartition
 import scala.collection.mutable
 import kafka.message.MessageAndOffset
 import com.fasterxml.jackson.databind.jsontype.NamedType
+import com.netflix.suro.ClientConfig
 
 class TestKafkaSink extends JUnit3Suite {
   private val brokerId1 = 0
@@ -116,23 +117,16 @@ class TestKafkaSink extends JUnit3Suite {
     }
     assertEquals("Should have fetched 2 messages", 2, messageSet.size)
 
-    val msg0: com.netflix.suro.message.Message = createMsg(messageSet, 0)
-    assertEquals(msg0,
-      new com.netflix.suro.message.Message("routingKey", "application", "hostname", new StringSerDe(), ("testMessage" + 0).getBytes))
-
-    val msg1: com.netflix.suro.message.Message = createMsg(messageSet, 1)
-    assertEquals(msg1,
-      new com.netflix.suro.message.Message("routingKey", "application", "hostname", new StringSerDe(), ("testMessage" + 1).getBytes))
+    assertEquals(new String(createMsg(messageSet, 0)),"testMessage" + 0)
+    assertEquals(new String(createMsg(messageSet, 1)), "testMessage" + 1)
   }
 
 
-  def createMsg(messageSet: mutable.Buffer[MessageAndOffset], offset: Int): com.netflix.suro.message.Message = {
+  def createMsg(messageSet: mutable.Buffer[MessageAndOffset], offset: Int): Array[Byte] = {
     val bb = messageSet(offset).message.payload
     val bytes = new Array[Byte](bb.remaining())
     bb.get(bytes, 0, bytes.length)
-    val msg = new com.netflix.suro.message.Message()
-    msg.readFields(ByteStreams.newDataInput(bytes))
-    msg
+    bytes
   }
 
   def startZkServer(testName: String, port: Int): ZkServer = {
@@ -146,10 +140,7 @@ class TestKafkaSink extends JUnit3Suite {
   }
 
   def createMessageSet(numMsgs: Int): TMessageSet = {
-    val builder = new MessageSetBuilder()
-      .withApp("application")
-      .withHostname("hostname")
-      .withSerDe(new StringSerDe())
+    val builder = new MessageSetBuilder(new ClientConfig)
       .withCompression(Compression.LZF)
 
     for(i <- 0 to numMsgs - 1) {

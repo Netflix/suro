@@ -59,10 +59,10 @@ public class TestSequenceFileWriter {
         writer.rotate(dir + "testfile0.suro");
         for (int i = 0; i < 10; ++i) {
             writer.writeTo(
-                    new Message("routingKey", "app", "hostname", new StringSerDe(), ("message0" + i).getBytes()));
+                    new Message("routingKey", ("message0" + i).getBytes()));
         }
         System.out.println("length: " + writer.getLength());
-        assertEquals(writer.getLength(), 1115);
+        assertEquals(writer.getLength(), 525);
 
         writer.rotate(dir + "testfile1.suro");
         assertEquals(writer.getLength(), 85); // empty sequence file length
@@ -74,7 +74,7 @@ public class TestSequenceFileWriter {
 
         for (int i = 0; i < 10; ++i) {
             writer.writeTo(
-                    new Message("routingKey", "app", "hostname", new StringSerDe(), ("message1" + i).getBytes()));
+                    new Message("routingKey", ("message1" + i).getBytes()));
         }
         writer.close();
         assertEquals(checkFileContents(dir + "testfile1.suro", "message1"), 10);
@@ -88,11 +88,12 @@ public class TestSequenceFileWriter {
 
         Text routingKey = new Text();
         Message value = new Message();
+        StringSerDe serde = new StringSerDe();
 
         int i = 0;
         while (r.next(routingKey, value)) {
             assertEquals(routingKey.toString(), "routingKey");
-            assertEquals(value.getSerDe().deserialize(value.getPayload()), message + i);
+            assertEquals(serde.deserialize(value.getPayload()), message + i);
             ++i;
         }
         r.close();

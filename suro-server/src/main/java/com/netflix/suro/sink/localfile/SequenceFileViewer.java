@@ -1,6 +1,7 @@
 package com.netflix.suro.sink.localfile;
 
 import com.netflix.suro.message.Message;
+import com.netflix.suro.message.serde.SerDeFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -20,7 +21,7 @@ public class SequenceFileViewer {
 
         while (r.next(routingKey, message)) {
             System.out.println("###routing key: " + routingKey);
-            System.out.println(message.getSerDe().toString(message.getPayload()));
+            System.out.println(SerDeFactory.create(args[1]).deserialize(message.getPayload()));
         }
 
         r.close();

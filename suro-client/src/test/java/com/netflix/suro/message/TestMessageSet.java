@@ -16,12 +16,14 @@
 
 package com.netflix.suro.message;
 
+import com.netflix.suro.ClientConfig;
 import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.message.serde.StringSerDe;
 import com.netflix.suro.thrift.TMessageSet;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -59,31 +61,15 @@ public class TestMessageSet {
     }
 
     @Test
-    public void testByteSize() {
-        int size = 0;
-        for (int i = 0; i < payloadList.size(); ++i) {
-            size += 4 + routingKeyList.get(i).length() + 4 + payloadList.get(i).length();
-        }
-
-        assertEquals(size, MessageSetBuilder.getByteSize(messageList));
-
-        byte[] buffer = MessageSetBuilder.createPayload(messageList, Compression.NO);
-        assertEquals(buffer.length, size);
-    }
-
-    @Test
     public void testEmptyBuilder() {
-        TMessageSet messageSet = new MessageSetBuilder().build();
+        TMessageSet messageSet = new MessageSetBuilder(new ClientConfig()).build();
         assertEquals(messageSet.getMessages().length, 0);
     }
     @Test
-    public void testBuilder() {
+    public void testBuilder() throws IOException {
         TMessageSet messageSet = buildMessageSet();
 
-        assertEquals(messageSet.getApp(), "app");
-        assertEquals(messageSet.getHostname(), "testhost");
         assertEquals(messageSet.getCompression(), 0);
-        assertEquals(messageSet.getSerde(), StringSerDe.class.getCanonicalName());
         byte[] bytePayload = messageSet.getMessages();
         byte[] payload = MessageSetBuilder.createPayload(messageList, Compression.NO);
         assertEquals(bytePayload.length, payload.length);
@@ -93,8 +79,7 @@ public class TestMessageSet {
     }
 
     private TMessageSet buildMessageSet() {
-        MessageSetBuilder builder = new MessageSetBuilder();
-        builder = builder.withApp("app").withHostname("testhost");
+        MessageSetBuilder builder = new MessageSetBuilder(new ClientConfig());
         for (Message message : messageList) {
             builder.withMessage(message.getRoutingKey(), message.getPayload());
         }
@@ -108,16 +93,12 @@ public class TestMessageSet {
 
         MessageSetReader reader = new MessageSetReader(messageSet);
         assertTrue(reader.checkCRC());
-        assertEquals(reader.getApp(), "app");
-        assertEquals(reader.getHostname(), "testhost");
 
-        SerDe<String> serde = reader.getSerDe();
+        SerDe<String> serde = new StringSerDe();
 
         int i = 0;
         for (Message message : reader) {
             assertEquals(message.getRoutingKey(), "routingKey" + i);
-            assertEquals(message.getApp(), "app");
-            assertEquals(message.getHostname(), "testhost");
             assertEquals(serde.deserialize(message.getPayload()), "payload" + i);
             ++i;
         }

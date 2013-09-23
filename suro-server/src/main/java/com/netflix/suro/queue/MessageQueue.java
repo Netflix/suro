@@ -21,7 +21,9 @@ import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.servo.monitor.DynamicCounter;
+import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.servo.monitor.Monitors;
+import com.netflix.suro.ClientConfig;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetBuilder;
@@ -88,15 +90,15 @@ public class MessageQueue implements SuroServer.Iface {
         return queue.size();
     }
 
-    private static final String messageSetCountMetric = "messageSetCount";
-    @Monitor(name= messageSetCountMetric, type=DataSourceType.COUNTER)
-    private long messageSetCount;
+    private static final String messageCountMetric = "messageCount";
+    @Monitor(name= messageCountMetric, type=DataSourceType.COUNTER)
+    private long messageCount;
 
     private static final String retryCountMetric = "retryCount";
     @Monitor(name=retryCountMetric, type=DataSourceType.COUNTER)
     private long retryCount;
 
-    private static final String dataCorruptionCountMetric = "retryCount";
+    private static final String dataCorruptionCountMetric = "dataCorruptionCount";
     @Monitor(name="dataCorruption", type=DataSourceType.COUNTER)
     private long dataCorruption;
 
@@ -141,9 +143,12 @@ public class MessageQueue implements SuroServer.Iface {
             }
 
             if (queue.offer(messageSet)) {
-                ++messageSetCount;
+                ++messageCount;
 
-                DynamicCounter.increment(messageSetCountMetric, TagKey.APP, messageSet.getApp());
+                DynamicCounter.increment(
+                        MonitorConfig.builder(messageCountMetric)
+                                .withTag(TagKey.APP, messageSet.getApp())
+                                .build(), messageSet.getNumMessages());
 
                 result.setMessage(Long.toString(messageSet.getCrc()));
                 result.setResultCode(ResultCode.OK);
@@ -237,7 +242,7 @@ public class MessageQueue implements SuroServer.Iface {
             return queue.poll(timeout, unit);
         } catch (InterruptedException e) {
             // return empty payload
-            return new MessageSetBuilder().build();
+            return new MessageSetBuilder(new ClientConfig()).build();
         }
     }
 }

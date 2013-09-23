@@ -16,8 +16,6 @@
 
 package com.netflix.suro.message;
 
-import com.netflix.suro.message.serde.SerDe;
-import com.netflix.suro.message.serde.SerDeFactory;
 import org.apache.hadoop.io.Writable;
 
 import java.io.DataInput;
@@ -27,48 +25,17 @@ import java.util.Arrays;
 
 public class Message implements Writable {
     private String routingKey;
-    private String app;
-    private String hostname;
-    private SerDe serde;
     private byte[] payload;
 
     public Message() {}
     // constructor for MessageSetBuilder
     public Message(String routingKey, byte[] payload) {
         this.routingKey = routingKey;
-        this.app = null;
-        this.hostname = null;
-        this.serde = null;
-        this.payload = payload;
-    }
-
-    // constructor for MessageSetReader
-    public Message(String routingKey,
-                   String app,
-                   String hostname,
-                   SerDe serde,
-                   byte[] payload) {
-        this.routingKey = routingKey;
-        this.app = app;
-        this.hostname = hostname;
-        this.serde = serde;
         this.payload = payload;
     }
 
     public String getRoutingKey() {
         return routingKey;
-    }
-
-    public String getHostname() {
-        return hostname;
-    }
-
-    public String getApp() {
-        return app;
-    }
-
-    public SerDe getSerDe() {
-        return serde;
     }
 
     public byte[] getPayload() {
@@ -79,9 +46,6 @@ public class Message implements Writable {
     public String toString() {
         return String.format("routingKey: %s, hostname: %s, app: %s, serde: %s, payload byte size: %d",
                 routingKey,
-                hostname == null ? "N/A" : hostname,
-                app == null ? "N/A" : app,
-                serde.getClass().getName(),
                 payload.length);
     }
 
@@ -92,38 +56,28 @@ public class Message implements Writable {
         }
 
         Message m = (Message) o;
-        return (hostname == null ? m.hostname == null : hostname.equals(m.hostname)) &&
-               (app == null ? m.app == null : app.equals(m.app)) &&
-               routingKey.equals(m.routingKey) &&
+        return routingKey.equals(m.routingKey) &&
                Arrays.equals(payload, m.payload);
     }
 
     @Override
     public int hashCode() {
-        int hostnameHash = hostname == null ? 0 : hostname.hashCode();
-        int appHash = app == null ? 0 : app.hashCode();
         int routingKeyHash = routingKey.hashCode();
         int messageHash = payload.hashCode();
 
-        return hostnameHash + appHash + routingKeyHash + messageHash;
+        return routingKeyHash + messageHash;
     }
 
     @Override
     public void write(DataOutput dataOutput) throws IOException {
-        dataOutput.writeUTF(hostname);
-        dataOutput.writeUTF(app);
         dataOutput.writeUTF(routingKey);
-        dataOutput.writeUTF(serde.getClass().getName());
         dataOutput.writeInt(payload.length);
         dataOutput.write(payload);
     }
 
     @Override
     public void readFields(DataInput dataInput) throws IOException {
-        hostname = dataInput.readUTF();
-        app = dataInput.readUTF();
         routingKey = dataInput.readUTF();
-        serde = SerDeFactory.create(dataInput.readUTF());
         payload = new byte[dataInput.readInt()];
         dataInput.readFully(payload);
     }

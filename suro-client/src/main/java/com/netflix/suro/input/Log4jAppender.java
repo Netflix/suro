@@ -159,9 +159,6 @@ public class Log4jAppender extends AppenderSkeleton {
         String result = formatter.format(event);
         client.send(new Message(
                 formatter.getRoutingKey(),
-                getApp(),
-                localHostAddr,
-                serDe,
                 result.getBytes()));
     }
 

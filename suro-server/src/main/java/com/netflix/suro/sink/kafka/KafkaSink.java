@@ -26,7 +26,6 @@ public class KafkaSink extends QueuedSink implements Sink {
     private String clientId;
 
     protected final KafkaProducer producer;
-    protected SerDe<Message> msgSerDe = new MessageSerDe();
 
     @JsonCreator
     public KafkaSink(
@@ -133,10 +132,10 @@ public class KafkaSink extends QueuedSink implements Sink {
         lastBatch = System.currentTimeMillis();
     }
 
-    private List<KeyedMessage<String, byte[]>> kafkaMsgList = new ArrayList<KeyedMessage<String, byte[]>>();
+    private List<KeyedMessage<byte[], byte[]>> kafkaMsgList = new ArrayList<KeyedMessage<byte[], byte[]>>();
     protected void send(List<Message> msgList) {
         for (Message m : msgList) {
-            kafkaMsgList.add(new KeyedMessage<String, byte[]>(m.getRoutingKey(), msgSerDe.serialize(m)));
+            kafkaMsgList.add(new KeyedMessage<byte[], byte[]>(m.getRoutingKey(), m.getPayload()));
         }
         producer.send(kafkaMsgList);
         kafkaMsgList.clear();

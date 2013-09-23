@@ -37,8 +37,6 @@ public class TestMessageSetSerDe {
         byte[] payload = serde.serialize(messageSet);
         TMessageSet d = serde.deserialize(payload);
 
-        assertEquals(d.getHostname(), messageSet.getHostname());
-        assertEquals(d.getApp(), messageSet.getApp());
         assertTrue(Arrays.equals(d.getMessages(), messageSet.getMessages()));
 
         List<Message> messageList = new LinkedList<Message>();

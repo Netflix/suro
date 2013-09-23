@@ -27,7 +27,8 @@ import com.netflix.suro.sink.remotefile.S3FileSink;
 @JsonSubTypes(value = {
         @JsonSubTypes.Type(name = LocalFileSink.TYPE, value = LocalFileSink.class),
         @JsonSubTypes.Type(name = S3FileSink.TYPE, value = S3FileSink.class),
-        @JsonSubTypes.Type(name = "Kafka", value = KafkaSink.class)
+        @JsonSubTypes.Type(name = "kafka", value = KafkaSink.class),
+        @JsonSubTypes.Type(name = SuroSink.TYPE, value = SuroSink.class)
 })
 public interface Sink {
     void writeTo(Message message);

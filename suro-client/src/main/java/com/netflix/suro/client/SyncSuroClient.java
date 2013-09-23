@@ -74,14 +74,16 @@ public class SyncSuroClient implements ISuroClient {
 
     @Override
     public void send(Message message) {
-        send(new MessageSetBuilder()
-                .withApp(config.getApp())
-                .withSerDe(config.getSerDe())
+        send(new MessageSetBuilder(config)
                 .withCompression(compression)
                 .withMessage(message.getRoutingKey(), message.getPayload()).build());
     }
 
     public boolean send(TMessageSet messageSet) {
+        if (messageSet == null) {
+            return false;
+        }
+
         boolean sent = false;
         boolean retried = false;
 
@@ -103,24 +105,24 @@ public class SyncSuroClient implements ISuroClient {
 
         MessageSetReader reader = new MessageSetReader(messageSet);
         if (sent) {
-            sentMessageCount.addAndGet(incrementMessageCount(TagKey.SENT_COUNT, reader));
+            sentMessageCount.addAndGet(incrementMessageCount(TagKey.SENT_COUNT, config.getApp(), reader));
             if (retried) {
                 retriedCount.incrementAndGet();
             }
 
         } else {
-            lostMessageCount.addAndGet(incrementMessageCount(TagKey.LOST_COUNT, reader));
+            lostMessageCount.addAndGet(incrementMessageCount(TagKey.LOST_COUNT, config.getApp(), reader));
         }
 
         return sent;
     }
 
-    public static int incrementMessageCount(String counterName, Iterable<Message> messages) {
+    public static int incrementMessageCount(String counterName, String app, Iterable<Message> messages) {
         int count = 0;
         for (Message message : messages) {
             DynamicCounter.increment(
                     MonitorConfig.builder(counterName)
-                            .withTag(TagKey.APP, message.getApp())
+                            .withTag(TagKey.APP, app)
                             .withTag(TagKey.DATA_SOURCE, message.getRoutingKey())
                             .build());
             ++count;

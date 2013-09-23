@@ -53,7 +53,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class S3FileSink implements Sink {
-    public static final String TYPE = "S3FileSink";
+    public static final String TYPE = "s3";
 
     static Logger log = LoggerFactory.getLogger(S3FileSink.class);
 

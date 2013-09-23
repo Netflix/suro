@@ -50,7 +50,7 @@ import java.util.List;
 public class LocalFileSink extends QueuedSink implements Sink {
     static Logger log = LoggerFactory.getLogger(LocalFileSink.class);
 
-    public static final String TYPE = "LocalFileSink";
+    public static final String TYPE = "local";
 
     public static final String suffix = ".suro";
     public static final String done = ".done";
@@ -195,13 +195,11 @@ public class LocalFileSink extends QueuedSink implements Sink {
             writer.writeTo(msg);
             DynamicCounter.increment(
                     MonitorConfig.builder("writtenMessages")
-                            .withTag(TagKey.APP, msg.getApp())
                             .withTag(TagKey.DATA_SOURCE, msg.getRoutingKey())
                             .build());
             ++writtenMessages;
             DynamicCounter.increment(
                     MonitorConfig.builder("writtenBytes")
-                            .withTag(TagKey.APP, msg.getApp())
                             .withTag(TagKey.DATA_SOURCE, msg.getRoutingKey())
                             .build(), msg.getPayload().length);
             writtenBytes += msg.getPayload().length;

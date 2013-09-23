@@ -16,13 +16,13 @@
 
 package com.netflix.suro.message;
 
-import com.netflix.suro.message.serde.SerDe;
-import com.netflix.suro.message.serde.SerDeFactory;
+import com.google.common.io.ByteArrayDataInput;
+import com.google.common.io.ByteStreams;
 import com.netflix.suro.thrift.TMessageSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.ByteBuffer;
+import java.io.IOException;
 import java.util.Iterator;
 
 public class MessageSetReader implements Iterable<Message> {
@@ -35,10 +35,6 @@ public class MessageSetReader implements Iterable<Message> {
 
     }
 
-    public String getApp() { return messageSet.getApp(); }
-    public String getHostname() { return messageSet.getHostname(); }
-    public SerDe getSerDe() { return SerDeFactory.create(messageSet.getSerde()); }
-
     public boolean checkCRC() {
         long crcReceived = messageSet.getCrc();
         long crc = MessageSetBuilder.getCRC(messageSet.getMessages());
@@ -49,27 +45,28 @@ public class MessageSetReader implements Iterable<Message> {
     @Override
     public Iterator<Message> iterator() {
         try {
-            final ByteBuffer buffer =
-                    ByteBuffer.wrap(Compression.create(
-                            messageSet.getCompression()).decompress(messageSet.getMessages()));
+            final ByteArrayDataInput input = ByteStreams.newDataInput(
+                    Compression.create(messageSet.getCompression()).decompress(messageSet.getMessages()));
 
             return new Iterator<Message>() {
+                private int messageCount = messageSet.getNumMessages();
 
                 @Override
                 public boolean hasNext() {
-                    return buffer.hasRemaining();
+                    return messageCount > 0;
                 }
 
                 @Override
                 public Message next() {
-                    byte[] routingKeyBytes = new byte[buffer.getInt()];
-                    buffer.get(routingKeyBytes);
-                    String routingKey = new String(routingKeyBytes);
-
-                    byte[] payloadBytes = new byte[buffer.getInt()];
-                    buffer.get(payloadBytes);
-
-                    return new Message(routingKey, getApp(), getHostname(), getSerDe(), payloadBytes);
+                    Message m = new Message();
+                    try {
+                        m.readFields(input);
+                        --messageCount;
+                        return m;
+                    } catch (IOException e) {
+                        log.error("Exception while iterating MessageSet:" + e.getMessage(), e);
+                        return null;
+                    }
                 }
 
                 @Override

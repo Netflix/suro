@@ -19,6 +19,8 @@ package com.netflix.suro.sink.localfile;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.message.serde.SerDe;
+import com.netflix.suro.message.serde.StringSerDe;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -46,6 +48,7 @@ public class TextFileWriter implements FileWriter {
     private final FileWriterBase base;
     private FSDataOutputStream fsOutputStream;
     private DataOutputStream outputStream;
+    private final SerDe<String> serde = new StringSerDe();
 
     @JsonCreator
     public TextFileWriter(@JsonProperty("codec") String codecClass) {
@@ -68,7 +71,7 @@ public class TextFileWriter implements FileWriter {
 
     @Override
     public void writeTo(Message message) throws IOException {
-        String strMessage = (String) message.getSerDe().deserialize(message.getPayload());
+        String strMessage = serde.deserialize(message.getPayload());
         outputStream.write(strMessage.getBytes());
         outputStream.write(newline);
     }
