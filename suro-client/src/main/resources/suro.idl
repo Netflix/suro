@@ -26,12 +26,11 @@ struct Result
 
 struct TMessageSet
 {
-  1: string hostname,
-  2: string app,
-  3: string serde,
-  4: byte compression,
-  5: i64 crc,
-  6: binary messages
+  1: string app,
+  2: i32 numMessages,
+  3: byte compression,
+  4: i64 crc,
+  5: binary messages
 }
 
 service SuroService {

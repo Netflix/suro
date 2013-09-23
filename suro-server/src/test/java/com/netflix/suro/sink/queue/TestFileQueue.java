@@ -31,9 +31,8 @@ public class TestFileQueue {
         assertEquals(queue.isEmpty(), true);
         assertEquals(queue.drain(100, new LinkedList<Message>()), 0);
 
-        SerDe<String> serde = new StringSerDe();
         for (int i = 0; i < 100; ++i) {
-            queue.offer(new Message("routingkey" + i, "app", "hostname", serde, ("value" + i).getBytes()));
+            queue.offer(new Message("routingkey" + i, ("value" + i).getBytes()));
         }
 
         assertEquals(queue.size(), 100);
@@ -75,9 +74,8 @@ public class TestFileQueue {
         assertEquals(queue.isEmpty(), true);
         assertEquals(queue.drain(100, new LinkedList<Message>()), 0);
 
-        SerDe<String> serde = new StringSerDe();
         for (int i = 0; i < 100; ++i) {
-            queue.offer(new Message("routingkey" + i, "app", "hostname", serde, ("value" + i).getBytes()));
+            queue.offer(new Message("routingkey" + i, ("value" + i).getBytes()));
         }
 
         LinkedList<Message> msgList = new LinkedList<Message>();

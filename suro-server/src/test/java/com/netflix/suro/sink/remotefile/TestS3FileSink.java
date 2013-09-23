@@ -30,6 +30,7 @@ import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.queue.QueueManager;
 import com.netflix.suro.sink.Sink;
+import com.netflix.suro.sink.localfile.LocalFileSink;
 import org.apache.commons.io.FileUtils;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.multi.s3.S3ServiceEventListener;
@@ -54,9 +55,9 @@ public class TestS3FileSink {
     private static final String testdir = "/tmp/surotest/tests3filesink";
 
     public static final String s3FileSink = "{\n" +
-            "    \"type\": \"S3FileSink\",\n" +
+            "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
             "    \"localFileSink\": {\n" +
-            "        \"type\": \"LocalFileSink\",\n" +
+            "        \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
             "        \"outputDir\": \"" + testdir + "\",\n" +
             "        \"writer\": {\n" +
             "            \"type\": \"text\"\n" +
@@ -88,9 +89,9 @@ public class TestS3FileSink {
     @Test
     public void testDefaultParameters() throws Exception {
         final String s3FileSink = "{\n" +
-                "    \"type\": \"S3FileSink\",\n" +
+                "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
                 "    \"localFileSink\": {\n" +
-                "        \"type\": \"LocalFileSink\",\n" +
+                "        \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
                 "        \"outputDir\": \"" + testdir + "\"\n" +
                 "    },\n" +
                 "    \"bucket\": \"s3bucket\"\n" +

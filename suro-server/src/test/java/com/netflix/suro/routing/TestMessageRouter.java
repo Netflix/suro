@@ -27,9 +27,12 @@ import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
+import com.netflix.suro.ClientConfig;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetBuilder;
+import com.netflix.suro.message.serde.SerDe;
+import com.netflix.suro.message.serde.StringSerDe;
 import com.netflix.suro.queue.MessageQueue;
 import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.sink.Sink;
@@ -51,6 +54,7 @@ public class TestMessageRouter {
         private final String message;
         private String status;
         private final List<String> messageList;
+        private SerDe<String> serde = new StringSerDe();
 
         @JsonCreator
         public TestSink(@JsonProperty("message") String message) {
@@ -66,7 +70,7 @@ public class TestMessageRouter {
             } else {
                 messageCount.put(this.message, count + 1);
             }
-            messageList.add(message.getSerDe().toString(message.getPayload()));
+            messageList.add(serde.deserialize(message.getPayload()));
         }
 
         @Override
@@ -127,8 +131,7 @@ public class TestMessageRouter {
         MessageQueue queue = injector.getInstance(MessageQueue.class);
         queue.start();
 
-        MessageSetBuilder builder = new MessageSetBuilder();
-        builder = builder.withApp("app").withHostname("testhost");
+        MessageSetBuilder builder = new MessageSetBuilder(new ClientConfig());
 
         for (int i = 0; i < 10; ++i) {
             builder.withMessage("topic1", Integer.toString(i).getBytes());

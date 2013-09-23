@@ -32,7 +32,6 @@ import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.serde.MessageSerDe;
 import com.netflix.suro.message.serde.SerDe;
-import com.netflix.suro.message.serde.StringSerDe;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -112,7 +111,7 @@ public class TestAsyncSuroClient {
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
 
         for (int i = 0; i < 3000; ++i) {
-            client.send(new Message("routingKey", "appp", "hostname", new StringSerDe(), "testMessage".getBytes()));
+            client.send(new Message("routingKey", "testMessage".getBytes()));
         }
 
         client.shutdown();
@@ -129,7 +128,7 @@ public class TestAsyncSuroClient {
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
 
         for (int i = 0; i < 3000; ++i) {
-            client.send(new Message("routingKey", "appp", "hostname", new StringSerDe(), "testMessage".getBytes()));
+            client.send(new Message("routingKey", "testMessage".getBytes()));
         }
 
         client.shutdown();
@@ -150,7 +149,7 @@ public class TestAsyncSuroClient {
         }
 
         for (int i = 0; i < 3000; ++i) {
-            client.send(new Message("routingKey", "appp", "hostname", new StringSerDe(), "testMessage".getBytes()));
+            client.send(new Message("routingKey", "testMessage".getBytes()));
         }
 
         // wait until some messages are restored
@@ -183,15 +182,16 @@ public class TestAsyncSuroClient {
 
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
         for (int i = 0; i < 50; ++i) {
-            client.send(new Message("routingKey", "appp", "hostname", new StringSerDe(), "testMessage".getBytes()));
+            client.send(new Message("routingKey", "testMessage".getBytes()));
         }
 
         long start = System.currentTimeMillis();
         while (client.getSentMessageCount() < 50) {
             Thread.sleep(100);
         }
-        long duration = System.currentTimeMillis() - start;
 
+        long duration = System.currentTimeMillis() - start;
+        System.out.println(duration);
         assertTrue(duration > 5000);
     }
 }

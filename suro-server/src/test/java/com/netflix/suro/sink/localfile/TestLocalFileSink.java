@@ -61,7 +61,7 @@ public class TestLocalFileSink {
     @Test
     public void testDefaultParameters() throws IOException {
         final String localFileSinkSpec = "{\n" +
-                "    \"type\": \"LocalFileSink\",\n" +
+                "    \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
                 "    \"outputDir\": \"" + testdir + "\"\n" +
                 "    }\n" +
                 "}";
@@ -111,7 +111,7 @@ public class TestLocalFileSink {
     @Test
     public void testWithPeriodRotation() throws IOException, InterruptedException {
         final String localFileSinkSpec = "{\n" +
-                "    \"type\": \"LocalFileSink\",\n" +
+                "    \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
                 "    \"outputDir\": \"" + testdir + "\",\n" +
                 "    \"writer\": {\n" +
                 "        \"type\": \"text\"\n" +
@@ -170,7 +170,7 @@ public class TestLocalFileSink {
     @Test
     public void testSpaceChecker() throws Exception {
         final String localFileSinkSpec = "{\n" +
-                "    \"type\": \"LocalFileSink\",\n" +
+                "    \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
                 "    \"outputDir\": \"" + testdir + "\",\n" +
                 "    \"writer\": {\n" +
                 "        \"type\": \"text\"\n" +
@@ -244,7 +244,7 @@ public class TestLocalFileSink {
     @Test
     public void testWithSizeRotation() throws IOException {
         final String localFileSinkSpec = "{\n" +
-                "    \"type\": \"LocalFileSink\",\n" +
+                "    \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
                 "    \"outputDir\": \"" + testdir + "\",\n" +
                 "    \"writer\": {\n" +
                 "        \"type\": \"text\"\n" +
@@ -308,7 +308,7 @@ public class TestLocalFileSink {
     @Test
     public void rotateEmptyFile() throws IOException, InterruptedException {
         final String localFileSinkSpec = "{\n" +
-                "    \"type\": \"LocalFileSink\",\n" +
+                "    \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
                 "    \"outputDir\": \"" + testdir + "\",\n" +
                 "    \"writer\": {\n" +
                 "        \"type\": \"text\"\n" +
@@ -384,7 +384,7 @@ public class TestLocalFileSink {
         filePathSet.add(new File(testdir, "testFile" + (numFiles - 1) + LocalFileSink.done).getAbsolutePath());
 
         final String localFileSinkSpec = "{\n" +
-                "    \"type\": \"LocalFileSink\",\n" +
+                "    \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
                 "    \"rotationPeriod\": \"PT1s\",\n" +
                 "    \"outputDir\": \"" + testdir + "\"\n" +
                 "    }\n" +

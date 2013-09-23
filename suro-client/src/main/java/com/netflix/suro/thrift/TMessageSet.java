@@ -11,28 +11,25 @@ import java.util.*;
 public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessageSet._Fields>, java.io.Serializable, Cloneable {
   private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("TMessageSet");
 
-  private static final org.apache.thrift.protocol.TField HOSTNAME_FIELD_DESC = new org.apache.thrift.protocol.TField("hostname", org.apache.thrift.protocol.TType.STRING, (short)1);
-  private static final org.apache.thrift.protocol.TField APP_FIELD_DESC = new org.apache.thrift.protocol.TField("app", org.apache.thrift.protocol.TType.STRING, (short)2);
-  private static final org.apache.thrift.protocol.TField SERDE_FIELD_DESC = new org.apache.thrift.protocol.TField("serde", org.apache.thrift.protocol.TType.STRING, (short)3);
-  private static final org.apache.thrift.protocol.TField COMPRESSION_FIELD_DESC = new org.apache.thrift.protocol.TField("compression", org.apache.thrift.protocol.TType.BYTE, (short)4);
-  private static final org.apache.thrift.protocol.TField CRC_FIELD_DESC = new org.apache.thrift.protocol.TField("crc", org.apache.thrift.protocol.TType.I64, (short)5);
-  private static final org.apache.thrift.protocol.TField MESSAGES_FIELD_DESC = new org.apache.thrift.protocol.TField("messages", org.apache.thrift.protocol.TType.STRING, (short)6);
+  private static final org.apache.thrift.protocol.TField APP_FIELD_DESC = new org.apache.thrift.protocol.TField("app", org.apache.thrift.protocol.TType.STRING, (short)1);
+  private static final org.apache.thrift.protocol.TField NUM_MESSAGES_FIELD_DESC = new org.apache.thrift.protocol.TField("numMessages", org.apache.thrift.protocol.TType.I32, (short)2);
+  private static final org.apache.thrift.protocol.TField COMPRESSION_FIELD_DESC = new org.apache.thrift.protocol.TField("compression", org.apache.thrift.protocol.TType.BYTE, (short)3);
+  private static final org.apache.thrift.protocol.TField CRC_FIELD_DESC = new org.apache.thrift.protocol.TField("crc", org.apache.thrift.protocol.TType.I64, (short)4);
+  private static final org.apache.thrift.protocol.TField MESSAGES_FIELD_DESC = new org.apache.thrift.protocol.TField("messages", org.apache.thrift.protocol.TType.STRING, (short)5);
 
-  public String hostname; // required
   public String app; // required
-  public String serde; // required
+  public int numMessages; // required
   public byte compression; // required
   public long crc; // required
   public ByteBuffer messages; // required
 
   /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
   public enum _Fields implements org.apache.thrift.TFieldIdEnum {
-    HOSTNAME((short)1, "hostname"),
-    APP((short)2, "app"),
-    SERDE((short)3, "serde"),
-    COMPRESSION((short)4, "compression"),
-    CRC((short)5, "crc"),
-    MESSAGES((short)6, "messages");
+    APP((short)1, "app"),
+    NUM_MESSAGES((short)2, "numMessages"),
+    COMPRESSION((short)3, "compression"),
+    CRC((short)4, "crc"),
+    MESSAGES((short)5, "messages");
 
     private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
@@ -47,17 +44,15 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
      */
     public static _Fields findByThriftId(int fieldId) {
       switch(fieldId) {
-        case 1: // HOSTNAME
-          return HOSTNAME;
-        case 2: // APP
+        case 1: // APP
           return APP;
-        case 3: // SERDE
-          return SERDE;
-        case 4: // COMPRESSION
+        case 2: // NUM_MESSAGES
+          return NUM_MESSAGES;
+        case 3: // COMPRESSION
           return COMPRESSION;
-        case 5: // CRC
+        case 4: // CRC
           return CRC;
-        case 6: // MESSAGES
+        case 5: // MESSAGES
           return MESSAGES;
         default:
           return null;
@@ -99,19 +94,18 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
   }
 
   // isset id assignments
-  private static final int __COMPRESSION_ISSET_ID = 0;
-  private static final int __CRC_ISSET_ID = 1;
-  private BitSet __isset_bit_vector = new BitSet(2);
+  private static final int __NUMMESSAGES_ISSET_ID = 0;
+  private static final int __COMPRESSION_ISSET_ID = 1;
+  private static final int __CRC_ISSET_ID = 2;
+  private BitSet __isset_bit_vector = new BitSet(3);
 
   public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
   static {
     Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
-    tmpMap.put(_Fields.HOSTNAME, new org.apache.thrift.meta_data.FieldMetaData("hostname", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
     tmpMap.put(_Fields.APP, new org.apache.thrift.meta_data.FieldMetaData("app", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
-    tmpMap.put(_Fields.SERDE, new org.apache.thrift.meta_data.FieldMetaData("serde", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+    tmpMap.put(_Fields.NUM_MESSAGES, new org.apache.thrift.meta_data.FieldMetaData("numMessages", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I32)));
     tmpMap.put(_Fields.COMPRESSION, new org.apache.thrift.meta_data.FieldMetaData("compression", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.BYTE)));
     tmpMap.put(_Fields.CRC, new org.apache.thrift.meta_data.FieldMetaData("crc", org.apache.thrift.TFieldRequirementType.DEFAULT, 
@@ -126,17 +120,16 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
   }
 
   public TMessageSet(
-    String hostname,
     String app,
-    String serde,
+    int numMessages,
     byte compression,
     long crc,
     ByteBuffer messages)
   {
     this();
-    this.hostname = hostname;
     this.app = app;
-    this.serde = serde;
+    this.numMessages = numMessages;
+    setNumMessagesIsSet(true);
     this.compression = compression;
     setCompressionIsSet(true);
     this.crc = crc;
@@ -150,15 +143,10 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
   public TMessageSet(TMessageSet other) {
     __isset_bit_vector.clear();
     __isset_bit_vector.or(other.__isset_bit_vector);
-    if (other.isSetHostname()) {
-      this.hostname = other.hostname;
-    }
     if (other.isSetApp()) {
       this.app = other.app;
     }
-    if (other.isSetSerde()) {
-      this.serde = other.serde;
-    }
+    this.numMessages = other.numMessages;
     this.compression = other.compression;
     this.crc = other.crc;
     if (other.isSetMessages()) {
@@ -173,38 +161,14 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
 
   @Override
   public void clear() {
-    this.hostname = null;
     this.app = null;
-    this.serde = null;
+    setNumMessagesIsSet(false);
+    this.numMessages = 0;
     setCompressionIsSet(false);
     this.compression = 0;
     setCrcIsSet(false);
     this.crc = 0;
     this.messages = null;
-  }
-
-  public String getHostname() {
-    return this.hostname;
-  }
-
-  public TMessageSet setHostname(String hostname) {
-    this.hostname = hostname;
-    return this;
-  }
-
-  public void unsetHostname() {
-    this.hostname = null;
-  }
-
-  /** Returns true if field hostname is set (has been assigned a value) and false otherwise */
-  public boolean isSetHostname() {
-    return this.hostname != null;
-  }
-
-  public void setHostnameIsSet(boolean value) {
-    if (!value) {
-      this.hostname = null;
-    }
   }
 
   public String getApp() {
@@ -231,28 +195,27 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
     }
   }
 
-  public String getSerde() {
-    return this.serde;
+  public int getNumMessages() {
+    return this.numMessages;
   }
 
-  public TMessageSet setSerde(String serde) {
-    this.serde = serde;
+  public TMessageSet setNumMessages(int numMessages) {
+    this.numMessages = numMessages;
+    setNumMessagesIsSet(true);
     return this;
   }
 
-  public void unsetSerde() {
-    this.serde = null;
+  public void unsetNumMessages() {
+    __isset_bit_vector.clear(__NUMMESSAGES_ISSET_ID);
   }
 
-  /** Returns true if field serde is set (has been assigned a value) and false otherwise */
-  public boolean isSetSerde() {
-    return this.serde != null;
+  /** Returns true if field numMessages is set (has been assigned a value) and false otherwise */
+  public boolean isSetNumMessages() {
+    return __isset_bit_vector.get(__NUMMESSAGES_ISSET_ID);
   }
 
-  public void setSerdeIsSet(boolean value) {
-    if (!value) {
-      this.serde = null;
-    }
+  public void setNumMessagesIsSet(boolean value) {
+    __isset_bit_vector.set(__NUMMESSAGES_ISSET_ID, value);
   }
 
   public byte getCompression() {
@@ -337,14 +300,6 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
 
   public void setFieldValue(_Fields field, Object value) {
     switch (field) {
-    case HOSTNAME:
-      if (value == null) {
-        unsetHostname();
-      } else {
-        setHostname((String)value);
-      }
-      break;
-
     case APP:
       if (value == null) {
         unsetApp();
@@ -353,11 +308,11 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
       }
       break;
 
-    case SERDE:
+    case NUM_MESSAGES:
       if (value == null) {
-        unsetSerde();
+        unsetNumMessages();
       } else {
-        setSerde((String)value);
+        setNumMessages((Integer)value);
       }
       break;
 
@@ -390,14 +345,11 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
 
   public Object getFieldValue(_Fields field) {
     switch (field) {
-    case HOSTNAME:
-      return getHostname();
-
     case APP:
       return getApp();
 
-    case SERDE:
-      return getSerde();
+    case NUM_MESSAGES:
+      return Integer.valueOf(getNumMessages());
 
     case COMPRESSION:
       return Byte.valueOf(getCompression());
@@ -419,12 +371,10 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
     }
 
     switch (field) {
-    case HOSTNAME:
-      return isSetHostname();
     case APP:
       return isSetApp();
-    case SERDE:
-      return isSetSerde();
+    case NUM_MESSAGES:
+      return isSetNumMessages();
     case COMPRESSION:
       return isSetCompression();
     case CRC:
@@ -448,15 +398,6 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
     if (that == null)
       return false;
 
-    boolean this_present_hostname = true && this.isSetHostname();
-    boolean that_present_hostname = true && that.isSetHostname();
-    if (this_present_hostname || that_present_hostname) {
-      if (!(this_present_hostname && that_present_hostname))
-        return false;
-      if (!this.hostname.equals(that.hostname))
-        return false;
-    }
-
     boolean this_present_app = true && this.isSetApp();
     boolean that_present_app = true && that.isSetApp();
     if (this_present_app || that_present_app) {
@@ -466,12 +407,12 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
         return false;
     }
 
-    boolean this_present_serde = true && this.isSetSerde();
-    boolean that_present_serde = true && that.isSetSerde();
-    if (this_present_serde || that_present_serde) {
-      if (!(this_present_serde && that_present_serde))
+    boolean this_present_numMessages = true;
+    boolean that_present_numMessages = true;
+    if (this_present_numMessages || that_present_numMessages) {
+      if (!(this_present_numMessages && that_present_numMessages))
         return false;
-      if (!this.serde.equals(that.serde))
+      if (this.numMessages != that.numMessages)
         return false;
     }
 
@@ -518,16 +459,6 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
     int lastComparison = 0;
     TMessageSet typedOther = (TMessageSet)other;
 
-    lastComparison = Boolean.valueOf(isSetHostname()).compareTo(typedOther.isSetHostname());
-    if (lastComparison != 0) {
-      return lastComparison;
-    }
-    if (isSetHostname()) {
-      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.hostname, typedOther.hostname);
-      if (lastComparison != 0) {
-        return lastComparison;
-      }
-    }
     lastComparison = Boolean.valueOf(isSetApp()).compareTo(typedOther.isSetApp());
     if (lastComparison != 0) {
       return lastComparison;
@@ -538,12 +469,12 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
         return lastComparison;
       }
     }
-    lastComparison = Boolean.valueOf(isSetSerde()).compareTo(typedOther.isSetSerde());
+    lastComparison = Boolean.valueOf(isSetNumMessages()).compareTo(typedOther.isSetNumMessages());
     if (lastComparison != 0) {
       return lastComparison;
     }
-    if (isSetSerde()) {
-      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.serde, typedOther.serde);
+    if (isSetNumMessages()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.numMessages, typedOther.numMessages);
       if (lastComparison != 0) {
         return lastComparison;
       }
@@ -595,28 +526,22 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
         break;
       }
       switch (field.id) {
-        case 1: // HOSTNAME
-          if (field.type == org.apache.thrift.protocol.TType.STRING) {
-            this.hostname = iprot.readString();
-          } else { 
-            org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
-          }
-          break;
-        case 2: // APP
+        case 1: // APP
           if (field.type == org.apache.thrift.protocol.TType.STRING) {
             this.app = iprot.readString();
           } else { 
             org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
           }
           break;
-        case 3: // SERDE
-          if (field.type == org.apache.thrift.protocol.TType.STRING) {
-            this.serde = iprot.readString();
+        case 2: // NUM_MESSAGES
+          if (field.type == org.apache.thrift.protocol.TType.I32) {
+            this.numMessages = iprot.readI32();
+            setNumMessagesIsSet(true);
           } else { 
             org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
           }
           break;
-        case 4: // COMPRESSION
+        case 3: // COMPRESSION
           if (field.type == org.apache.thrift.protocol.TType.BYTE) {
             this.compression = iprot.readByte();
             setCompressionIsSet(true);
@@ -624,7 +549,7 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
             org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
           }
           break;
-        case 5: // CRC
+        case 4: // CRC
           if (field.type == org.apache.thrift.protocol.TType.I64) {
             this.crc = iprot.readI64();
             setCrcIsSet(true);
@@ -632,7 +557,7 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
             org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
           }
           break;
-        case 6: // MESSAGES
+        case 5: // MESSAGES
           if (field.type == org.apache.thrift.protocol.TType.STRING) {
             this.messages = iprot.readBinary();
           } else { 
@@ -654,21 +579,14 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
     validate();
 
     oprot.writeStructBegin(STRUCT_DESC);
-    if (this.hostname != null) {
-      oprot.writeFieldBegin(HOSTNAME_FIELD_DESC);
-      oprot.writeString(this.hostname);
-      oprot.writeFieldEnd();
-    }
     if (this.app != null) {
       oprot.writeFieldBegin(APP_FIELD_DESC);
       oprot.writeString(this.app);
       oprot.writeFieldEnd();
     }
-    if (this.serde != null) {
-      oprot.writeFieldBegin(SERDE_FIELD_DESC);
-      oprot.writeString(this.serde);
-      oprot.writeFieldEnd();
-    }
+    oprot.writeFieldBegin(NUM_MESSAGES_FIELD_DESC);
+    oprot.writeI32(this.numMessages);
+    oprot.writeFieldEnd();
     oprot.writeFieldBegin(COMPRESSION_FIELD_DESC);
     oprot.writeByte(this.compression);
     oprot.writeFieldEnd();
@@ -689,14 +607,6 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
     StringBuilder sb = new StringBuilder("TMessageSet(");
     boolean first = true;
 
-    sb.append("hostname:");
-    if (this.hostname == null) {
-      sb.append("null");
-    } else {
-      sb.append(this.hostname);
-    }
-    first = false;
-    if (!first) sb.append(", ");
     sb.append("app:");
     if (this.app == null) {
       sb.append("null");
@@ -705,12 +615,8 @@ public class TMessageSet implements org.apache.thrift.TBase<TMessageSet, TMessag
     }
     first = false;
     if (!first) sb.append(", ");
-    sb.append("serde:");
-    if (this.serde == null) {
-      sb.append("null");
-    } else {
-      sb.append(this.serde);
-    }
+    sb.append("numMessages:");
+    sb.append(this.numMessages);
     first = false;
     if (!first) sb.append(", ");
     sb.append("compression:");

@@ -96,10 +96,8 @@ public class AsyncSuroClient implements ISuroClient {
         this.messageQueue = messageQueue;
 
         this.connectionPool = connectionPool;
-        this.builder = new MessageSetBuilder()
-                .withApp(config.getApp())
-                .withCompression(Compression.create(config.getCompression()))
-                .withSerDe(config.getSerDe());
+        this.builder = new MessageSetBuilder(config)
+                .withCompression(Compression.create(config.getCompression()));
 
         poller.execute(createPoller());
 
@@ -226,6 +224,7 @@ public class AsyncSuroClient implements ISuroClient {
         sentMessages.addAndGet(
                 SyncSuroClient.incrementMessageCount(
                         TagKey.SENT_COUNT,
+                        config.getApp(),
                         new MessageSetReader(messageSet)));
         if (retried) {
             retriedCount.incrementAndGet();

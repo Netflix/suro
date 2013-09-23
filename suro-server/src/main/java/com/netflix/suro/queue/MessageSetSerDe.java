@@ -20,7 +20,6 @@ import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.thrift.TMessageSet;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;
-import org.apache.hadoop.io.WritableUtils;
 
 import java.nio.ByteBuffer;
 
@@ -33,18 +32,16 @@ public class MessageSetSerDe implements SerDe<TMessageSet> {
         inBuffer.reset(payload, payload.length);
 
         try {
-            String hostname = WritableUtils.readString(inBuffer);
-            String app = WritableUtils.readString(inBuffer);
-            String serde = WritableUtils.readString(inBuffer);
+            String app = inBuffer.readUTF();
+            int numMessages = inBuffer.readInt();
             byte compression = inBuffer.readByte();
             long crc = inBuffer.readLong();
             byte[] messages = new byte[inBuffer.readInt()];
             inBuffer.read(messages);
 
             return new TMessageSet(
-                    hostname,
                     app,
-                    serde,
+                    numMessages,
                     compression,
                     crc,
                     ByteBuffer.wrap(messages)
@@ -59,9 +56,8 @@ public class MessageSetSerDe implements SerDe<TMessageSet> {
         try {
             outBuffer.reset();
 
-            WritableUtils.writeString(outBuffer, payload.getHostname());
-            WritableUtils.writeString(outBuffer, payload.getApp());
-            WritableUtils.writeString(outBuffer, payload.getSerde());
+            outBuffer.writeUTF(payload.getApp());
+            outBuffer.writeInt(payload.getNumMessages());
             outBuffer.writeByte(payload.getCompression());
             outBuffer.writeLong(payload.getCrc());
             outBuffer.writeInt(payload.getMessages().length);
