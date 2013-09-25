@@ -26,15 +26,29 @@ import com.netflix.suro.sink.remotefile.S3FileSink;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
         @JsonSubTypes.Type(name = LocalFileSink.TYPE, value = LocalFileSink.class),
-        @JsonSubTypes.Type(name = S3FileSink.TYPE, value = S3FileSink.class),
-        @JsonSubTypes.Type(name = "kafka", value = KafkaSink.class),
-        @JsonSubTypes.Type(name = SuroSink.TYPE, value = SuroSink.class)
+        @JsonSubTypes.Type(name = S3FileSink.TYPE,    value = S3FileSink.class),
+        @JsonSubTypes.Type(name = "kafka",            value = KafkaSink.class),
+        @JsonSubTypes.Type(name = SuroSink.TYPE,      value = SuroSink.class)
 })
-public interface Sink {
+public interface Sink  {
+    /**
+     * Write a single message into the sink
+     * 
+     * TODO: Is the write expected to block or return immediately?
+     * @param message
+     */
     void writeTo(Message message);
 
+    /**
+     * Open the Sink by establishing any network connections and setting up writing threads
+     */
     void open();
+    
+    /**
+     * Close connections as part of system shutdown or if a Sink is removed
+     */
     void close();
+    
     String recvNotify();
     String getStat();
 }

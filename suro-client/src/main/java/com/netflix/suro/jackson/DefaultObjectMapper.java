@@ -16,29 +16,32 @@
 
 package com.netflix.suro.jackson;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
+import com.google.inject.Inject;
+import com.google.inject.Injector;
+import com.google.inject.Key;
+import com.google.inject.Singleton;
+import com.google.inject.name.Names;
 
 import java.io.IOException;
 import java.nio.ByteOrder;
 
 /**
  */
-public class DefaultObjectMapper extends ObjectMapper
-{
-    public DefaultObjectMapper()
-    {
+@Singleton
+public class DefaultObjectMapper extends ObjectMapper {
+    public DefaultObjectMapper() {
         this(null);
     }
-
-    public DefaultObjectMapper(JsonFactory factory)
+    
+    @Inject
+    public DefaultObjectMapper(final Injector injector)
     {
-        super(factory);
         SimpleModule serializerModule = new SimpleModule("SuroServer default serializers");
         serializerModule.addSerializer(ByteOrder.class, ToStringSerializer.instance);
         serializerModule.addDeserializer(
@@ -60,6 +63,20 @@ public class DefaultObjectMapper extends ObjectMapper
         registerModule(serializerModule);
         registerModule(new GuavaModule());
 
+        if (injector != null) {
+            setInjectableValues(new InjectableValues() {
+                @Override
+                public Object findInjectableValue(
+                        Object valueId, 
+                        DeserializationContext ctxt, 
+                        BeanProperty forProperty, 
+                        Object beanInstance
+                ) {
+                    return injector.getInstance(Key.get(forProperty.getType().getRawClass(), Names.named((String)valueId)));
+                }
+            });
+        }
+        
         configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         configure(MapperFeature.AUTO_DETECT_GETTERS, false);
         configure(MapperFeature.AUTO_DETECT_CREATORS, false);

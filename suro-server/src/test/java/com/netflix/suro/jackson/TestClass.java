@@ -37,4 +37,6 @@ public class TestClass implements TestInterface {
 
     @Override
     public String getTest() { return test; }
+    
+    public String getB() { return b; }
 }

@@ -16,6 +16,7 @@
 
 package com.netflix.suro.server;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.inject.Injector;
@@ -27,6 +28,7 @@ import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.routing.TestMessageRouter;
+import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
 import com.netflix.suro.thrift.*;
 import org.apache.http.HttpResponse;
@@ -44,6 +46,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -88,6 +91,13 @@ public class TestStatusServer {
     private static LifecycleManager manager;
     private static Injector injector;
 
+    private static Map<String, Sink> getSinkMap(ObjectMapper jsonMapper, String desc) throws Exception {
+        return jsonMapper.<Map<String, Sink>>readValue(
+                desc,
+                new TypeReference<Map<String, Sink>>() {});
+    }
+    
+
     @BeforeClass
     public static void start() throws Exception {
         injector = LifecycleInjector.builder().withBootstrapModule(new BootstrapModule() {
@@ -120,10 +130,11 @@ public class TestStatusServer {
                 "    }\n" +
                 "}";
         SinkManager sinkManager = injector.getInstance(SinkManager.class);
-        sinkManager.build(sinkDesc);
+        
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
+        sinkManager.set(getSinkMap(mapper, sinkDesc));
 
         StatusServer statusServer = injector.getInstance(StatusServer.class);
-        statusServer.start(injector);
     }
 
     @AfterClass
