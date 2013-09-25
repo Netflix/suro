@@ -16,18 +16,31 @@
 
 package com.netflix.suro.routing;
 
-import com.google.inject.Injector;
-import com.netflix.governator.guice.LifecycleInjector;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.netflix.suro.jackson.DefaultObjectMapper;
+import com.netflix.suro.routing.RoutingMap.RoutingInfo;
+
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Map;
 
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class TestRoutingMap {
+    private static ObjectMapper jsonMapper = new DefaultObjectMapper();
+    
+    private Map<String, RoutingInfo> getRoutingMap(String desc) throws Exception {
+        return jsonMapper.<Map<String, RoutingInfo>>readValue(
+                desc,
+                new TypeReference<Map<String, RoutingInfo>>() {});
+    }
+    
+
     @Test
-    public void test() {
+    public void test() throws Exception {
         String mapDesc = "{\n" +
                 "    \"request_trace\": {\n" +
                 "        \"where\": [\n" +
@@ -44,9 +57,8 @@ public class TestRoutingMap {
                 "    }\n" +
                 "}";
 
-        Injector injector = LifecycleInjector.builder().createInjector();
-        RoutingMap routingMap = injector.getInstance(RoutingMap.class);
-        routingMap.build(mapDesc);
+        RoutingMap routingMap = new RoutingMap();
+        routingMap.set(getRoutingMap(mapDesc));
         assertTrue(
                 Arrays.equals(
                         routingMap.getRoutingInfo("request_trace").getWhere().toArray(),
@@ -74,9 +86,9 @@ public class TestRoutingMap {
                 "            \"sink3\",\n" +
                 "            \"sink4\"\n" +
                 "        ]\n" +
-                "    },\n" +
+                "    }\n" +
                 "}";
-        routingMap.build(mapDesc);
+        routingMap.set(getRoutingMap(mapDesc));
         assertTrue(
                 Arrays.equals(
                         routingMap.getRoutingInfo("request_trace").getWhere().toArray(),
@@ -98,7 +110,7 @@ public class TestRoutingMap {
                 "        ]\n" +
                 "    }\n" +
                 "}";
-        routingMap.build(mapDesc);
+        routingMap.set(getRoutingMap(mapDesc));
         assertTrue(
                 Arrays.equals(
                         routingMap.getRoutingInfo("request_trace").getWhere().toArray(),
