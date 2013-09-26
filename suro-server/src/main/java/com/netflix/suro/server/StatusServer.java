@@ -58,6 +58,7 @@ public class StatusServer {
     }
 
     public void start() {
+        log.info("StatusServer starting");
         executor.submit(new Runnable() {
             @Override
             public void run() {
@@ -104,7 +105,7 @@ public class StatusServer {
 
     public void shutdown() {
         try {
-            log.info("shutting down StatusServer");
+            log.info("StatusServer shutting down");
             executor.shutdown();
         } catch (Exception e) {
             //ignore exceptions while shutdown

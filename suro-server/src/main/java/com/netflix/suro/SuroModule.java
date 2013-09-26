@@ -14,11 +14,9 @@ import com.netflix.suro.aws.PropertyAWSCredentialsProvider;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.queue.MessageSetSerDe;
-import com.netflix.suro.routing.FastPropertyRoutingMapConfigurator;
 import com.netflix.suro.routing.RoutingMap;
 import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.server.StatusServer;
-import com.netflix.suro.sink.FastPropertySinkConfigurator;
 import com.netflix.suro.sink.SinkManager;
 import com.netflix.suro.thrift.TMessageSet;
 
@@ -55,12 +53,10 @@ public class SuroModule extends AbstractModule {
         bind(AWSCredentialsProvider.class)
             .annotatedWith(Names.named("credentials")).to(PropertyAWSCredentialsProvider.class);
 
-        bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+        bind(ObjectMapper.class).to(DefaultObjectMapper.class).asEagerSingleton();
         bind(AWSCredentialsProvider.class).to(PropertyAWSCredentialsProvider.class);
         bind(SinkManager.class);
         bind(RoutingMap.class);
-        bind(FastPropertyRoutingMapConfigurator.class);
-        bind(FastPropertySinkConfigurator.class);
         bind(SuroService.class);
         bind(StatusServer.class);
     }

@@ -1,6 +1,7 @@
 package com.netflix.suro;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 
 import org.apache.log4j.Logger;
 
@@ -46,13 +47,13 @@ public class SuroService {
         }
     }
 
-    // TODO: These can all be @PreDestroy on the respective classes
+    @PreDestroy
     public void shutdown() {
         try {
-            server.shutdown();
+            server      .shutdown();
             statusServer.shutdown();
-            queue.shutdown();
-            sinkManager.shutdown();
+            sinkManager .shutdown();
+            queue       .shutdown();
         } catch (Exception e) {
             //ignore every exception while shutting down but loggign should be done for debugging
             log.error("Exception while shutting down SuroServer: " + e.getMessage(), e);

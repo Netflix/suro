@@ -37,6 +37,8 @@ import java.util.Properties;
  * @author elandau
  */
 public class SuroServer {
+    private static final String PROP_PREFIX = "SuroServer.";
+    
     public static void main(String[] args) throws IOException {
         LifecycleManager manager = null;
 
@@ -55,7 +57,7 @@ public class SuroServer {
             for (Option opt : line.getOptions()) {
                 String name     = opt.getOpt();
                 String value    = line.getOptionValue(name);
-                String propName = "SuroServer." + opt.getArgName();
+                String propName = PROP_PREFIX + opt.getArgName();
                 properties.setProperty(propName, value);
             }
 
@@ -72,6 +74,7 @@ public class SuroServer {
                      )
                     .withModules(
                         new SuroModule(properties),
+                        new SuroFastPropertyModule(),
                         StatusServer.createJerseyServletModule()
                      )
                     .createInjector();
@@ -79,6 +82,7 @@ public class SuroServer {
             manager = injector.getInstance(LifecycleManager.class);
             manager.start();
             
+            // Hmmm... is this the right way to do this?  Should this block on the status server instead?
             Thread.sleep(Long.MAX_VALUE);
             
         } catch (Exception e) {
