@@ -4,16 +4,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.MessageSerDe;
-import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.sink.QueuedSink;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.queue.MemoryQueue4Sink;
 import com.netflix.suro.sink.queue.MessageQueue4Sink;
 import kafka.producer.*;
-import kafka.producer.ProducerStatsRegistry;
-import kafka.producer.ProducerTopicStatsRegistry;
 import kafka.serializer.DefaultEncoder;
+import kafka.serializer.NullEncoder;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -71,6 +68,7 @@ public class KafkaSink extends QueuedSink implements Sink {
             props.put("retry.backoff.ms", Integer.toString(retryBackoff));
         }
         props.put("serializer.class", DefaultEncoder.class.getName());
+        props.put("key.serializer.class", NullEncoder.class.getName());
 
         if (metricsProps != null) {
             props.putAll(metricsProps);
@@ -132,10 +130,11 @@ public class KafkaSink extends QueuedSink implements Sink {
         lastBatch = System.currentTimeMillis();
     }
 
-    private List<KeyedMessage<byte[], byte[]>> kafkaMsgList = new ArrayList<KeyedMessage<byte[], byte[]>>();
+    protected long msgId = 0;
+    private List<KeyedMessage<Long, byte[]>> kafkaMsgList = new ArrayList<KeyedMessage<Long, byte[]>>();
     protected void send(List<Message> msgList) {
         for (Message m : msgList) {
-            kafkaMsgList.add(new KeyedMessage<byte[], byte[]>(m.getRoutingKey(), m.getPayload()));
+            kafkaMsgList.add(new KeyedMessage<Long, byte[]>(m.getRoutingKey(), msgId++, m.getPayload()));
         }
         producer.send(kafkaMsgList);
         kafkaMsgList.clear();
