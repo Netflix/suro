@@ -20,8 +20,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.inject.Injector;
-import com.google.inject.Provider;
-import com.google.inject.TypeLiteral;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
@@ -29,20 +27,13 @@ import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.SuroFastPropertyModule;
 import com.netflix.suro.SuroModule;
-import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.routing.RoutingMap;
-import com.netflix.suro.routing.TestMessageRouter;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
 import com.netflix.suro.sink.TestSinkManager;
-import com.netflix.suro.thrift.*;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.thrift.TException;
-import org.apache.thrift.TProcessor;
-import org.apache.thrift.server.THsHaServer;
-import org.apache.thrift.transport.TNonblockingServerSocket;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -53,62 +44,38 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 
 public class TestStatusServer {
-    private static class TestServer implements SuroServer.Iface {
-        private Result result;
-        public TestServer(Result result) {
-            this.result = result;
-        }
-
-        @Override
-        public Result process(TMessageSet messageSet) throws TException {
-            result.setMessage(messageSet.getApp());
-            result.setResultCode(ResultCode.OK);
-
-            return result;
-        }
-
-        @Override
-        public long shutdown() throws TException {
-            return 0;
-        }
-
-        @Override
-        public String getName() throws TException {
-            return null;
-        }
-
-        @Override
-        public ServiceStatus getStatus() throws TException {
-            return ServiceStatus.ALIVE;
-        }
-
-        @Override
-        public String getVersion() throws TException {
-            return null;
-        }
-    }
-
     private static LifecycleManager manager;
     private static Injector injector;
+    private static final int statusPort = 7103;
+    private static final int port = 7101;
 
     @BeforeClass
     public static void start() throws Exception {
-        Properties props = new Properties();
-        
+        final Properties props = new Properties();
+        props.put("SuroServer.statusServerPort", Integer.toString(statusPort));
+        props.put("SuroServer.port", Integer.toString(port));
+
         // Create the injector
-        Injector injector = LifecycleInjector.builder()
+        injector = LifecycleInjector.builder()
+                .withBootstrapModule(
+                        new BootstrapModule() {
+                            @Override
+                            public void configure(BootstrapBinder binder) {
+                                binder.bindConfigurationProvider().toInstance(
+                                        new PropertiesConfigurationProvider(props));
+                            }
+                        }
+                )
                 .withModules(
-                    new SuroModule(props),
-                    new SuroFastPropertyModule(),
-                    StatusServer.createJerseyServletModule()
-                 )
+                        new SuroModule(props),
+                        new SuroFastPropertyModule(),
+                        StatusServer.createJerseyServletModule()
+                )
                 .createInjector();
         
         SinkManager  sinkManager = injector.getInstance(SinkManager.class);
@@ -143,14 +110,18 @@ public class TestStatusServer {
 
     @Test
     public void connectionFailureShouldBeDetected() throws Exception {
+        injector.getInstance(ThriftServer.class).shutdown();
+
         HttpResponse response = runQuery("healthcheck");
 
         assertEquals(500, response.getStatusLine().getStatusCode());
+
+        injector.getInstance(ThriftServer.class).start();
     }
 
     private HttpResponse runQuery(String path) throws IOException {
         DefaultHttpClient client = new DefaultHttpClient();
-        HttpGet httpget = new HttpGet(String.format("http://localhost:%d/%s", 7103, path));
+        HttpGet httpget = new HttpGet(String.format("http://localhost:%d/%s", statusPort, path));
 
         try{
             return client.execute(httpget);
@@ -161,32 +132,8 @@ public class TestStatusServer {
 
     @Test
     public void healthcheckShouldPassForHealthyServer() throws Exception {
-        TNonblockingServerSocket transport = new TNonblockingServerSocket(7101);
-
-        Result r = new Result();
-        TestServer server = new TestServer(r);
-
-        @SuppressWarnings({ "rawtypes", "unchecked" })
-        TProcessor processor =  new SuroServer.Processor(server);
-
-        final THsHaServer main = new THsHaServer(new THsHaServer.Args(transport).processor(processor));
-        new Thread(new Runnable(){
-
-            @Override
-            public void run() {
-                main.serve();
-            }
-        }).start();
-
-        try{
-            // 2 seconds should be enough for a simple server to start up
-            Thread.sleep(2000);
-
-            HttpResponse response = runQuery("healthcheck");
-            assertEquals(200, response.getStatusLine().getStatusCode());
-        } finally{
-            main.stop();
-        }
+        HttpResponse response = runQuery("healthcheck");
+        assertEquals(200, response.getStatusLine().getStatusCode());
     }
 
     @Test

@@ -86,7 +86,7 @@ class TestKafkaSink extends JUnit3Suite {
     waitUntilLeaderIsElectedOrChanged(zkClient, topic, 0, 500)
 
     val description = "{\n" +
-      "    \"type\": \"Kafka\",\n" +
+      "    \"type\": \"kafka\",\n" +
       "    \"client.id\": \"kafkasink\",\n" +
       "    \"metadata.broker.list\": \"" + getBrokerListStrFromConfigs(Seq(config1, config2)) + "\",\n" +
       "    \"request.required.acks\": 1\n" +

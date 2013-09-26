@@ -20,7 +20,6 @@ import com.google.inject.Inject;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.suro.queue.MessageQueue;
 import com.netflix.suro.thrift.SuroServer;
-import org.apache.thrift.TException;
 import org.apache.thrift.server.THsHaServer;
 import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
@@ -38,7 +37,7 @@ public class ThriftServer {
 
     private final ServerConfig config;
     private final MessageQueue messageQueue;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private ExecutorService executor;
 
     @Inject
     public ThriftServer(
@@ -59,6 +58,8 @@ public class ThriftServer {
         serverArgs.workerThreads(config.getThriftWorkerThreadNum());
         serverArgs.processor(processor);
         serverArgs.maxReadBufferBytes = config.getThriftMaxReadBufferBytes();
+
+        executor = Executors.newSingleThreadExecutor();
 
         server = new THsHaServer(serverArgs);
         serverStarted = executor.submit(new Runnable() {
@@ -87,7 +88,6 @@ public class ThriftServer {
                 System.exit(-1);
             }
         }
-
     }
 
     public boolean isServing(){
@@ -96,16 +96,6 @@ public class ThriftServer {
 
     public boolean isStopped(){
         return server == null || server.isStopped();
-    }
-
-    public void join() {
-        try {
-            // wait forever until shutdown() called
-            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            // ignore exception
-        }
     }
 
     public void shutdown() {

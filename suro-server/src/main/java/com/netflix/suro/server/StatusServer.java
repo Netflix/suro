@@ -50,7 +50,7 @@ public class StatusServer {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final ServerConfig    config;
     private final Injector        injector;
-    
+
     @Inject
     public StatusServer(ServerConfig config, Injector injector) {
         this.injector = injector;
@@ -106,7 +106,7 @@ public class StatusServer {
     public void shutdown() {
         try {
             log.info("StatusServer shutting down");
-            executor.shutdown();
+            executor.shutdownNow();
         } catch (Exception e) {
             //ignore exceptions while shutdown
             log.error("Exception while shutting down: " + e.getMessage(), e);
