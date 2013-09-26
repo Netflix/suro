@@ -47,53 +47,66 @@ public class StatusServer {
         };
     }
 
-    private final Server server;
-    private final ExecutorService executors = Executors.newSingleThreadExecutor();
-    private final ServerConfig config;
-
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ServerConfig    config;
+    private final Injector        injector;
+    
     @Inject
-    public StatusServer(ServerConfig config) {
+    public StatusServer(ServerConfig config, Injector injector) {
+        this.injector = injector;
         this.config = config;
-        server = new Server(config.getStatusServerPort());
     }
 
-
-    private Future statusServerStarted;
-    public void start(final Injector injector) {
-        ServletContextHandler sch = new ServletContextHandler(server, "/");
-        sch.addEventListener(new GuiceServletContextListener() {
+    public void start() {
+        log.info("StatusServer starting");
+        executor.submit(new Runnable() {
             @Override
-            protected Injector getInjector() {
-                return injector;
-            }
-        });
-        sch.addFilter(GuiceFilter.class, "/*", null);
-        sch.addServlet(DefaultServlet.class, "/");
-
-        try {
-            statusServerStarted = executors.submit(new Runnable() {
-                @Override
-                public void run() {
+            public void run() {
+                Server server = new Server(config.getStatusServerPort());
+                 
+                log.info("Starting status server on " + config.getStatusServerPort());
+                
+                // Create a servlet context and add the jersey servlet.
+                ServletContextHandler sch = new ServletContextHandler(server, "/");
+                 
+                // Add our Guice listener that includes our bindings
+                sch.addEventListener(new GuiceServletContextListener() {
+                    @Override
+                    protected Injector getInjector() {
+                        return injector;
+                    }
+                });
+                 
+                // Then add GuiceFilter and configure the server to 
+                // reroute all requests through this filter. 
+                sch.addFilter(GuiceFilter.class, "/*", null);
+                 
+                // Must add DefaultServlet for embedded Jetty. 
+                // Failing to do this will cause 404 errors.
+                // This is not needed if web.xml is used instead.
+                sch.addServlet(DefaultServlet.class, "/");
+                 
+                // Start the server
+                try {
+                    server.start();
+                    server.join();
+                } catch (Exception e) {
+                    log.error("Failed to start status server", e);
+                } finally {
                     try {
-                        log.info("StatusServer starts on the port: " + config.getStatusServerPort());
-                        server.start();
+                        server.stop();
                     } catch (Exception e) {
-                        log.error("Exception while starting StatusServer: " + e.getMessage(), e);
-                        throw new RuntimeException(e);
+                        log.error("Failed to join status server", e);
                     }
                 }
-            });
-            statusServerStarted.get(config.getStartupTimeout(), TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
+            }
+        });
     }
 
     public void shutdown() {
         try {
-            log.info("shutting down StatusServer");
-            server.stop();
+            log.info("StatusServer shutting down");
+            executor.shutdown();
         } catch (Exception e) {
             //ignore exceptions while shutdown
             log.error("Exception while shutting down: " + e.getMessage(), e);

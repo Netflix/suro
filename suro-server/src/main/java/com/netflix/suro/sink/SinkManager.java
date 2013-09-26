@@ -16,10 +16,7 @@
 
 package com.netflix.suro.sink;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
-import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.apache.log4j.Logger;
 
@@ -31,24 +28,14 @@ public class SinkManager {
     static Logger log = Logger.getLogger(SinkManager.class);
 
     private final ConcurrentMap<String, Sink> sinkMap = Maps.newConcurrentMap();
-    private final ObjectMapper jsonMapper;
 
-    @Inject
-    public SinkManager(ObjectMapper jsonMapper) {
-        this.jsonMapper = jsonMapper;
-    }
-
-    public void build(String desc) {
+    public void set(Map<String, Sink> newSinkMap) {
         try {
-            Map<String, Sink> newSinkMap = jsonMapper.readValue(desc, new TypeReference<Map<String, Sink>>(){});
-            if (newSinkMap.containsKey("default") == false) {
-                throw new IllegalStateException("default sink should be defined");
-            }
-
             for (Map.Entry<String, Sink> sink : sinkMap.entrySet()) {
                 if (newSinkMap.containsKey(sink.getKey()) == false) { // removed
                     Sink removedSink = sinkMap.remove(sink.getKey());
                     if (removedSink != null) {
+                        log.info(String.format("Removing sink '%s'", sink.getKey()));
                         removedSink.close();
                     }
                 }
@@ -56,6 +43,7 @@ public class SinkManager {
 
             for (Map.Entry<String, Sink> sink : newSinkMap.entrySet()) {
                 if (sinkMap.containsKey(sink.getKey()) == false) { // added
+                    log.info(String.format("Adding sink '%s'", sink.getKey()));
                     sink.getValue().open();
                     sinkMap.put(sink.getKey(), sink.getValue());
                 }
@@ -93,4 +81,5 @@ public class SinkManager {
         }
         sinkMap.clear();
     }
+    
 }

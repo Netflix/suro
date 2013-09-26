@@ -49,7 +49,9 @@ public class ThriftServer {
     }
 
     private Future serverStarted;
+    
     public void start() throws TTransportException {
+        logger.info("Starting ThriftServer with config " + config);
         transport = new CustomServerSocket(config);
         processor =  new SuroServer.Processor(messageQueue);
 
@@ -101,15 +103,16 @@ public class ThriftServer {
             // wait forever until shutdown() called
             executor.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             // ignore exception
         }
     }
 
     public void shutdown() {
+        logger.info("Shutting down thrift server");
         try {
             server.stop();
             executor.shutdownNow();
-            messageQueue.shutdown();
         } catch (Exception e) {
             // ignore any exception when shutdown
             logger.error("Exception while shutting down: " + e.getMessage(), e);
