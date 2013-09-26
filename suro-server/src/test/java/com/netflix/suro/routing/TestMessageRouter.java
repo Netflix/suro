@@ -18,6 +18,7 @@ package com.netflix.suro.routing;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.inject.Injector;
@@ -34,11 +35,11 @@ import com.netflix.suro.message.MessageSetBuilder;
 import com.netflix.suro.message.serde.SerDe;
 import com.netflix.suro.message.serde.StringSerDe;
 import com.netflix.suro.queue.MessageQueue;
+import com.netflix.suro.routing.RoutingMap.RoutingInfo;
 import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
 import com.netflix.suro.thrift.TMessageSet;
-import org.apache.thrift.TException;
 import org.junit.Test;
 
 import java.util.*;
@@ -98,8 +99,20 @@ public class TestMessageRouter {
         }
     }
 
+    private static Map<String, Sink> getSinkMap(ObjectMapper jsonMapper, String desc) throws Exception {
+        return jsonMapper.<Map<String, Sink>>readValue(
+                desc,
+                new TypeReference<Map<String, Sink>>() {});
+    }
+    
+    private static Map<String, RoutingInfo> getRoutingMap(ObjectMapper jsonMapper, String desc) throws Exception {
+        return jsonMapper.<Map<String, RoutingInfo>>readValue(
+                desc,
+                new TypeReference<Map<String, RoutingInfo>>() {});
+    }
+
     @Test
-    public void test() throws TException, InterruptedException {
+    public void test() throws Exception {
         final Properties properties = new Properties();
         properties.setProperty(ServerConfig.MESSAGE_ROUTER_THREADS, "1");
 
@@ -164,7 +177,7 @@ public class TestMessageRouter {
         sinkManager.shutdown();
     }
 
-    public static MessageRouter startMessageRouter(Injector injector) {
+    public static MessageRouter startMessageRouter(Injector injector) throws Exception {
         String mapDesc = "{\n" +
                 "    \"topic1\": {\n" +
                 "        \"where\": [\n" +
@@ -178,13 +191,15 @@ public class TestMessageRouter {
                 "        ]\n" +
                 "    }\n" +
                 "}";
+        
         RoutingMap routingMap = injector.getInstance(RoutingMap.class);
-        routingMap.build(mapDesc);
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
+        routingMap.set(getRoutingMap(mapper, mapDesc));
         MessageRouter router = injector.getInstance(MessageRouter.class);
         return router;
     }
 
-    public static SinkManager startSinkMakager(Injector injector) {
+    public static SinkManager startSinkMakager(Injector injector) throws Exception {
         String sinkDesc = "{\n" +
                 "    \"default\": {\n" +
                 "        \"type\": \"TestSink\",\n" +
@@ -196,7 +211,8 @@ public class TestMessageRouter {
                 "    }\n" +
                 "}";
         SinkManager sinkManager = injector.getInstance(SinkManager.class);
-        sinkManager.build(sinkDesc);
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
+        sinkManager.set(getSinkMap(mapper, sinkDesc));
 
         return sinkManager;
     }

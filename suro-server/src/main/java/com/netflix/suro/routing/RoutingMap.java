@@ -18,20 +18,26 @@ package com.netflix.suro.routing;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.netflix.suro.message.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+
+/**
+ * Tracks the main routing map as a volatile immutable Map of route key to filter and destination
+ * 
+ * @author metacret
+ * @author elandau
+ *
+ */
 @Singleton
 public class RoutingMap {
     static Logger log = LoggerFactory.getLogger(RoutingMap.class);
@@ -45,7 +51,7 @@ public class RoutingMap {
                 @JsonProperty("where") List<String> where,
                 @JsonProperty("filter") Filter filter
         ) {
-            this.where = where;
+            this.where  = where;
             this.filter = filter;
         }
 
@@ -54,31 +60,14 @@ public class RoutingMap {
             return filter != null ? filter.doFilter(message) : true;
         }
     }
-
-    private AtomicReference<Map<String, RoutingInfo>> routingMap =
-            new AtomicReference<Map<String, RoutingInfo>>(Maps.<String, RoutingInfo>newHashMap());
-
-    private final ObjectMapper jsonMapper;
-
-    @Inject
-    public RoutingMap(ObjectMapper jsonMapper) {
-        this.jsonMapper = jsonMapper;
-    }
-
-    public void build(String mapDesc) {
-        try {
-            Map<String, RoutingInfo> newRoutingMap = jsonMapper.<Map<String, RoutingInfo>>readValue(
-                    mapDesc,
-                    new TypeReference<Map<String, RoutingInfo>>() {
-                    });
-
-            this.routingMap.set(newRoutingMap);
-        } catch (IOException e) {
-            log.error("IOException on building RoutingMap: " + e.getMessage(), e);
-        }
-    }
+    
+    private volatile Map<String, RoutingInfo> routingMap = Maps.newHashMap();
 
     public RoutingInfo getRoutingInfo(String routingKey) {
-        return routingMap.get().get(routingKey);
+        return routingMap.get(routingKey);
+    }
+
+    public void set(Map<String, RoutingInfo> routes) {
+        this.routingMap = ImmutableMap.copyOf(routes);
     }
 }
