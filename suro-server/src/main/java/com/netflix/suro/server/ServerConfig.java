@@ -90,4 +90,20 @@ public class ServerConfig {
 
     public int messageRouterDefaultPollTimeout = 500;
     public int messageRouterMaxPollTimeout = 10000;
+    @Override
+    public String toString() {
+        return "ServerConfig [port=" + port + ", startupTimeout="
+                + startupTimeout + ", thriftWorkerThreadNum="
+                + thriftWorkerThreadNum + ", thriftMaxReadBufferBytes="
+                + thriftMaxReadBufferBytes + ", socketSendBufferBytes="
+                + socketSendBufferBytes + ", socketRecvBufferBytes="
+                + socketRecvBufferBytes + ", queueType=" + queueType
+                + ", memoryQueueSize=" + memoryQueueSize
+                + ", messageRouterThreads=" + messageRouterThreads
+                + ", statusServerPort=" + statusServerPort
+                + ", messageRouterDefaultPollTimeout="
+                + messageRouterDefaultPollTimeout
+                + ", messageRouterMaxPollTimeout="
+                + messageRouterMaxPollTimeout + "]";
+    }
 }

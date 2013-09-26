@@ -23,9 +23,6 @@ import org.apache.log4j.Logger;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-
 @Singleton
 public class SinkManager {
     static Logger log = Logger.getLogger(SinkManager.class);
@@ -38,6 +35,7 @@ public class SinkManager {
                 if (newSinkMap.containsKey(sink.getKey()) == false) { // removed
                     Sink removedSink = sinkMap.remove(sink.getKey());
                     if (removedSink != null) {
+                        log.info(String.format("Removing sink '%s'", sink.getKey()));
                         removedSink.close();
                     }
                 }
@@ -45,6 +43,7 @@ public class SinkManager {
 
             for (Map.Entry<String, Sink> sink : newSinkMap.entrySet()) {
                 if (sinkMap.containsKey(sink.getKey()) == false) { // added
+                    log.info(String.format("Adding sink '%s'", sink.getKey()));
                     sink.getValue().open();
                     sinkMap.put(sink.getKey(), sink.getValue());
                 }
@@ -75,7 +74,6 @@ public class SinkManager {
         return sb.toString();
     }
 
-    @PreDestroy
     public void shutdown() {
         log.info("SinkManager shuting down");
         for (Map.Entry<String, Sink> entry : sinkMap.entrySet()) {
@@ -84,9 +82,4 @@ public class SinkManager {
         sinkMap.clear();
     }
     
-    @PostConstruct
-    public void init() {
-        log.info("SinkManager starting");
-    }
-
 }

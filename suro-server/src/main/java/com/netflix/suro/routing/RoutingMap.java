@@ -61,16 +61,6 @@ public class RoutingMap {
         }
     }
     
-    @PostConstruct
-    public void init() {
-        log.info("RoutingMap stating");
-    }
-    
-    @PreDestroy
-    public void shutdown() {
-        log.info("RoutingMap shutting down");
-    }
-
     private volatile Map<String, RoutingInfo> routingMap = Maps.newHashMap();
 
     public RoutingInfo getRoutingInfo(String routingKey) {

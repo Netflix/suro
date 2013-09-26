@@ -22,14 +22,19 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.inject.Injector;
 import com.google.inject.Provider;
 import com.google.inject.TypeLiteral;
+import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
+import com.netflix.suro.SuroFastPropertyModule;
+import com.netflix.suro.SuroModule;
 import com.netflix.suro.jackson.DefaultObjectMapper;
+import com.netflix.suro.routing.RoutingMap;
 import com.netflix.suro.routing.TestMessageRouter;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
+import com.netflix.suro.sink.TestSinkManager;
 import com.netflix.suro.thrift.*;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -47,8 +52,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 
@@ -91,31 +98,24 @@ public class TestStatusServer {
     private static LifecycleManager manager;
     private static Injector injector;
 
-    private static Map<String, Sink> getSinkMap(ObjectMapper jsonMapper, String desc) throws Exception {
-        return jsonMapper.<Map<String, Sink>>readValue(
-                desc,
-                new TypeReference<Map<String, Sink>>() {});
-    }
-    
-
     @BeforeClass
     public static void start() throws Exception {
-        injector = LifecycleInjector.builder().withBootstrapModule(new BootstrapModule() {
-            @Override
-            public void configure(BootstrapBinder binder) {
-                binder.bind(new TypeLiteral<BlockingQueue<TMessageSet>>() {})
-                        .toProvider(new Provider<LinkedBlockingQueue<TMessageSet>>() {
-                            @Override
-                            public LinkedBlockingQueue<TMessageSet> get() {
-                                return new LinkedBlockingQueue<TMessageSet>(1);
-                            }
-                        });
-                ObjectMapper jsonMapper = new DefaultObjectMapper();
-                jsonMapper.registerSubtypes(new NamedType(TestMessageRouter.TestSink.class, "TestSink"));
-                binder.bind(ObjectMapper.class).toInstance(jsonMapper);
-            }
-        }).withModules(StatusServer.createJerseyServletModule()).createInjector();
-
+        Properties props = new Properties();
+        
+        // Create the injector
+        Injector injector = LifecycleInjector.builder()
+                .withModules(
+                    new SuroModule(props),
+                    new SuroFastPropertyModule(),
+                    StatusServer.createJerseyServletModule()
+                 )
+                .createInjector();
+        
+        SinkManager  sinkManager = injector.getInstance(SinkManager.class);
+        RoutingMap   routes      = injector.getInstance(RoutingMap.class);
+        ObjectMapper mapper      = injector.getInstance(ObjectMapper.class);
+        mapper.registerSubtypes(new NamedType(TestSinkManager.TestSink.class, "TestSink"));
+        
         manager = injector.getInstance(LifecycleManager.class);
         manager.start(); // start status server with lifecycle manager
 
@@ -129,12 +129,9 @@ public class TestStatusServer {
                 "        \"message\": \"sink1\"\n" +
                 "    }\n" +
                 "}";
-        SinkManager sinkManager = injector.getInstance(SinkManager.class);
+        sinkManager.set((Map<String, Sink>)mapper.readValue(sinkDesc, new TypeReference<Map<String, Sink>>(){}));
         
-        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
-        sinkManager.set(getSinkMap(mapper, sinkDesc));
-
-        StatusServer statusServer = injector.getInstance(StatusServer.class);
+        Thread.sleep(TimeUnit.SECONDS.toMillis(3));
     }
 
     @AfterClass
