@@ -16,21 +16,28 @@
 
 package com.netflix.suro.sink;
 
+import java.util.Map;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
-import com.google.inject.AbstractModule;
-import com.google.inject.Injector;
-import com.netflix.governator.guice.LifecycleInjector;
-import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
+
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
 public class TestSinkManager {
+    
+    private static ObjectMapper jsonMapper = new DefaultObjectMapper();
+    
+    static {
+        jsonMapper.registerSubtypes(new NamedType(TestSink.class, "TestSink"));
+    }
+    
     private static int numOfSinks = 0;
 
     public static class TestSink implements Sink {
@@ -68,18 +75,16 @@ public class TestSinkManager {
         }
     }
 
+    private Map<String, Sink> getSinkMap(String desc) throws Exception {
+        return jsonMapper.<Map<String, Sink>>readValue(
+                desc,
+                new TypeReference<Map<String, Sink>>() {});
+    }
+    
     @Test
     public void test() throws Exception {
-        Injector injector = LifecycleInjector.builder().withModules(new AbstractModule() {
-            @Override
-            protected void configure() {
-                ObjectMapper jsonMapper = new DefaultObjectMapper();
-                jsonMapper.registerSubtypes(new NamedType(TestSink.class, "TestSink"));
-                bind(ObjectMapper.class).toInstance(jsonMapper);
-            }
-        }).createInjector();
-        LifecycleManager manager = injector.getInstance(LifecycleManager.class);
-        manager.start();
+        ObjectMapper jsonMapper = new DefaultObjectMapper();
+        jsonMapper.registerSubtypes(new NamedType(TestSink.class, "TestSink"));
 
         String desc = "{\n" +
                 "    \"default\": {\n" +
@@ -91,8 +96,10 @@ public class TestSinkManager {
                 "        \"message\": \"topic1TestSink\"\n" +
                 "    }\n" +
                 "}";
-        SinkManager sinkManager = injector.getInstance(SinkManager.class);
-        sinkManager.build(desc);
+        
+        SinkManager sinkManager = new SinkManager();
+        
+        sinkManager.set(getSinkMap(desc));
         assertEquals(sinkManager.getSink("topic1").getStat(), "topic1TestSink open");
         assertEquals(sinkManager.getSink("default").getStat(), "defaultTestSink open");
         assertEquals(sinkManager.getSink("topic7").getStat(), "defaultTestSink open");
@@ -109,7 +116,7 @@ public class TestSinkManager {
                 "        \"message\": \"defaultTestSink\"\n" +
                 "    }\n" +
                 "}";
-        sinkManager.build(desc);
+        sinkManager.set(getSinkMap(desc));
         assertEquals(sinkManager.getSink("topic1").getStat(), "defaultTestSink open");
         assertEquals(sinkManager.getSink("default").getStat(), "defaultTestSink open");
         assertEquals(sinkManager.reportSinkStat(),
@@ -127,7 +134,7 @@ public class TestSinkManager {
                 "        \"message\": \"topic2TestSink\"\n" +
                 "    }\n" +
                 "}";
-        sinkManager.build(desc);
+        sinkManager.set(getSinkMap(desc));
         assertEquals(sinkManager.getSink("topic1").getStat(), "defaultTestSink open");
         assertEquals(sinkManager.getSink("default").getStat(), "defaultTestSink open");
         assertEquals(sinkManager.getSink("topic2").getStat(), "topic2TestSink open");
@@ -147,7 +154,7 @@ public class TestSinkManager {
                 "        \"message\": \"topic2TestSink\"\n" +
                 "    }\n" +
                 "},";
-        sinkManager.build(desc);
+        sinkManager.set(getSinkMap(desc));
         assertEquals(sinkManager.getSink("topic1").getStat(), "defaultTestSink open");
         assertEquals(sinkManager.getSink("default").getStat(), "defaultTestSink open");
         assertEquals(sinkManager.getSink("topic2").getStat(), "topic2TestSink open");

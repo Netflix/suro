@@ -42,6 +42,8 @@ import java.util.concurrent.TimeUnit;
 
 @LazySingleton
 public class MessageQueue implements SuroServer.Iface {
+    static Logger log = LoggerFactory.getLogger(MessageQueue.class);
+    
     private boolean isTakingTraffic = true;
 
     public void stopTakingTraffic(){
@@ -59,8 +61,6 @@ public class MessageQueue implements SuroServer.Iface {
             return ServiceStatus.WARNING;
         }
     }
-
-    static Logger log = LoggerFactory.getLogger(MessageQueue.class);
 
     private volatile boolean isRunning = false;
 
@@ -170,6 +170,8 @@ public class MessageQueue implements SuroServer.Iface {
     }
 
     public void start() {
+        log.info("MessageQueue starting");
+        
         isRunning = true;
 
         executors = Executors.newFixedThreadPool(config.getMessageRouterThreads());

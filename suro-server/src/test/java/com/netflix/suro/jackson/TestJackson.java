@@ -22,6 +22,12 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.Key;
+import com.google.inject.name.Names;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -34,7 +40,7 @@ public class TestJackson {
     public void test() throws IOException {
         String spec = "{\"type\":\"test1\", \"a\":\"aaa\", \"b\":\"bbb\"}";
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = new DefaultObjectMapper(null);
         final Map<String, Object> injectables = Maps.newHashMap();
 
         injectables.put("test", "test");
@@ -49,5 +55,29 @@ public class TestJackson {
 
         TestInterface test = mapper.readValue(spec, new TypeReference<TestInterface>(){});
         assertEquals(test.getTest(), "test");
+    }
+    
+    @Test
+    public void testWithGuice() throws IOException {
+        final Injector injector = Guice.createInjector(new AbstractModule() {
+            @Override
+            protected void configure() {
+                bind(String.class)
+                .annotatedWith(Names.named("b"))
+                .toInstance("$b$");
+                
+                bind(String.class)
+                .annotatedWith(Names.named("test"))
+                .toInstance("$test$");
+            }
+        });
+        
+        String spec = "{\"type\":\"test1\", \"a\":\"aaa\", \"b\":\"bbb\"}";
+
+        ObjectMapper mapper = new DefaultObjectMapper(injector);
+        final Map<String, Object> injectables = Maps.newHashMap();
+
+        TestClass test = mapper.readValue(spec, TestClass.class);
+        assertEquals("$test$", test.getTest());
     }
 }
