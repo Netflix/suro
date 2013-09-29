@@ -1,9 +1,6 @@
 package com.netflix.suro.sink.kafka
 
-import org.scalatest.junit.JUnit3Suite
 import kafka.utils._
-import kafka.server.{KafkaConfig, KafkaServer}
-import org.I0Itec.zkclient.{ZkClient, IDefaultNameSpace, ZkServer}
 import com.netflix.suro.message.Compression
 import com.netflix.suro.jackson.DefaultObjectMapper
 import com.netflix.suro.sink.Sink
@@ -13,23 +10,23 @@ import org.apache.commons.io.FileUtils
 import java.io.File
 
 import org.mockito.Mockito.mock
-import kafka.consumer.SimpleConsumer
 import org.junit.Assert._
-import kafka.api.FetchRequestBuilder
 import com.netflix.suro.thrift.TMessageSet
-import com.netflix.suro.message.serde.StringSerDe
-import com.google.common.io.ByteStreams
 import java.net.ServerSocket
 import java.util.{Random, Properties}
-import kafka.admin.CreateTopicCommand
 import java.util.concurrent.locks.ReentrantLock
 import java.util.concurrent.TimeUnit
-import junit.framework.Assert
-import kafka.common.TopicAndPartition
 import scala.collection.mutable
-import kafka.message.MessageAndOffset
-import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.netflix.suro.ClientConfig
+import org.scalatest.junit.JUnit3Suite
+import kafka.server.{KafkaConfig, KafkaServer}
+import kafka.consumer.SimpleConsumer
+import org.I0Itec.zkclient.{IDefaultNameSpace, ZkClient, ZkServer}
+import kafka.admin.CreateTopicCommand
+import kafka.api.FetchRequestBuilder
+import kafka.message.MessageAndOffset
+import kafka.common.TopicAndPartition
+import com.fasterxml.jackson.databind.jsontype.NamedType
 
 class TestKafkaSink extends JUnit3Suite {
   private val brokerId1 = 0
@@ -93,6 +90,7 @@ class TestKafkaSink extends JUnit3Suite {
       "}"
 
     val jsonMapper = new DefaultObjectMapper()
+    jsonMapper.registerSubtypes(new NamedType(classOf[KafkaSink], "kafka"))
     val sink: KafkaSink = jsonMapper.readValue(description, new TypeReference[Sink](){})
     sink.open()
     val i = new MessageSetReader(createMessageSet(2)).iterator()
@@ -258,7 +256,7 @@ class TestKafkaSink extends JUnit3Suite {
   }
 
   def waitUntilMetadataIsPropagated(servers: Seq[KafkaServer], topic: String, partition: Int, timeout: Long) = {
-    Assert.assertTrue("Partition [%s,%d] metadata not propagated after timeout".format(topic, partition),
+    assertTrue("Partition [%s,%d] metadata not propagated after timeout".format(topic, partition),
       waitUntilTrue(() =>
         servers.foldLeft(true)(_ && _.apis.leaderCache.keySet.contains(TopicAndPartition(topic, partition))), timeout))
   }

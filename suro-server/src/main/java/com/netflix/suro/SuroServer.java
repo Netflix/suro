@@ -38,7 +38,7 @@ import java.util.Properties;
  */
 public class SuroServer {
     private static final String PROP_PREFIX = "SuroServer.";
-    
+
     public static void main(String[] args) throws IOException {
         LifecycleManager manager = null;
 

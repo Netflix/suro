@@ -1,9 +1,7 @@
 package com.netflix.suro.sink.kafka
 
 import java.util.Properties
-import com.netflix.suro.message.Message
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
-import com.netflix.suro.message.serde.SerDe
 import kafka.metrics.KafkaMetricsReporter
 import kafka.utils.VerifiableProperties
 
