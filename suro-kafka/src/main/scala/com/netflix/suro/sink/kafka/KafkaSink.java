@@ -8,7 +8,11 @@ import com.netflix.suro.sink.QueuedSink;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.queue.MemoryQueue4Sink;
 import com.netflix.suro.sink.queue.MessageQueue4Sink;
-import kafka.producer.*;
+import kafka.producer.KeyedMessage;
+import kafka.producer.ProducerStats;
+import kafka.producer.ProducerStatsRegistry;
+import kafka.producer.ProducerTopicStatsRegistry;
+import kafka.producer.ProducerTopicStats;
 import kafka.serializer.DefaultEncoder;
 import kafka.serializer.NullEncoder;
 

@@ -81,9 +81,6 @@ project(':suro-client') {
 }
 
 project(':suro-server') {
-  sourceSets.main.scala.srcDir "src/main/java"
-  sourceSets.main.java.srcDirs = []
-
   dependencies {
     compile project(':suro-client')
 
@@ -96,11 +93,6 @@ project(':suro-server') {
 
     compile 'commons-cli:commons-cli:1.2'
     
-    compile('org.apache.kafka:kafka_2.8.0:0.8.0-beta1') {
-      exclude module: 'jms'
-      exclude module: 'jmxtools'
-      exclude module: 'jmxri'
-    }
     /*
     compile 'kafka:kafka:0.8.0.2'
     compile 'org.scala-lang:scala-library:2.8.0'
@@ -109,7 +101,6 @@ project(':suro-server') {
     runtime 'org.xerial.snappy:snappy-java:1.0.4.1'
     */
 
-    testCompile 'org.scalatest:scalatest:1.2'
     testCompile project(':suro-client').sourceSets.test.output
   }
 }
@@ -120,6 +111,23 @@ project(':suro-integration-test') {
     testCompile project(':suro-server')
     testCompile project(':suro-client').sourceSets.test.output
     testCompile project(':suro-server').sourceSets.test.output
+  }
+}
+
+project(':suro-kafka') {
+  sourceSets.main.scala.srcDir "src/main/java"
+  sourceSets.main.java.srcDirs = []
+
+  dependencies {
+    compile project(':suro-server')
+
+    compile('org.apache.kafka:kafka_2.8.0:0.8.0-beta1') {
+      exclude module: 'jms'
+      exclude module: 'jmxtools'
+      exclude module: 'jmxri'
+    }
+
+    testCompile 'org.scalatest:scalatest:1.2'
   }
 }
 
