@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class JsonLog4jFormatter implements Log4jFormatter {
     private final ClientConfig config;
     private final DateTimeFormatter fmt;
-    private final ObjectMapper jsonMapper = new DefaultObjectMapper();
+    private final ObjectMapper jsonMapper;
     private final StringLog4jFormatter stringFormatter;
 
     private String routingKey;
@@ -44,9 +44,17 @@ public class JsonLog4jFormatter implements Log4jFormatter {
     @Monitor(name = "jsonParsingError", type = DataSourceType.COUNTER)
     private AtomicLong jsonParsingError = new AtomicLong(0);
 
-    @Inject
     public JsonLog4jFormatter(ClientConfig config) {
-        this.config = config;
+        this(config, null);
+    }
+    
+    @Inject
+    public JsonLog4jFormatter(ClientConfig config, ObjectMapper jsonMapper) {
+        this.config     = config;
+        if (jsonMapper == null)
+            this.jsonMapper = new DefaultObjectMapper();
+        else
+            this.jsonMapper = jsonMapper;
         fmt = DateTimeFormat.forPattern(config.getLog4jDateTimeFormat());
         stringFormatter = new StringLog4jFormatter(config);
 

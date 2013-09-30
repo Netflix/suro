@@ -24,8 +24,14 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.nofify.Notify;
+import com.netflix.suro.sink.TestSinkManager.TestSink;
+
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -39,13 +45,28 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
 public class TestQueueNotify {
+    private static Injector injector = Guice.createInjector(
+            new SuroPlugin() {
+                @Override
+                protected void configure() {
+                    this.addSinkType("TestSink", TestSink.class);
+                }
+            },
+            new AbstractModule() {
+                @Override
+                protected void configure() {
+                    bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                }
+            }
+        );
+    
     @Test
     public void testQueue() throws IOException {
         String desc = "{\n" +
                 "    \"type\": \"queue\"   \n" +
                 "}";
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(DefaultObjectMapper.class);
         Notify queueNotify = mapper.readValue(desc, new TypeReference<Notify>(){});
         queueNotify.init();
         queueNotify.send("message");
@@ -67,7 +88,7 @@ public class TestQueueNotify {
                 "    \"maxRetries\": 3\n" +
                 "}";
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(DefaultObjectMapper.class);
 
         AmazonSQSClient client = mock(AmazonSQSClient.class);
         doReturn(new SendMessageResult()).when(client).sendMessage(any(SendMessageRequest.class));

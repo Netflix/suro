@@ -24,6 +24,10 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.name.Names;
 import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
@@ -31,11 +35,15 @@ import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.queue.QueueManager;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.LocalFileSink;
+import com.netflix.suro.sink.localfile.LocalFileSink.SpaceChecker;
+import com.netflix.suro.sink.localfile.LocalFileSuroPlugin;
+
 import org.apache.commons.io.FileUtils;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.multi.s3.S3ServiceEventListener;
 import org.jets3t.service.utils.MultipartUtils;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -88,6 +96,61 @@ public class TestS3FileSink {
 
     @Test
     public void testDefaultParameters() throws Exception {
+        Injector injector = Guice.createInjector(
+                new RemoteFileSuroPlugin(),
+                new LocalFileSuroPlugin(),
+                new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                        bind(AWSCredentialsProvider.class)
+                            .annotatedWith(Names.named("credentials"))
+                            .toInstance(new AWSCredentialsProvider() {
+                                @Override
+                                public AWSCredentials getCredentials() {
+                                    return new AWSCredentials() {
+                                        @Override
+                                        public String getAWSAccessKeyId() {
+                                            return "accessKey";
+                                        }
+    
+                                        @Override
+                                        public String getAWSSecretKey() {
+                                            return "secretKey";
+                                        }
+                                    };
+                                }
+    
+                                @Override
+                                public void refresh() {
+                                }
+                            });
+                        
+                        MultipartUtils mpUtils = mock(MultipartUtils.class);
+                        try {
+                            doNothing().when(mpUtils).uploadObjects(
+                                    any(String.class),
+                                    any(RestS3Service.class),
+                                    any(List.class),
+                                    any(S3ServiceEventListener.class));
+                            
+                            bind(MultipartUtils.class)
+                            .annotatedWith(Names.named("multipartUtils"))
+                            .toInstance(mpUtils);
+                        } catch (Exception e) {
+                            Assert.fail(e.getMessage());
+                        }
+                        bind(QueueManager.class)
+                            .annotatedWith(Names.named("queueManager"))
+                            .toInstance(new QueueManager());
+                        bind(SpaceChecker.class)
+                            .annotatedWith(Names.named("spaceChecker"))
+                            .toInstance(mock(LocalFileSink.SpaceChecker.class));
+
+                    }
+                }
+            );
+        
         final String s3FileSink = "{\n" +
                 "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
                 "    \"localFileSink\": {\n" +
@@ -97,48 +160,9 @@ public class TestS3FileSink {
                 "    \"bucket\": \"s3bucket\"\n" +
                 "}";
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         final Map<String, Object> injectables = Maps.newHashMap();
 
-        injectables.put("credentials", new AWSCredentialsProvider() {
-            @Override
-            public com.amazonaws.auth.AWSCredentials getCredentials() {
-                return new AWSCredentials() {
-                    @Override
-                    public String getAWSAccessKeyId() {
-                        return "accessKey";
-                    }
-
-                    @Override
-                    public String getAWSSecretKey() {
-                        return "secretKey";
-                    }
-                };
-            }
-
-            @Override
-            public void refresh() {
-                // do nothing
-            }
-        });
-
-        MultipartUtils mpUtils = mock(MultipartUtils.class);
-        doNothing().when(mpUtils).uploadObjects(
-                any(String.class),
-                any(RestS3Service.class),
-                any(List.class),
-                any(S3ServiceEventListener.class));
-        injectables.put("multipartUtils", mpUtils);
-        injectables.put("queueManager", new QueueManager());
-
-        mapper.setInjectableValues(new InjectableValues() {
-            @Override
-            public Object findInjectableValue(
-                    Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance
-            ) {
-                return injectables.get(valueId);
-            }
-        });
         Sink sink = mapper.readValue(s3FileSink, new TypeReference<Sink>(){});
         sink.open();
 
@@ -169,7 +193,40 @@ public class TestS3FileSink {
 
     @Test
     public void test() throws Exception {
-        ObjectMapper mapper = new DefaultObjectMapper();
+        Injector injector = Guice.createInjector(
+                new RemoteFileSuroPlugin(),
+                new LocalFileSuroPlugin(),
+                new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                        bind(AWSCredentialsProvider.class)
+                            .annotatedWith(Names.named("credentials"))
+                            .toInstance(new AWSCredentialsProvider() {
+                                @Override
+                                public AWSCredentials getCredentials() {
+                                    return new AWSCredentials() {
+                                        @Override
+                                        public String getAWSAccessKeyId() {
+                                            return "accessKey";
+                                        }
+    
+                                        @Override
+                                        public String getAWSSecretKey() {
+                                            return "secretKey";
+                                        }
+                                    };
+                                }
+    
+                                @Override
+                                public void refresh() {
+                                }
+                            });
+                    }
+                }
+            );
+        
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         final Map<String, Object> injectables = Maps.newHashMap();
 
         injectables.put("region", "eu-west-1");

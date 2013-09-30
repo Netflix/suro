@@ -17,13 +17,13 @@
 package com.netflix.suro.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.inject.Injector;
 import com.google.inject.Provider;
 import com.google.inject.TypeLiteral;
 import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
+import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.routing.TestMessageRouter;
 import com.netflix.suro.thrift.TMessageSet;
@@ -37,20 +37,25 @@ public class TestServer {
     private static ThriftServer server;
 
     public static Injector start() throws TTransportException {
-        Injector injector = LifecycleInjector.builder().withBootstrapModule(new BootstrapModule() {
-            @Override
-            public void configure(BootstrapBinder binder) {
-                binder.bind(new TypeLiteral<BlockingQueue<TMessageSet>>() {})
-                        .toProvider(new Provider<LinkedBlockingQueue<TMessageSet>>() {
-                            @Override
-                            public LinkedBlockingQueue<TMessageSet> get() {
-                                return new LinkedBlockingQueue<TMessageSet>(1);
-                            }
-                        });
-                ObjectMapper jsonMapper = new DefaultObjectMapper();
-                jsonMapper.registerSubtypes(new NamedType(TestMessageRouter.TestSink.class, "TestSink"));
-                binder.bind(ObjectMapper.class).toInstance(jsonMapper);
-            }
+        Injector injector = LifecycleInjector.builder()
+            .withModules(new SuroPlugin() {
+                @Override
+                protected void configure() {
+                    bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                    this.addSinkType("TestSink", TestMessageRouter.TestSink.class);
+                }
+            })
+            .withBootstrapModule(new BootstrapModule() {
+                @Override
+                public void configure(BootstrapBinder binder) {
+                    binder.bind(new TypeLiteral<BlockingQueue<TMessageSet>>() {})
+                            .toProvider(new Provider<LinkedBlockingQueue<TMessageSet>>() {
+                                @Override
+                                public LinkedBlockingQueue<TMessageSet> get() {
+                                    return new LinkedBlockingQueue<TMessageSet>(1);
+                                }
+                            });
+                }
         }).createInjector();
 
         server = injector.getInstance(ThriftServer.class);
