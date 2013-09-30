@@ -21,6 +21,9 @@ import com.fasterxml.jackson.databind.BeanProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
@@ -48,6 +51,16 @@ import static org.mockito.Mockito.when;
 public class TestLocalFileSink {
     private static final String testdir = "/tmp/surotest/testlocalfilesink";
 
+    private static Injector injector = Guice.createInjector(
+            new LocalFileSuroPlugin(),
+            new AbstractModule() {
+                @Override
+                protected void configure() {
+                    bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                }
+            }
+        );
+
     @Before
     @After
     public void clean() throws IOException {
@@ -66,7 +79,7 @@ public class TestLocalFileSink {
                 "    }\n" +
                 "}";
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         mapper.setInjectableValues(new InjectableValues() {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
@@ -124,7 +137,7 @@ public class TestLocalFileSink {
                 "    }\n" +
                 "}";
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         mapper.setInjectableValues(new InjectableValues() {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
@@ -183,7 +196,7 @@ public class TestLocalFileSink {
                 "    }\n" +
                 "}";
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         final QueueManager queueManager = new QueueManager();
         final MessageQueue queue = new MessageQueue(null, null, queueManager, null);
         queueManager.registerService(queue);
@@ -258,7 +271,7 @@ public class TestLocalFileSink {
                 "    }\n" +
                 "}";
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         mapper.setInjectableValues(new InjectableValues() {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
@@ -321,7 +334,7 @@ public class TestLocalFileSink {
                 "    }\n" +
                 "}";
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         mapper.setInjectableValues(new InjectableValues() {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
@@ -391,7 +404,7 @@ public class TestLocalFileSink {
                 "}";
 
         Thread.sleep(3000); // wait until .suro file is expired
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         mapper.setInjectableValues(new InjectableValues() {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {

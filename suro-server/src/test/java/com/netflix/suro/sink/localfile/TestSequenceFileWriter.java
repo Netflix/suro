@@ -18,6 +18,9 @@ package com.netflix.suro.sink.localfile;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.serde.StringSerDe;
@@ -40,6 +43,16 @@ import static junit.framework.Assert.assertFalse;
 public class TestSequenceFileWriter {
     public static String dir = System.getProperty("java.io.tmpdir") + "filewritertest/";
 
+    private static Injector injector = Guice.createInjector(
+            new LocalFileSuroPlugin(),
+            new AbstractModule() {
+                @Override
+                protected void configure() {
+                    bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                }
+            }
+        );
+    
     @Before
     @After
     public void cleanUp() throws IOException {
@@ -51,7 +64,7 @@ public class TestSequenceFileWriter {
         String spec = "{\n" +
                 "    \"type\": \"sequence\"\n" +
                 "}";
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         FileWriter writer = mapper.readValue(spec, new TypeReference<FileWriter>() {});
         writer.open(dir);
 
