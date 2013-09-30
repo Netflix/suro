@@ -77,11 +77,18 @@ subprojects {
   }
 }
 
+project(':suro-core') {
+}
+
 project(':suro-client') {
+  dependencies {
+    compile project(':suro-core')
+  }
 }
 
 project(':suro-server') {
   dependencies {
+    compile project(':suro-core')
     compile project(':suro-client')
 
     compile 'net.java.dev.jets3t:jets3t:0.9.0'
@@ -107,6 +114,7 @@ project(':suro-server') {
 
 project(':suro-integration-test') {
   dependencies {
+    testCompile project(':suro-core')
     testCompile project(':suro-client')
     testCompile project(':suro-server')
     testCompile project(':suro-client').sourceSets.test.output
@@ -119,6 +127,7 @@ project(':suro-kafka') {
   sourceSets.main.java.srcDirs = []
 
   dependencies {
+    compile project(':suro-core')
     compile project(':suro-server')
 
     compile('org.apache.kafka:kafka_2.8.0:0.8.0-beta1') {

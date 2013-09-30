@@ -18,8 +18,13 @@ package com.netflix.suro.routing;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.routing.RoutingMap.RoutingInfo;
+import com.netflix.suro.sink.TestSinkManager.TestSink;
 
 import org.junit.Test;
 
@@ -30,10 +35,24 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class TestRoutingMap {
-    private static ObjectMapper jsonMapper = new DefaultObjectMapper();
+    
+    private static Injector injector = Guice.createInjector(
+            new SuroPlugin() {
+                @Override
+                protected void configure() {
+                    this.addSinkType("TestSink", TestSink.class);
+                }
+            },
+            new AbstractModule() {
+                @Override
+                protected void configure() {
+                    bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                }
+            }
+        );
     
     private Map<String, RoutingInfo> getRoutingMap(String desc) throws Exception {
-        return jsonMapper.<Map<String, RoutingInfo>>readValue(
+        return injector.getInstance(ObjectMapper.class).<Map<String, RoutingInfo>>readValue(
                 desc,
                 new TypeReference<Map<String, RoutingInfo>>() {});
     }

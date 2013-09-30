@@ -20,7 +20,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.inject.Injector;
 import com.google.inject.Provider;
 import com.google.inject.TypeLiteral;
@@ -29,6 +28,7 @@ import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.suro.ClientConfig;
+import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetBuilder;
@@ -116,27 +116,34 @@ public class TestMessageRouter {
         final Properties properties = new Properties();
         properties.setProperty(ServerConfig.MESSAGE_ROUTER_THREADS, "1");
 
-        Injector injector = LifecycleInjector.builder().withBootstrapModule(new BootstrapModule() {
-            @Override
-            public void configure(BootstrapBinder binder) {
-                binder.bindConfigurationProvider().toInstance(new PropertiesConfigurationProvider(properties));
-                binder.bind(new TypeLiteral<BlockingQueue<TMessageSet>>() {})
-                        .toProvider(new Provider<LinkedBlockingQueue<TMessageSet>>() {
-                            @Override
-                            public LinkedBlockingQueue<TMessageSet> get() {
-                                return new LinkedBlockingQueue<TMessageSet>(
-                                        Integer.parseInt(
-                                                properties.getProperty(
-                                                        ServerConfig.MEMORY_QUEUE_SIZE, "100"))
-                                );
-                            }
-                        });
-                ObjectMapper jsonMapper = new DefaultObjectMapper();
-                jsonMapper.registerSubtypes(new NamedType(TestSink.class, "TestSink"));
-                binder.bind(ObjectMapper.class).toInstance(jsonMapper);
-            }
+        Injector injector = LifecycleInjector.builder().withModules(
+                new SuroPlugin() {
+                    @Override
+                    protected void configure() {
+                        bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                        this.addSinkType("TestSink", TestSink.class);
+                    }
+                }
+            )
+            .withBootstrapModule(new BootstrapModule() {
+                @Override
+                public void configure(BootstrapBinder binder) {
+                    binder.bindConfigurationProvider().toInstance(new PropertiesConfigurationProvider(properties));
+                    binder.bind(new TypeLiteral<BlockingQueue<TMessageSet>>() {})
+                            .toProvider(new Provider<LinkedBlockingQueue<TMessageSet>>() {
+                                @Override
+                                public LinkedBlockingQueue<TMessageSet> get() {
+                                    return new LinkedBlockingQueue<TMessageSet>(
+                                            Integer.parseInt(
+                                                    properties.getProperty(
+                                                            ServerConfig.MEMORY_QUEUE_SIZE, "100"))
+                                    );
+                                }
+                            });
+                }
         }).createInjector();
-
+        
+        
         SinkManager sinkManager = startSinkMakager(injector);
 
         startMessageRouter(injector);
