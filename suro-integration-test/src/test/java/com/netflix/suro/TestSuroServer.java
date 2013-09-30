@@ -18,7 +18,6 @@ package com.netflix.suro;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.common.io.Closeables;
 import com.google.inject.Injector;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
@@ -96,6 +95,12 @@ public class TestSuroServer {
                      )
                     .withModules(
                         new SuroModule(properties),
+                        new SuroPlugin() {
+                            @Override
+                            protected void configure() {
+                                this.addSinkType("TestSink", TestSinkManager.TestSink.class);
+                            }
+                        },
                         StatusServer.createJerseyServletModule()
                      )
                     .createInjector();
@@ -106,8 +111,6 @@ public class TestSuroServer {
             SinkManager  sinkManager = injector.getInstance(SinkManager.class);
             RoutingMap   routes      = injector.getInstance(RoutingMap.class);
             ObjectMapper mapper      = injector.getInstance(ObjectMapper.class);
-            
-            mapper.registerSubtypes(new NamedType(TestSinkManager.TestSink.class, "TestSink"));
             
             sinkManager.set((Map<String, Sink>)mapper.readValue(sinkDesc, new TypeReference<Map<String, Sink>>(){}));
             routes     .set((Map<String, RoutingMap.RoutingInfo>)mapper.readValue(mapDesc, new TypeReference<Map<String, RoutingMap.RoutingInfo>>(){}));

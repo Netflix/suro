@@ -18,6 +18,9 @@ package com.netflix.suro.sink.localfile;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import org.apache.commons.io.FileUtils;
@@ -38,6 +41,16 @@ import static junit.framework.TestCase.assertFalse;
 public class TestTextFileWriter {
     public static String dir = "/tmp/surotest/filewritertest/";
 
+    private static Injector injector = Guice.createInjector(
+            new LocalFileSuroPlugin(),
+            new AbstractModule() {
+                @Override
+                protected void configure() {
+                    bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                }
+            }
+        );
+    
     @Before
     @After
     public void cleanUp() throws IOException {
@@ -49,7 +62,7 @@ public class TestTextFileWriter {
         String spec = "{\n" +
                 "    \"type\": \"text\"\n" +
                 "}";
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         FileWriter writer = mapper.readValue(spec, new TypeReference<FileWriter>() {});
         writer.open(dir);
 
@@ -84,7 +97,7 @@ public class TestTextFileWriter {
                 "    \"type\": \"text\",\n" +
                 "    \"codec\": \"org.apache.hadoop.io.compress.GzipCodec\"\n" +
                 "}";
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         FileWriter writer = mapper.readValue(spec, new TypeReference<FileWriter>() {});
         writer.open(dir);
 

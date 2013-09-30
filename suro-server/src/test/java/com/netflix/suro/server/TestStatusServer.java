@@ -27,10 +27,14 @@ import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.SuroFastPropertyModule;
 import com.netflix.suro.SuroModule;
+import com.netflix.suro.SuroPlugin;
+import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.routing.RoutingMap;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
 import com.netflix.suro.sink.TestSinkManager;
+import com.netflix.suro.sink.TestSinkManager.TestSink;
+
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
@@ -74,6 +78,12 @@ public class TestStatusServer {
                 .withModules(
                         new SuroModule(props),
                         new SuroFastPropertyModule(),
+                        new SuroPlugin() {
+                            @Override
+                            protected void configure() {
+                                this.addSinkType("TestSink", TestSink.class);
+                            }
+                        },
                         StatusServer.createJerseyServletModule()
                 )
                 .createInjector();
@@ -81,7 +91,6 @@ public class TestStatusServer {
         SinkManager  sinkManager = injector.getInstance(SinkManager.class);
         RoutingMap   routes      = injector.getInstance(RoutingMap.class);
         ObjectMapper mapper      = injector.getInstance(ObjectMapper.class);
-        mapper.registerSubtypes(new NamedType(TestSinkManager.TestSink.class, "TestSink"));
         
         manager = injector.getInstance(LifecycleManager.class);
         manager.start(); // start status server with lifecycle manager

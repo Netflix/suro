@@ -19,6 +19,7 @@ package com.netflix.suro.jackson;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
@@ -27,20 +28,27 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Singleton;
 import com.google.inject.name.Names;
+import com.netflix.suro.sink.SinkType;
 
 import java.io.IOException;
 import java.nio.ByteOrder;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import org.apache.log4j.Logger;
 
 /**
  */
 @Singleton
 public class DefaultObjectMapper extends ObjectMapper {
+    static final Logger LOG = Logger.getLogger(DefaultObjectMapper.class);
+
     public DefaultObjectMapper() {
-        this(null);
+        this(null, null);
     }
     
     @Inject
-    public DefaultObjectMapper(final Injector injector)
+    public DefaultObjectMapper(final Injector injector, Map<String, SinkType> sinks)
     {
         SimpleModule serializerModule = new SimpleModule("SuroServer default serializers");
         serializerModule.addSerializer(ByteOrder.class, ToStringSerializer.instance);
@@ -72,6 +80,7 @@ public class DefaultObjectMapper extends ObjectMapper {
                         BeanProperty forProperty, 
                         Object beanInstance
                 ) {
+                    LOG.info("Looking for " + valueId);
                     return injector.getInstance(Key.get(forProperty.getType().getRawClass(), Names.named((String)valueId)));
                 }
             });
@@ -84,5 +93,12 @@ public class DefaultObjectMapper extends ObjectMapper {
         configure(MapperFeature.AUTO_DETECT_IS_GETTERS, false);
         configure(MapperFeature.AUTO_DETECT_SETTERS, false);
         configure(SerializationFeature.INDENT_OUTPUT, false);
+        
+        if (sinks != null) {
+            for (Entry<String, SinkType> entry : sinks.entrySet()) {
+                LOG.info("Registering subtype : " + entry.getKey() + " -> " + entry.getValue().getRawType().getCanonicalName());
+                registerSubtypes(new NamedType(entry.getValue().getRawType(), entry.getKey()));
+            }
+        }
     }
 }

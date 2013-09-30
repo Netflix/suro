@@ -2,10 +2,16 @@ package com.netflix.suro.sink;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.SuroServer4Test;
 import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.sink.TestSinkManager.TestSink;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -39,7 +45,22 @@ public class TestSuroSink {
                 "  }\n" +
                 "}";
 
-        ObjectMapper jsonMapper = new DefaultObjectMapper();
+        Injector injector = Guice.createInjector(
+                new SuroPlugin() {
+                    @Override
+                    protected void configure() {
+                        this.addSinkType("TestSink", TestSink.class);
+                    }
+                },
+                new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                    }
+                }
+            );
+
+        ObjectMapper jsonMapper = injector.getInstance(DefaultObjectMapper.class);
         Sink sink = jsonMapper.readValue(desc, new TypeReference<Sink>(){});
         sink.open();
 
