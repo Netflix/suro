@@ -22,6 +22,9 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.sink.remotefile.formatter.RemotePrefixFormatter;
 import org.joda.time.DateTime;
@@ -35,6 +38,16 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 
 public class TestPrefixFormatter {
+    private static Injector injector = Guice.createInjector(
+            new RemoteFileSuroPlugin(),
+            new AbstractModule() {
+                @Override
+                protected void configure() {
+                    bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                }
+            }
+        );
+
     @Test
     public void testStatic() throws IOException {
         String spec = "{\n" +
@@ -42,7 +55,7 @@ public class TestPrefixFormatter {
                 "    \"prefix\": \"prefix\"\n" +
                 "}";
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>(){});
         assertEquals(formatter.get(), "prefix");
     }
@@ -56,7 +69,7 @@ public class TestPrefixFormatter {
                 "    \"stack\": \"normal\"\n" +
                 "}";
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         mapper.setInjectableValues(new InjectableValues() {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
@@ -79,7 +92,7 @@ public class TestPrefixFormatter {
         injectables.put("region", "eu-west-1");
         injectables.put("stack", "gps");
 
-        ObjectMapper mapper = new DefaultObjectMapper();
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         mapper.setInjectableValues(new InjectableValues() {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {

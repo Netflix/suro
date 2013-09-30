@@ -24,6 +24,10 @@ import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.server.StatusServer;
+import com.netflix.suro.sink.SuroSinkPlugin;
+import com.netflix.suro.sink.localfile.LocalFileSuroPlugin;
+import com.netflix.suro.sink.remotefile.RemoteFileSuroPlugin;
+
 import org.apache.commons.cli.*;
 
 import java.io.FileInputStream;
@@ -73,6 +77,9 @@ public class SuroServer {
                         }
                      )
                     .withModules(
+                        new LocalFileSuroPlugin(),
+                        new RemoteFileSuroPlugin(),
+                        new SuroSinkPlugin(),
                         new SuroModule(properties),
                         new SuroFastPropertyModule(),
                         StatusServer.createJerseyServletModule()
