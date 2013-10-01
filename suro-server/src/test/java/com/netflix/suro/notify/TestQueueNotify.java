@@ -27,7 +27,7 @@ import com.google.common.collect.Maps;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.netflix.suro.SuroPlugin;
+import com.netflix.suro.sink.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.nofify.Notify;
 import com.netflix.suro.sink.TestSinkManager.TestSink;

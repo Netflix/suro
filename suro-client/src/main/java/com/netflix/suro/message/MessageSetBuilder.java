@@ -18,7 +18,6 @@ package com.netflix.suro.message;
 
 import com.google.common.io.ByteArrayDataOutput;
 import com.netflix.suro.ClientConfig;
-import com.netflix.suro.message.serde.ByteArrayDataOutputStream;
 import com.netflix.suro.thrift.TMessageSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

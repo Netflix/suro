@@ -19,7 +19,7 @@ package com.netflix.suro;
 import com.netflix.governator.annotations.Configuration;
 import com.netflix.suro.input.JsonLog4jFormatter;
 import com.netflix.suro.message.serde.JsonSerDe;
-import com.netflix.suro.message.serde.SerDe;
+import com.netflix.suro.message.SerDe;
 import com.netflix.suro.message.serde.SerDeFactory;
 
 public class ClientConfig {

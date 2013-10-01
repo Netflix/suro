@@ -27,19 +27,23 @@ import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.client.async.AsyncSuroClient;
-import com.netflix.suro.FileBlockingQueue;
 import com.netflix.suro.connection.ConnectionPool;
 import com.netflix.suro.connection.EurekaLoadBalancer;
 import com.netflix.suro.connection.StaticLoadBalancer;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.MessageSerDe;
-import com.netflix.suro.message.serde.SerDe;
+import com.netflix.suro.message.MessageSerDe;
+import com.netflix.suro.queue.FileBlockingQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class SuroClient implements ISuroClient {
+    static Logger log = LoggerFactory.getLogger(SuroClient.class);
+
     private final ISuroClient client;
 
     public SuroClient(Properties properties) {
@@ -87,9 +91,21 @@ public class SuroClient implements ISuroClient {
                                                         });
                                             } else {
                                                 binder.bind(new TypeLiteral<BlockingQueue<Message>>() {})
-                                                        .to(new TypeLiteral<FileBlockingQueue<Message>>() {});
-                                                binder.bind(new TypeLiteral<SerDe<Message>>(){})
-                                                        .to(new TypeLiteral<MessageSerDe>() {
+                                                        .toProvider(new Provider<FileBlockingQueue<Message>>() {
+                                                            @Override
+                                                            public FileBlockingQueue<Message> get() {
+                                                                try {
+                                                                    return new FileBlockingQueue<Message>(
+                                                                            properties.getProperty(ClientConfig.ASYNC_FILEQUEUE_PATH, "/logs/suroClient"),
+                                                                            properties.getProperty(ClientConfig.ASYNC_FILEQUEUE_NAME, "default"),
+                                                                            Integer.parseInt(properties.getProperty(ClientConfig.FILEQUEUE_GC_INTERVAL, "3600")),
+                                                                            new MessageSerDe(),
+                                                                            Boolean.parseBoolean(properties.getProperty(ClientConfig.ASYNC_FILEQUEUE_AUTOCOMMIT, "true")));
+                                                                } catch (IOException e) {
+                                                                    log.error("cannot initiate FileBlockingQueue: " + e.getMessage(), e);
+                                                                    return null;
+                                                                }
+                                                            }
                                                         });
                                             }
                                         } else {

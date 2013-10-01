@@ -1,6 +1,6 @@
 package com.netflix.suro.sink.remotefile;
 
-import com.netflix.suro.SuroPlugin;
+import com.netflix.suro.sink.SuroPlugin;
 
 public class RemoteFileSuroPlugin extends SuroPlugin {
     @Override

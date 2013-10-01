@@ -14,11 +14,10 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.message.serde;
+package com.netflix.suro.message;
 
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
-import com.netflix.suro.message.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

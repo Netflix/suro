@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.SuroServer4Test;
 import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.jackson.DefaultObjectMapper;
@@ -52,6 +51,7 @@ public class TestSuroSink {
                         this.addSinkType("TestSink", TestSink.class);
                     }
                 },
+                new SuroSinkPlugin(),
                 new AbstractModule() {
                     @Override
                     protected void configure() {

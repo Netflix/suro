@@ -1,6 +1,6 @@
 package com.netflix.suro.sink.localfile;
 
-import com.netflix.suro.SuroPlugin;
+import com.netflix.suro.sink.SuroPlugin;
 
 public class LocalFileSuroPlugin extends SuroPlugin {
     @Override

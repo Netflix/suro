@@ -14,16 +14,15 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro;
+package com.netflix.suro.queue;
 
 import com.google.common.base.Preconditions;
-import com.google.inject.Inject;
 import com.leansoft.bigqueue.BigArrayImpl;
 import com.leansoft.bigqueue.IBigArray;
 import com.leansoft.bigqueue.page.IMappedPage;
 import com.leansoft.bigqueue.page.IMappedPageFactory;
 import com.leansoft.bigqueue.page.MappedPageFactoryImpl;
-import com.netflix.suro.message.serde.SerDe;
+import com.netflix.suro.message.SerDe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,12 +65,6 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
     private final SerDe<E> serDe;
     private long consumedIndex;
     private final boolean autoCommit;
-
-    @Inject
-    public FileBlockingQueue(ClientConfig config, SerDe<E> serDe) throws IOException {
-        this(config.getAsyncFileQueuePath(), config.getAsyncFileQueueName(), config.getAsyncFileQueueGCInterval(), serDe,
-                config.getAsyncFilequeueAutoCommit());
-    }
 
     public FileBlockingQueue(String path, String name, int gcPeriodInSec, SerDe<E> serDe, boolean autoCommit) throws IOException {
         innerArray = new BigArrayImpl(path, name);
