@@ -1,4 +1,4 @@
-package com.netflix.suro.sink.queue;
+package com.netflix.suro.queue;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;

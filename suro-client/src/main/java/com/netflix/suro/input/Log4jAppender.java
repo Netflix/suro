@@ -19,8 +19,8 @@ package com.netflix.suro.input;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.client.SuroClient;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.SerDe;
-import com.netflix.suro.message.serde.StringSerDe;
+import com.netflix.suro.message.SerDe;
+import com.netflix.suro.message.StringSerDe;
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.spi.LoggingEvent;
 

@@ -1,16 +1,15 @@
 package com.netflix.suro;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-
-import org.apache.log4j.Logger;
-
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.netflix.suro.queue.MessageQueue;
 import com.netflix.suro.server.StatusServer;
 import com.netflix.suro.server.ThriftServer;
 import com.netflix.suro.sink.SinkManager;
+import org.apache.log4j.Logger;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 
 /**
  * Main service for suro to control all subsystems
@@ -52,8 +51,8 @@ public class SuroService {
         try {
             server      .shutdown();
             statusServer.shutdown();
-            sinkManager .shutdown();
             queue       .shutdown();
+            sinkManager .shutdown();
         } catch (Exception e) {
             //ignore every exception while shutting down but loggign should be done for debugging
             log.error("Exception while shutting down SuroServer: " + e.getMessage(), e);

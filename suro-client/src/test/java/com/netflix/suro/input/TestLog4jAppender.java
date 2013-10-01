@@ -17,7 +17,7 @@
 package com.netflix.suro.input;
 
 import com.netflix.suro.SuroServer4Test;
-import com.netflix.suro.TestFileQueue;
+import com.netflix.suro.queue.TestFileBlockingQueue;
 import com.netflix.suro.connection.TestConnectionPool;
 import org.apache.log4j.Level;
 import org.apache.log4j.spi.LoggingEvent;
@@ -37,7 +37,7 @@ public class TestLog4jAppender {
 
     @Test
     public void testMemory() throws Exception {
-        TestFileQueue.clean();
+        TestFileBlockingQueue.clean();
         List<SuroServer4Test> collectors = TestConnectionPool.startServers(1, 8500);
 
         appender.setLoadBalancerType("static");
@@ -62,7 +62,7 @@ public class TestLog4jAppender {
 
     @Test
     public void testFile() throws Exception {
-        TestFileQueue.clean();
+        TestFileBlockingQueue.clean();
         List<SuroServer4Test> collectors = TestConnectionPool.startServers(1, 8500);
 
         appender.setAsyncQueueType("file");

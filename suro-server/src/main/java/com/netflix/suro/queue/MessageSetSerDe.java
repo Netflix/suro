@@ -16,7 +16,7 @@
 
 package com.netflix.suro.queue;
 
-import com.netflix.suro.message.serde.SerDe;
+import com.netflix.suro.message.SerDe;
 import com.netflix.suro.thrift.TMessageSet;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;

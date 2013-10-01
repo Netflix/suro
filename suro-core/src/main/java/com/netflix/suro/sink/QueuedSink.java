@@ -3,7 +3,7 @@ package com.netflix.suro.sink;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.sink.queue.MessageQueue4Sink;
+import com.netflix.suro.queue.MessageQueue4Sink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
