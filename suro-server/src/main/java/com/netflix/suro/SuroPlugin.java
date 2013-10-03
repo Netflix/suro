@@ -3,9 +3,8 @@ package com.netflix.suro;
 import org.apache.log4j.Logger;
 
 import com.google.inject.AbstractModule;
-import com.google.inject.multibindings.MapBinder;
+import com.google.inject.multibindings.Multibinder;
 import com.netflix.suro.sink.Sink;
-import com.netflix.suro.sink.SinkType;
 
 /**
  * Guice based suro plugin with convenience methods for adding pluggable components
@@ -27,9 +26,9 @@ public abstract class SuroPlugin extends AbstractModule {
     public <T extends Sink> void addSinkType(String typeName, Class<T> sinkClass) {
         LOG.info("Adding sinkType : " + typeName + " -> " + sinkClass.getCanonicalName());
         
-        MapBinder<String, SinkType> consumers 
-            = MapBinder.newMapBinder(binder(), String.class, SinkType.class);
+        Multibinder<TypeHolder> bindings
+            = Multibinder.newSetBinder(binder(), TypeHolder.class);
 
-        consumers.addBinding(typeName).toInstance(new SinkType(sinkClass));
+        bindings.addBinding().toInstance(new TypeHolder(typeName, sinkClass));
     }
 }
