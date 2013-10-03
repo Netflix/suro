@@ -26,7 +26,7 @@ import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.SuroFastPropertyModule;
 import com.netflix.suro.SuroModule;
-import com.netflix.suro.sink.SuroPlugin;
+import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.routing.RoutingMap;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;

@@ -90,11 +90,14 @@ public class StatusServer {
                 try {
                     server.start();
                     server.join();
+                } catch (InterruptedException ie) {
+                    log.info("Interrupted to shutdown status server:");
                 } catch (Exception e) {
                     log.error("Failed to start status server", e);
                 } finally {
                     try {
                         server.stop();
+                        log.info("StatusServer was shutdown");
                     } catch (Exception e) {
                         log.error("Failed to join status server", e);
                     }

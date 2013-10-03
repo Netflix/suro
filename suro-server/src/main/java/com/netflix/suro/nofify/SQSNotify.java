@@ -19,10 +19,7 @@ package com.netflix.suro.nofify;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.sqs.AmazonSQSClient;
-import com.amazonaws.services.sqs.model.GetQueueUrlRequest;
-import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
-import com.amazonaws.services.sqs.model.ReceiveMessageResult;
-import com.amazonaws.services.sqs.model.SendMessageRequest;
+import com.amazonaws.services.sqs.model.*;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -145,8 +142,16 @@ public class SQSNotify implements Notify<String> {
         try {
             ReceiveMessageResult result = sqsClient.receiveMessage(request);
             if (result.getMessages().isEmpty() == false) {
+                Message msg = result.getMessages().get(0);
+
                 recvMessageCount.incrementAndGet();
-                return result.getMessages().get(0).getBody();
+
+                DeleteMessageRequest deleteReq = new DeleteMessageRequest()
+                        .withQueueUrl(queueUrls.get(0))
+                        .withReceiptHandle(msg.getReceiptHandle());
+                sqsClient.deleteMessage(deleteReq);
+
+                return msg.getBody();
             } else {
                 return "";
             }
