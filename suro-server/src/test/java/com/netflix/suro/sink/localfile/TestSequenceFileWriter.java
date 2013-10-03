@@ -41,7 +41,7 @@ import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertFalse;
 
 public class TestSequenceFileWriter {
-    public static String dir = System.getProperty("java.io.tmpdir") + "filewritertest/";
+    public static String dir = System.getProperty("java.io.tmpdir") + "/filewritertest/";
 
     private static Injector injector = Guice.createInjector(
             new LocalFileSuroPlugin(),

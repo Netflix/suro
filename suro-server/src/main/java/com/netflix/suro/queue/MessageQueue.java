@@ -197,7 +197,7 @@ public class MessageQueue implements SuroServer.Iface {
                             waitTime = config.messageRouterDefaultPollTimeout;
                             processMessageSet(tMessageSet);
                         } catch (Exception e) {
-                            log.error("Exception while handling TMessageSet");
+                            log.error("Exception while handling TMessageSet: " + e.getMessage(), e);
                         }
                     }
                     // drain remains when shutdown

@@ -210,7 +210,6 @@ public class LocalFileSink extends QueuedSink implements Sink {
         writer.sync();
         queue4Sink.commit();
         msgList.clear();
-        lastBatch = System.currentTimeMillis();
     }
 
     @Override

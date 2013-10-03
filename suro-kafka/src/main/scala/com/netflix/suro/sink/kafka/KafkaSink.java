@@ -98,7 +98,8 @@ public class KafkaSink extends QueuedSink implements Sink {
     @Override
     protected void write(List<Message> msgList) throws IOException {
         send(msgList);
-        afterSend(msgList);
+        msgList.clear();
+        queue4Sink.commit();
     }
 
     @Override
@@ -126,12 +127,6 @@ public class KafkaSink extends QueuedSink implements Sink {
         sb.append("dropped message rate: " ).append(topicStats.getProducerAllTopicsStats().droppedMessageRate().count()).append('\n');
 
         return sb.toString();
-    }
-
-    private void afterSend(List<Message> msgList) {
-        msgList.clear();
-        queue4Sink.commit();
-        lastBatch = System.currentTimeMillis();
     }
 
     protected long msgId = 0;

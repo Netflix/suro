@@ -29,13 +29,12 @@ import com.google.inject.Key;
 import com.google.inject.Singleton;
 import com.google.inject.name.Names;
 import com.netflix.suro.sink.SinkType;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.util.Map;
 import java.util.Map.Entry;
-
-import org.apache.log4j.Logger;
 
 /**
  */
@@ -81,7 +80,12 @@ public class DefaultObjectMapper extends ObjectMapper {
                         Object beanInstance
                 ) {
                     LOG.info("Looking for " + valueId);
-                    return injector.getInstance(Key.get(forProperty.getType().getRawClass(), Names.named((String)valueId)));
+                    try {
+                        return injector.getInstance(Key.get(forProperty.getType().getRawClass(), Names.named((String)valueId)));
+                    } catch (Exception e) {
+                        LOG.info("No implementation found, returning null");
+                        return null;
+                    }
                 }
             });
         }
