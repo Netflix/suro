@@ -7,7 +7,7 @@ import com.netflix.suro.sink.FastPropertySinkConfigurator;
 public class SuroFastPropertyModule extends AbstractModule {
     @Override
     protected void configure() {
-        bind(FastPropertyRoutingMapConfigurator.class);
-        bind(FastPropertySinkConfigurator.class);
+        bind(FastPropertySinkConfigurator.class).asEagerSingleton();
+        bind(FastPropertyRoutingMapConfigurator.class).asEagerSingleton();
     }
 }

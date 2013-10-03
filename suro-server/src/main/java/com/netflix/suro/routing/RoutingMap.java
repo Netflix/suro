@@ -21,15 +21,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.inject.Singleton;
-import com.netflix.suro.message.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 
 /**
  * Tracks the main routing map as a volatile immutable Map of route key to filter and destination
@@ -56,7 +52,7 @@ public class RoutingMap {
         }
 
         public List<String> getWhere() { return where; }
-        public boolean doFilter(Message message) {
+        public boolean doFilter(Object message) {
             return filter != null ? filter.doFilter(message) : true;
         }
     }

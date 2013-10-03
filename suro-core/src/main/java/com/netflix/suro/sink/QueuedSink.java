@@ -15,9 +15,9 @@ import java.util.concurrent.TimeUnit;
 public abstract class QueuedSink extends Thread {
     static Logger log = LoggerFactory.getLogger(QueuedSink.class);
 
-    protected long lastBatch = System.currentTimeMillis();
+    private long lastBatch = System.currentTimeMillis();
     protected boolean isRunning = false;
-    protected boolean isStopped = false;
+    private boolean isStopped = false;
 
     protected MessageQueue4Sink queue4Sink;
     private int batchSize;
@@ -52,8 +52,11 @@ public abstract class QueuedSink extends Thread {
                     queue4Sink.drain(batchSize - msgList.size(), msgList);
                 }
                 boolean full = (msgList.size() >= batchSize);
-                if ((expired || full) && msgList.size() > 0) {
-                    write(msgList);
+                if (expired || full) {
+                    if (msgList.size() > 0) {
+                        write(msgList);
+                    }
+                    lastBatch = System.currentTimeMillis();
                 }
             } catch (Exception e) {
                 log.error("Exception on running: " + e.getMessage(), e);
