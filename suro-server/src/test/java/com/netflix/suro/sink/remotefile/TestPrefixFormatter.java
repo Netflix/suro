@@ -26,7 +26,7 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.sink.remotefile.formatter.RemotePrefixFormatter;
+import com.netflix.suro.sink.RemotePrefixFormatter;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;

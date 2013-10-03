@@ -30,7 +30,7 @@ import com.netflix.suro.nofify.QueueNotify;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.FileNameFormatter;
 import com.netflix.suro.sink.localfile.LocalFileSink;
-import com.netflix.suro.sink.remotefile.formatter.RemotePrefixFormatter;
+import com.netflix.suro.sink.RemotePrefixFormatter;
 import com.netflix.suro.sink.remotefile.formatter.SimpleDateFormatter;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;

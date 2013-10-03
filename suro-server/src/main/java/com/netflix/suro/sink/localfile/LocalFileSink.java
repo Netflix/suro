@@ -175,8 +175,6 @@ public class LocalFileSink extends QueuedSink implements Sink {
         } else {
             queueManager.startTakingTraffic();
         }
-
-        messageWrittenInRotation = false;
     }
 
     @Override
@@ -238,6 +236,8 @@ public class LocalFileSink extends QueuedSink implements Sink {
                 LocalFileSink.deleteFile(f.getParent() + "/" + crcName);
             }
         }
+
+        messageWrittenInRotation = false;
     }
 
     public void cleanUp() {

@@ -33,7 +33,6 @@ import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.server.StatusServer;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
-import com.netflix.suro.sink.SuroPlugin;
 import com.netflix.suro.sink.TestSinkManager;
 import org.junit.After;
 import org.junit.Before;
