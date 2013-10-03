@@ -1,6 +1,6 @@
-package com.netflix.suro;
+package com.netflix.suro.queue;
 
-import com.netflix.suro.message.serde.StringSerDe;
+import com.netflix.suro.message.StringSerDe;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;

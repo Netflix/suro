@@ -22,6 +22,10 @@ class KafkaProducer(props: Properties) {
     producer.send(messageBuffer: _*)
   }
 
+  def send(msg: KeyedMessage[Long, Array[Byte]]) {
+    producer.send(msg)
+  }
+
   def close {
     producer.close()
   }

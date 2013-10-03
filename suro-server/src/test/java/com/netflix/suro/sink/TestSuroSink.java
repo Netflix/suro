@@ -52,6 +52,7 @@ public class TestSuroSink {
                         this.addSinkType("TestSink", TestSink.class);
                     }
                 },
+                new SuroSinkPlugin(),
                 new AbstractModule() {
                     @Override
                     protected void configure() {

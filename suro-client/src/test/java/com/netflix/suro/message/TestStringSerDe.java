@@ -16,8 +16,6 @@
 
 package com.netflix.suro.message;
 
-import com.netflix.suro.message.serde.SerDe;
-import com.netflix.suro.message.serde.StringSerDe;
 import org.junit.Test;
 
 import static junit.framework.Assert.assertEquals;

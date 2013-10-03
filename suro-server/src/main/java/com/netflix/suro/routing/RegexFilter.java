@@ -19,8 +19,8 @@ package com.netflix.suro.routing;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.SerDe;
-import com.netflix.suro.message.serde.StringSerDe;
+import com.netflix.suro.message.SerDe;
+import com.netflix.suro.message.StringSerDe;
 
 import java.util.regex.Pattern;
 

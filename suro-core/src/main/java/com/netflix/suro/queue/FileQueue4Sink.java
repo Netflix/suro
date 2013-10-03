@@ -1,10 +1,9 @@
-package com.netflix.suro.sink.queue;
+package com.netflix.suro.queue;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.netflix.suro.FileBlockingQueue;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.MessageSerDe;
+import com.netflix.suro.message.MessageSerDe;
 import org.joda.time.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -19,6 +19,7 @@ package com.netflix.suro.message.serde;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.suro.jackson.DefaultObjectMapper;
+import com.netflix.suro.message.SerDe;
 import org.apache.log4j.Logger;
 
 public class JsonSerDe<T> implements SerDe<T> {

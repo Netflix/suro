@@ -2,8 +2,7 @@ package com.netflix.suro.sink.queue;
 
 import com.leansoft.bigqueue.utils.FileUtil;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.serde.SerDe;
-import com.netflix.suro.message.serde.StringSerDe;
+import com.netflix.suro.queue.FileQueue4Sink;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
