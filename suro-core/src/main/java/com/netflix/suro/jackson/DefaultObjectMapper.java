@@ -28,12 +28,11 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Singleton;
 import com.google.inject.name.Names;
-import com.netflix.suro.sink.SinkType;
+import com.netflix.suro.TypeHolder;
 
 import java.io.IOException;
 import java.nio.ByteOrder;
-import java.util.Map;
-import java.util.Map.Entry;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 
@@ -48,7 +47,7 @@ public class DefaultObjectMapper extends ObjectMapper {
     }
     
     @Inject
-    public DefaultObjectMapper(final Injector injector, Map<String, SinkType> sinks)
+    public DefaultObjectMapper(final Injector injector, Set<TypeHolder> crossInjectable)
     {
         SimpleModule serializerModule = new SimpleModule("SuroServer default serializers");
         serializerModule.addSerializer(ByteOrder.class, ToStringSerializer.instance);
@@ -94,10 +93,10 @@ public class DefaultObjectMapper extends ObjectMapper {
         configure(MapperFeature.AUTO_DETECT_SETTERS, false);
         configure(SerializationFeature.INDENT_OUTPUT, false);
         
-        if (sinks != null) {
-            for (Entry<String, SinkType> entry : sinks.entrySet()) {
-                LOG.info("Registering subtype : " + entry.getKey() + " -> " + entry.getValue().getRawType().getCanonicalName());
-                registerSubtypes(new NamedType(entry.getValue().getRawType(), entry.getKey()));
+        if (crossInjectable != null) {
+            for (TypeHolder entry : crossInjectable) {
+                LOG.info("Registering subtype : " + entry.getName() + " -> " + entry.getRawType().getCanonicalName());
+                registerSubtypes(new NamedType(entry.getRawType(), entry.getName()));
             }
         }
     }
