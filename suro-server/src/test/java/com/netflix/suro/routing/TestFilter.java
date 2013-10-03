@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.netflix.suro.sink.SuroPlugin;
+import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.sink.TestSinkManager.TestSink;

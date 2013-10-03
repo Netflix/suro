@@ -1,6 +1,6 @@
 package com.netflix.suro.sink.kafka;
 
-import com.netflix.suro.sink.SuroPlugin;
+import com.netflix.suro.SuroPlugin;
 
 public class KafkaSinkPlugin extends SuroPlugin {
     @Override
