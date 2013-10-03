@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.message.serde;
+package com.netflix.suro.message;
 
 public interface SerDe<T> {
     T deserialize(byte[] payload);

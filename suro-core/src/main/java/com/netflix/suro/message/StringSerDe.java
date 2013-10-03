@@ -14,7 +14,9 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.message.serde;
+package com.netflix.suro.message;
+
+import com.netflix.suro.message.SerDe;
 
 public class StringSerDe implements SerDe<String> {
     @Override

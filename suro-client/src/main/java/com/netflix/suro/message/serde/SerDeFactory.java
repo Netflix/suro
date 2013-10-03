@@ -16,6 +16,7 @@
 
 package com.netflix.suro.message.serde;
 
+import com.netflix.suro.message.SerDe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

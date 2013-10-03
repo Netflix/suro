@@ -83,6 +83,8 @@ project(':suro-core') {
 project(':suro-client') {
   dependencies {
     compile project(':suro-core')
+
+    testCompile project(':suro-core').sourceSets.test.output
   }
 }
 
@@ -90,6 +92,7 @@ project(':suro-server') {
   dependencies {
     compile project(':suro-core')
     compile project(':suro-client')
+    compile project(':suro-kafka')
 
     compile 'net.java.dev.jets3t:jets3t:0.9.0'
 
@@ -100,14 +103,6 @@ project(':suro-server') {
 
     compile 'commons-cli:commons-cli:1.2'
     
-    /*
-    compile 'kafka:kafka:0.8.0.2'
-    compile 'org.scala-lang:scala-library:2.8.0'
-    compile 'com.yammer.metrics:metrics-core:2.2.0'
-    compile 'com.yammer.metrics:metrics-annotation:2.2.0'
-    runtime 'org.xerial.snappy:snappy-java:1.0.4.1'
-    */
-
     testCompile project(':suro-client').sourceSets.test.output
   }
 }
@@ -128,7 +123,6 @@ project(':suro-kafka') {
 
   dependencies {
     compile project(':suro-core')
-    compile project(':suro-server')
 
     compile('org.apache.kafka:kafka_2.8.0:0.8.0-beta1') {
       exclude module: 'jms'
@@ -137,6 +131,7 @@ project(':suro-kafka') {
     }
 
     testCompile 'org.scalatest:scalatest:1.2'
+    testCompile project(':suro-client')
   }
 }
 

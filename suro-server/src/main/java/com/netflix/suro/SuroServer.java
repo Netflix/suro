@@ -25,9 +25,9 @@ import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.server.StatusServer;
 import com.netflix.suro.sink.SuroSinkPlugin;
+import com.netflix.suro.sink.kafka.KafkaSinkPlugin;
 import com.netflix.suro.sink.localfile.LocalFileSuroPlugin;
 import com.netflix.suro.sink.remotefile.RemoteFileSuroPlugin;
-
 import org.apache.commons.cli.*;
 
 import java.io.FileInputStream;
@@ -68,22 +68,23 @@ public class SuroServer {
             // Create the injector
             Injector injector = LifecycleInjector.builder()
                     .withBootstrapModule(
-                        new BootstrapModule() {
-                            @Override
-                            public void configure(BootstrapBinder binder) {
-                                binder.bindConfigurationProvider().toInstance(
-                                      new PropertiesConfigurationProvider(properties));
+                            new BootstrapModule() {
+                                @Override
+                                public void configure(BootstrapBinder binder) {
+                                    binder.bindConfigurationProvider().toInstance(
+                                            new PropertiesConfigurationProvider(properties));
+                                }
                             }
-                        }
-                     )
+                    )
                     .withModules(
-                        new LocalFileSuroPlugin(),
-                        new RemoteFileSuroPlugin(),
-                        new SuroSinkPlugin(),
-                        new SuroModule(properties),
-                        new SuroFastPropertyModule(),
-                        StatusServer.createJerseyServletModule()
-                     )
+                            new LocalFileSuroPlugin(),
+                            new RemoteFileSuroPlugin(),
+                            new SuroSinkPlugin(),
+                            new KafkaSinkPlugin(),
+                            new SuroModule(properties),
+                            new SuroFastPropertyModule(),
+                            StatusServer.createJerseyServletModule()
+                    )
                     .createInjector();
 
             manager = injector.getInstance(LifecycleManager.class);

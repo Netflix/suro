@@ -17,8 +17,6 @@
 package com.netflix.suro.message;
 
 import com.netflix.suro.ClientConfig;
-import com.netflix.suro.message.serde.SerDe;
-import com.netflix.suro.message.serde.StringSerDe;
 import com.netflix.suro.thrift.TMessageSet;
 import org.junit.Before;
 import org.junit.Test;

@@ -18,7 +18,6 @@ package com.netflix.suro.server;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.inject.Injector;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
@@ -28,11 +27,9 @@ import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.SuroFastPropertyModule;
 import com.netflix.suro.SuroModule;
 import com.netflix.suro.SuroPlugin;
-import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.routing.RoutingMap;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
-import com.netflix.suro.sink.TestSinkManager;
 import com.netflix.suro.sink.TestSinkManager.TestSink;
 
 import org.apache.http.HttpResponse;

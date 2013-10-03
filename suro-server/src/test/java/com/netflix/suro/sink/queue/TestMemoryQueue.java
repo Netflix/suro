@@ -1,6 +1,7 @@
 package com.netflix.suro.sink.queue;
 
 import com.netflix.suro.message.Message;
+import com.netflix.suro.queue.MemoryQueue4Sink;
 import org.junit.Test;
 
 import java.io.IOException;

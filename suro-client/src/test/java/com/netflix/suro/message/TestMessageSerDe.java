@@ -1,6 +1,5 @@
 package com.netflix.suro.message;
 
-import com.netflix.suro.message.serde.MessageSerDe;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
