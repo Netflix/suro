@@ -88,6 +88,14 @@ project(':suro-client') {
   }
 }
 
+project(':suro-sqs') {
+  dependencies {
+    compile project(':suro-core')
+
+    testCompile project(':suro-core').sourceSets.test.output
+  }
+}
+
 project(':suro-server') {
   dependencies {
     compile project(':suro-core')
