@@ -31,6 +31,7 @@ import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.queue.MessageQueue;
 import com.netflix.suro.queue.QueueManager;
 import com.netflix.suro.sink.Sink;
+import com.netflix.suro.sink.SinkPlugin;
 import com.netflix.suro.thrift.ServiceStatus;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
@@ -52,7 +53,7 @@ public class TestLocalFileSink {
     private static final String testdir = "/tmp/surotest/testlocalfilesink";
 
     private static Injector injector = Guice.createInjector(
-            new LocalFileSuroPlugin(),
+            new SinkPlugin(),
             new AbstractModule() {
                 @Override
                 protected void configure() {
@@ -416,7 +417,7 @@ public class TestLocalFileSink {
             }
         });
         LocalFileSink sink = (LocalFileSink)mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
-        sink.cleanUp();
+        assertEquals(sink.cleanUp(), 5);
 
         Set<String> filePathSetResult = new HashSet<String>();
         for (int i = 0; i < numFiles; ++i) {

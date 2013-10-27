@@ -28,14 +28,9 @@ public class FastPropertySinkConfigurator {
     private final ObjectMapper    jsonMapper;
 
     @Configuration(SINK_PROPERTY)
-    private String initialSink = "{}";
+    private String initialSink;
 
-    private DynamicStringProperty sinkFP = new DynamicStringProperty(SINK_PROPERTY, initialSink) {
-        @Override
-        protected void propertyChanged() {
-            buildSink(get());
-        }
-    };
+    private DynamicStringProperty sinkFP;
     
     @Inject
     public FastPropertySinkConfigurator(
@@ -47,6 +42,13 @@ public class FastPropertySinkConfigurator {
     
     @PostConstruct
     public void init() {
+        sinkFP = new DynamicStringProperty(SINK_PROPERTY, initialSink) {
+            @Override
+            protected void propertyChanged() {
+                buildSink(get());
+            }
+        };
+
         buildSink(sinkFP.get());
     }
 

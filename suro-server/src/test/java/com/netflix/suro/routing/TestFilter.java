@@ -23,6 +23,7 @@ public class TestFilter {
                 @Override
                 protected void configure() {
                     this.addSinkType("TestSink", TestSink.class);
+                    this.addFilterType("regex", RegexFilter.class);
                 }
             },
             new AbstractModule() {

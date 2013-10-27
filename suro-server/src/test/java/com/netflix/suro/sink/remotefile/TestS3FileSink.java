@@ -34,10 +34,9 @@ import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.queue.QueueManager;
 import com.netflix.suro.sink.Sink;
+import com.netflix.suro.sink.SinkPlugin;
 import com.netflix.suro.sink.localfile.LocalFileSink;
 import com.netflix.suro.sink.localfile.LocalFileSink.SpaceChecker;
-import com.netflix.suro.sink.localfile.LocalFileSuroPlugin;
-
 import org.apache.commons.io.FileUtils;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.multi.s3.S3ServiceEventListener;
@@ -46,6 +45,8 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -56,8 +57,7 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.*;
 
 public class TestS3FileSink {
     private static final String testdir = "/tmp/surotest/tests3filesink";
@@ -97,8 +97,7 @@ public class TestS3FileSink {
     @Test
     public void testDefaultParameters() throws Exception {
         Injector injector = Guice.createInjector(
-                new RemoteFileSuroPlugin(),
-                new LocalFileSuroPlugin(),
+                new SinkPlugin(),
                 new AbstractModule() {
                     @Override
                     protected void configure() {
@@ -194,8 +193,7 @@ public class TestS3FileSink {
     @Test
     public void test() throws Exception {
         Injector injector = Guice.createInjector(
-                new RemoteFileSuroPlugin(),
-                new LocalFileSuroPlugin(),
+                new SinkPlugin(),
                 new AbstractModule() {
                     @Override
                     protected void configure() {
@@ -297,5 +295,211 @@ public class TestS3FileSink {
             ++count;
         }
         assertTrue(count > 0);
+    }
+
+    @Test
+    public void testTooManyFiles() throws IOException {
+        Injector injector = Guice.createInjector(
+                new SinkPlugin(),
+                new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                        bind(AWSCredentialsProvider.class)
+                                .annotatedWith(Names.named("credentials"))
+                                .toInstance(new AWSCredentialsProvider() {
+                                    @Override
+                                    public AWSCredentials getCredentials() {
+                                        return new AWSCredentials() {
+                                            @Override
+                                            public String getAWSAccessKeyId() {
+                                                return "accessKey";
+                                            }
+
+                                            @Override
+                                            public String getAWSSecretKey() {
+                                                return "secretKey";
+                                            }
+                                        };
+                                    }
+
+                                    @Override
+                                    public void refresh() {
+                                    }
+                                });
+
+                        MultipartUtils mpUtils = mock(MultipartUtils.class);
+                        try {
+                            doAnswer(new Answer() {
+                                @Override
+                                public Object answer(InvocationOnMock invocation) throws Throwable {
+                                    Thread.sleep(1000);
+                                    return null;
+                                }
+                            }).when(mpUtils).uploadObjects(
+                                    any(String.class),
+                                    any(RestS3Service.class),
+                                    any(List.class),
+                                    any(S3ServiceEventListener.class));
+
+                            bind(MultipartUtils.class)
+                                    .annotatedWith(Names.named("multipartUtils"))
+                                    .toInstance(mpUtils);
+                        } catch (Exception e) {
+                            Assert.fail(e.getMessage());
+                        }
+                        bind(QueueManager.class)
+                                .annotatedWith(Names.named("queueManager"))
+                                .toInstance(new QueueManager());
+                        bind(SpaceChecker.class)
+                                .annotatedWith(Names.named("spaceChecker"))
+                                .toInstance(mock(LocalFileSink.SpaceChecker.class));
+
+                    }
+                }
+        );
+
+        final String s3FileSink = "{\n" +
+                "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
+                "    \"localFileSink\": {\n" +
+                "        \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
+                "        \"outputDir\": \"" + testdir + "\"\n" +
+                "    },\n" +
+                "    \"bucket\": \"s3bucket\"\n" +
+                "}";
+
+        // pre-create many files
+        new File(testdir).mkdir();
+        for (int i = 0; i < 100; ++i) {
+            new File(testdir, "fileNo" + i + ".done").createNewFile();
+        }
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
+
+        Sink sink = mapper.readValue(s3FileSink, new TypeReference<Sink>(){});
+        sink.open();
+
+        sink.close();
+
+        // check every file uploaded, deleted, and notified
+        File dir = new File(testdir);
+        File[] files = dir.listFiles(new FilenameFilter() {
+            @Override
+            public boolean accept(File file, String name) {
+                if (file.isFile() && file.getName().startsWith(".") == false) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        });
+        assertEquals(files.length, 0);
+        int count = 0;
+        while (sink.recvNotify() != null) {
+            ++count;
+        }
+        assertEquals(count, 100);
+    }
+
+    @Test
+    public void testUploadAll() throws IOException {
+        Injector injector = Guice.createInjector(
+                new SinkPlugin(),
+                new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                        bind(AWSCredentialsProvider.class)
+                                .annotatedWith(Names.named("credentials"))
+                                .toInstance(new AWSCredentialsProvider() {
+                                    @Override
+                                    public AWSCredentials getCredentials() {
+                                        return new AWSCredentials() {
+                                            @Override
+                                            public String getAWSAccessKeyId() {
+                                                return "accessKey";
+                                            }
+
+                                            @Override
+                                            public String getAWSSecretKey() {
+                                                return "secretKey";
+                                            }
+                                        };
+                                    }
+
+                                    @Override
+                                    public void refresh() {
+                                    }
+                                });
+
+                        MultipartUtils mpUtils = mock(MultipartUtils.class);
+                        try {
+                            doAnswer(new Answer() {
+                                @Override
+                                public Object answer(InvocationOnMock invocation) throws Throwable {
+                                    Thread.sleep(1000);
+                                    return null;
+                                }
+                            }).when(mpUtils).uploadObjects(
+                                    any(String.class),
+                                    any(RestS3Service.class),
+                                    any(List.class),
+                                    any(S3ServiceEventListener.class));
+
+                            bind(MultipartUtils.class)
+                                    .annotatedWith(Names.named("multipartUtils"))
+                                    .toInstance(mpUtils);
+                        } catch (Exception e) {
+                            Assert.fail(e.getMessage());
+                        }
+                        bind(QueueManager.class)
+                                .annotatedWith(Names.named("queueManager"))
+                                .toInstance(new QueueManager());
+                        bind(SpaceChecker.class)
+                                .annotatedWith(Names.named("spaceChecker"))
+                                .toInstance(mock(LocalFileSink.SpaceChecker.class));
+
+                    }
+                }
+        );
+
+        final String s3FileSink = "{\n" +
+                "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
+                "    \"localFileSink\": {\n" +
+                "        \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
+                "        \"outputDir\": \"" + testdir + "\"\n" +
+                "    },\n" +
+                "    \"bucket\": \"s3bucket\",\n" +
+                "    \"batchUpload\":true\n" +
+                "}";
+
+        // pre-create many files
+        new File(testdir).mkdir();
+        for (int i = 0; i < 100; ++i) {
+            new File(testdir, "fileNo" + i + ".done").createNewFile();
+        }
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
+
+        S3FileSink sink = mapper.readValue(s3FileSink, new TypeReference<Sink>(){});
+        sink.open();
+        sink.uploadAll();
+
+        // check every file uploaded, deleted, and notified
+        File dir = new File(testdir);
+        File[] files = dir.listFiles(new FilenameFilter() {
+            @Override
+            public boolean accept(File file, String name) {
+                if (file.isFile() && file.getName().startsWith(".") == false) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        });
+        assertEquals(files.length, 0);
+        int count = 0;
+        while (sink.recvNotify() != null) {
+            ++count;
+        }
+        assertEquals(count, 100);
     }
 }

@@ -27,8 +27,8 @@ import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.nofify.Notify;
-import com.netflix.suro.nofify.QueueNotify;
+import com.netflix.suro.sink.notify.Notify;
+import com.netflix.suro.sink.nofify.QueueNotify;
 import com.netflix.suro.queue.QueueManager;
 import com.netflix.suro.sink.QueuedSink;
 import com.netflix.suro.sink.Sink;
@@ -240,7 +240,9 @@ public class LocalFileSink extends QueuedSink implements Sink {
         messageWrittenInRotation = false;
     }
 
-    public void cleanUp() {
+    public int cleanUp() {
+        int count = 0;
+
         try {
             FileSystem fs = writer.getFS();
             FileStatus[] files = fs.listStatus(new Path(outputDir));
@@ -248,6 +250,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
                 String fileName = file.getPath().getName();
                 if (fileName.endsWith(done)) {
                     notify.send(outputDir + fileName);
+                    ++count;
                 } else if (fileName.endsWith(suffix)) {
                     long lastPeriod =
                             new DateTime().minus(rotationPeriod).minus(rotationPeriod).getMillis();
@@ -257,11 +260,14 @@ public class LocalFileSink extends QueuedSink implements Sink {
                         String doneFile = fileName.replace(suffix, done);
                         writer.setDone(outputDir + fileName, outputDir + doneFile);
                         notify.send(outputDir + doneFile);
+                        ++count;
                     }
                 }
             }
         } catch (Exception e) {
             log.error("Exception while on cleanUp: " + e.getMessage(), e);
+        } finally {
+            return count;
         }
     }
 
@@ -273,11 +279,12 @@ public class LocalFileSink extends QueuedSink implements Sink {
                 FileUtils.byteCountToDisplaySize(writtenBytes));
     }
 
+    private static final int deleteFileRetryCount = 5;
     public static void deleteFile(String filePath) {
         // with AWS EBS, sometimes deletion failure without any IOException was observed
         // To prevent the surplus files, let's iterate file deletion
         int retryCount = 1;
-        while (new File(filePath).exists() && retryCount <= 5) {
+        while (new File(filePath).exists() && retryCount <= deleteFileRetryCount) {
             try {
                 Thread.sleep(1000 * retryCount);
                 new File(filePath).delete();

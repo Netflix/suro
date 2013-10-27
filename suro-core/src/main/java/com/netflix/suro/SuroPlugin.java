@@ -2,8 +2,10 @@ package com.netflix.suro;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.multibindings.Multibinder;
-import com.netflix.suro.sink.RemotePrefixFormatter;
+import com.netflix.suro.routing.Filter;
 import com.netflix.suro.sink.Sink;
+import com.netflix.suro.sink.notify.Notify;
+import com.netflix.suro.sink.remotefile.RemotePrefixFormatter;
 import org.apache.log4j.Logger;
 
 /**
@@ -24,7 +26,7 @@ public abstract class SuroPlugin extends AbstractModule {
      * @param sinkClass
      */
     public <T extends Sink> void addSinkType(String typeName, Class<T> sinkClass) {
-        LOG.info("Adding sinkType : " + typeName + " -> " + sinkClass.getCanonicalName());
+        LOG.info("Adding sinkType: " + typeName + " -> " + sinkClass.getCanonicalName());
         
         Multibinder<TypeHolder> bindings
             = Multibinder.newSetBinder(binder(), TypeHolder.class);
@@ -32,10 +34,26 @@ public abstract class SuroPlugin extends AbstractModule {
     }
 
     public <T extends RemotePrefixFormatter> void addRemotePrefixFormatterType(String typeName, Class<T> remotePrefixFormatterClass) {
-        LOG.info("Adding remotePrefixFormatterType : " + typeName + " -> " + remotePrefixFormatterClass.getCanonicalName());
+        LOG.info("Adding remotePrefixFormatterType: " + typeName + " -> " + remotePrefixFormatterClass.getCanonicalName());
 
         Multibinder<TypeHolder> bindings
                 = Multibinder.newSetBinder(binder(), TypeHolder.class);
         bindings.addBinding().toInstance(new TypeHolder(typeName, remotePrefixFormatterClass));
+    }
+
+    public <T extends Notify> void addNotifyType(String typeName, Class<T> notifyClass) {
+        LOG.info("Adding notifyType: " + typeName + "->" + notifyClass.getCanonicalName());
+
+        Multibinder<TypeHolder> bindings
+                = Multibinder.newSetBinder(binder(), TypeHolder.class);
+        bindings.addBinding().toInstance(new TypeHolder(typeName, notifyClass));
+    }
+
+    public <T extends Filter> void addFilterType(String typeName, Class<T> filterClass) {
+        LOG.info("Adding filterType: " + typeName + "->" + filterClass.getCanonicalName());
+
+        Multibinder<TypeHolder> bindings
+                = Multibinder.newSetBinder(binder(), TypeHolder.class);
+        bindings.addBinding().toInstance(new TypeHolder(typeName, filterClass));
     }
 }

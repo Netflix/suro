@@ -134,7 +134,7 @@ public class ClientConfig {
 
     public static final String ASYNC_FILEQUEUE_PATH = "SuroClient.asyncFileQueuePath";
     @Configuration(ASYNC_FILEQUEUE_PATH)
-    private String asyncFileQueuePath = "/logs/suroClient";
+    private String asyncFileQueuePath = "/logs/suroclient";
     public String getAsyncFileQueuePath() {
         return asyncFileQueuePath;
     }
@@ -146,11 +146,11 @@ public class ClientConfig {
         return asyncFileQueueName;
     }
 
-    public static final String ASYNC_FILEQUEUE_AUTOCOMMIT = "SuroClient.asyncFileQueueAutoCommit";
-    @Configuration(ASYNC_FILEQUEUE_AUTOCOMMIT)
-    private boolean asyncFileQueueAutoCommit = true;
-    public boolean getAsyncFilequeueAutoCommit() {
-        return asyncFileQueueAutoCommit;
+    public static final String FILEQUEUE_GC_PERIOD = "SuroClient.asyncFileQueueGCPeriod";
+    @Configuration(FILEQUEUE_GC_PERIOD)
+    private String fileQueueGCPeriod = "PT1h";
+    public String getAsyncFileQueueGCPeriod() {
+        return fileQueueGCPeriod;
     }
 
     public static final String LB_TYPE = "SuroClient.loadBalancerType";
@@ -165,13 +165,6 @@ public class ClientConfig {
     private String loadBalancerServer;
     public String getLoadBalancerServer() {
         return loadBalancerServer;
-    }
-
-    public static final String FILEQUEUE_GC_INTERVAL = "SuroClient.asyncFileQueueGCInterval";
-    @Configuration(FILEQUEUE_GC_INTERVAL)
-    private int fileQueueGCInterval = 3600;
-    public int getAsyncFileQueueGCInterval() {
-        return fileQueueGCInterval;
     }
 
     public static final String MINIMUM_RECONNECT_TIME_INTERVAL = "SuroClient.minimum.reconnect.timeInterval";

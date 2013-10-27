@@ -21,8 +21,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Injector;
-import com.google.inject.Provider;
-import com.google.inject.TypeLiteral;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
@@ -39,12 +37,9 @@ import com.netflix.suro.routing.RoutingMap.RoutingInfo;
 import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
-import com.netflix.suro.thrift.TMessageSet;
 import org.junit.Test;
 
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.junit.Assert.assertTrue;
 
@@ -129,17 +124,6 @@ public class TestMessageRouter {
                 @Override
                 public void configure(BootstrapBinder binder) {
                     binder.bindConfigurationProvider().toInstance(new PropertiesConfigurationProvider(properties));
-                    binder.bind(new TypeLiteral<BlockingQueue<TMessageSet>>() {})
-                            .toProvider(new Provider<LinkedBlockingQueue<TMessageSet>>() {
-                                @Override
-                                public LinkedBlockingQueue<TMessageSet> get() {
-                                    return new LinkedBlockingQueue<TMessageSet>(
-                                            Integer.parseInt(
-                                                    properties.getProperty(
-                                                            ServerConfig.MEMORY_QUEUE_SIZE, "100"))
-                                    );
-                                }
-                            });
                 }
         }).createInjector();
         

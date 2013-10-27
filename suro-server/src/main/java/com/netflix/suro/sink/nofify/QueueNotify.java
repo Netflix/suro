@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.nofify;
+package com.netflix.suro.sink.nofify;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -22,6 +22,7 @@ import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
+import com.netflix.suro.sink.notify.Notify;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;

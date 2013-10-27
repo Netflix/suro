@@ -23,6 +23,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.sink.SinkPlugin;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -42,7 +43,7 @@ public class TestTextFileWriter {
     public static String dir = "/tmp/surotest/filewritertest/";
 
     private static Injector injector = Guice.createInjector(
-            new LocalFileSuroPlugin(),
+            new SinkPlugin(),
             new AbstractModule() {
                 @Override
                 protected void configure() {

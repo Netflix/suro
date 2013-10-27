@@ -17,8 +17,6 @@
 package com.netflix.suro.queue;
 
 import com.google.inject.Injector;
-import com.google.inject.Provider;
-import com.google.inject.TypeLiteral;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
@@ -26,12 +24,9 @@ import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.thrift.ResultCode;
-import com.netflix.suro.thrift.TMessageSet;
 import org.junit.Test;
 
 import java.util.Properties;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -46,14 +41,6 @@ public class TestQueueManager {
                     @Override
                     public void configure(BootstrapBinder binder) {
                         binder.bindConfigurationProvider().toInstance(new PropertiesConfigurationProvider(props));
-                        binder.bind(new TypeLiteral<BlockingQueue<TMessageSet>>() {})
-                                .toProvider(new Provider<LinkedBlockingQueue<TMessageSet>>() {
-                                    @Override
-                                    public LinkedBlockingQueue<TMessageSet> get() {
-                                        return new LinkedBlockingQueue<TMessageSet>(1);
-                                    }
-                                });
-
                     }
                 }).build().createInjector();
         injector.getInstance(LifecycleManager.class).start();

@@ -14,11 +14,14 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.sink;
+package com.netflix.suro.sink.notify;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-public interface RemotePrefixFormatter {
-    String get();
+public interface Notify<E> {
+    void init();
+    boolean send(E message);
+    E recv();
+    String getStat();
 }

@@ -26,7 +26,7 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.sink.RemotePrefixFormatter;
+import com.netflix.suro.sink.SinkPlugin;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -39,7 +39,7 @@ import static org.junit.Assert.assertEquals;
 
 public class TestPrefixFormatter {
     private static Injector injector = Guice.createInjector(
-            new RemoteFileSuroPlugin(),
+            new SinkPlugin(),
             new AbstractModule() {
                 @Override
                 protected void configure() {

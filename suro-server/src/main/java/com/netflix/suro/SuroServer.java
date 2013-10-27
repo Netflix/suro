@@ -23,13 +23,15 @@ import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
+import com.netflix.suro.routing.FastPropertyRoutingMapConfigurator;
+import com.netflix.suro.routing.RoutingPlugin;
 import com.netflix.suro.server.StatusServer;
-import com.netflix.suro.sink.SuroSinkPlugin;
-import com.netflix.suro.sink.kafka.KafkaSinkPlugin;
-import com.netflix.suro.sink.localfile.LocalFileSuroPlugin;
-import com.netflix.suro.sink.remotefile.RemoteFileSuroPlugin;
+import com.netflix.suro.sink.FastPropertySinkConfigurator;
+import com.netflix.suro.sink.SinkPlugin;
 import org.apache.commons.cli.*;
+import org.apache.commons.io.FileUtils;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
@@ -56,13 +58,21 @@ public class SuroServer {
             if (line.hasOption('p')) {
                 properties.load(new FileInputStream(line.getOptionValue('p')));
             }
-            
+
             // Bind all command line options to the properties with prefix "SuroServer."
             for (Option opt : line.getOptions()) {
                 String name     = opt.getOpt();
                 String value    = line.getOptionValue(name);
                 String propName = PROP_PREFIX + opt.getArgName();
-                properties.setProperty(propName, value);
+                if (propName.equals(FastPropertyRoutingMapConfigurator.ROUTING_MAP_PROPERTY)) {
+                    properties.setProperty(FastPropertyRoutingMapConfigurator.ROUTING_MAP_PROPERTY,
+                            FileUtils.readFileToString(new File(value)));
+                } else if (propName.equals(FastPropertySinkConfigurator.SINK_PROPERTY)) {
+                    properties.setProperty(FastPropertySinkConfigurator.SINK_PROPERTY,
+                            FileUtils.readFileToString(new File(value)));
+                } else {
+                    properties.setProperty(propName, value);
+                }
             }
 
             // Create the injector
@@ -77,12 +87,10 @@ public class SuroServer {
                             }
                     )
                     .withModules(
-                            new LocalFileSuroPlugin(),
-                            new RemoteFileSuroPlugin(),
-                            new SuroSinkPlugin(),
-                            new KafkaSinkPlugin(),
-                            new SuroModule(properties),
+                            new RoutingPlugin(),
+                            new SinkPlugin(),
                             new SuroFastPropertyModule(),
+                            new SuroModule(properties),
                             StatusServer.createJerseyServletModule()
                     )
                     .createInjector();
@@ -92,7 +100,6 @@ public class SuroServer {
             
             // Hmmm... is this the right way to do this?  Should this block on the status server instead?
             Thread.sleep(Long.MAX_VALUE);
-            
         } catch (Exception e) {
             System.err.println("SuroServer startup failed: " + e.getMessage());
             System.exit(-1);
@@ -105,17 +112,16 @@ public class SuroServer {
     private static Options createOptions() {
         Option propertyFile = OptionBuilder.withArgName("serverProperty")
                 .hasArg()
-                .isRequired(true)
                 .withDescription("server property file path")
                 .create('p');
 
-        Option mapFile = OptionBuilder.withArgName("messageMap")
+        Option mapFile = OptionBuilder.withArgName("routingMap")
                 .hasArg()
                 .isRequired(true)
                 .withDescription("message routing map file path")
                 .create('m');
 
-        Option sinkFile = OptionBuilder.withArgName("sink" )
+        Option sinkFile = OptionBuilder.withArgName("sinkConfig" )
                 .hasArg()
                 .isRequired(true)
                 .withDescription("sink")

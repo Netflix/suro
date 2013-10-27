@@ -29,7 +29,10 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.nofify.Notify;
+import com.netflix.suro.sink.nofify.NoNotify;
+import com.netflix.suro.sink.nofify.QueueNotify;
+import com.netflix.suro.sink.nofify.SQSNotify;
+import com.netflix.suro.sink.notify.Notify;
 import com.netflix.suro.sink.TestSinkManager.TestSink;
 
 import org.junit.Test;
@@ -50,6 +53,10 @@ public class TestQueueNotify {
                 @Override
                 protected void configure() {
                     this.addSinkType("TestSink", TestSink.class);
+
+                    this.addNotifyType(NoNotify.TYPE, NoNotify.class);
+                    this.addNotifyType(QueueNotify.TYPE, QueueNotify.class);
+                    this.addNotifyType(SQSNotify.TYPE, SQSNotify.class);
                 }
             },
             new AbstractModule() {

@@ -17,8 +17,6 @@
 package com.netflix.suro.client;
 
 import com.google.inject.Injector;
-import com.google.inject.Provider;
-import com.google.inject.TypeLiteral;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
@@ -31,15 +29,10 @@ import com.netflix.suro.connection.ConnectionPool;
 import com.netflix.suro.connection.EurekaLoadBalancer;
 import com.netflix.suro.connection.StaticLoadBalancer;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.message.MessageSerDe;
-import com.netflix.suro.queue.FileBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.Properties;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 public class SuroClient implements ISuroClient {
     static Logger log = LoggerFactory.getLogger(SuroClient.class);
@@ -77,37 +70,6 @@ public class SuroClient implements ISuroClient {
 
                                         if (properties.getProperty(ClientConfig.CLIENT_TYPE, "async").equals("async")) {
                                             binder.bind(ISuroClient.class).to(AsyncSuroClient.class);
-                                            if (properties.getProperty(ClientConfig.ASYNC_QUEUE_TYPE, "memory").equals("memory")) {
-                                                binder.bind(new TypeLiteral<BlockingQueue<Message>>() {})
-                                                        .toProvider(new Provider<LinkedBlockingQueue<Message>>() {
-                                                            @Override
-                                                            public LinkedBlockingQueue<Message> get() {
-                                                                return new LinkedBlockingQueue<Message>(
-                                                                        Integer.parseInt(
-                                                                                properties.getProperty(
-                                                                                        ClientConfig.ASYNC_MEMORYQUEUE_CAPACITY, "10000"))
-                                                                );
-                                                            }
-                                                        });
-                                            } else {
-                                                binder.bind(new TypeLiteral<BlockingQueue<Message>>() {})
-                                                        .toProvider(new Provider<FileBlockingQueue<Message>>() {
-                                                            @Override
-                                                            public FileBlockingQueue<Message> get() {
-                                                                try {
-                                                                    return new FileBlockingQueue<Message>(
-                                                                            properties.getProperty(ClientConfig.ASYNC_FILEQUEUE_PATH, "/logs/suroClient"),
-                                                                            properties.getProperty(ClientConfig.ASYNC_FILEQUEUE_NAME, "default"),
-                                                                            Integer.parseInt(properties.getProperty(ClientConfig.FILEQUEUE_GC_INTERVAL, "3600")),
-                                                                            new MessageSerDe(),
-                                                                            Boolean.parseBoolean(properties.getProperty(ClientConfig.ASYNC_FILEQUEUE_AUTOCOMMIT, "true")));
-                                                                } catch (IOException e) {
-                                                                    log.error("cannot initiate FileBlockingQueue: " + e.getMessage(), e);
-                                                                    return null;
-                                                                }
-                                                            }
-                                                        });
-                                            }
                                         } else {
                                             binder.bind(ISuroClient.class).to(SyncSuroClient.class);
                                         }

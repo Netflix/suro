@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.nofify;
+package com.netflix.suro.sink.nofify;
 
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -27,6 +27,7 @@ import com.google.common.base.Preconditions;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.suro.TagKey;
+import com.netflix.suro.sink.notify.Notify;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

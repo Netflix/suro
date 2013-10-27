@@ -35,7 +35,6 @@ import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -64,14 +63,14 @@ public class MessageQueue implements SuroServer.Iface {
 
     private volatile boolean isRunning = false;
 
-    private final BlockingQueue<TMessageSet> queue;
+    private final Queue4Server queue;
     private final MessageRouter router;
     private final ServerConfig config;
     private ExecutorService executors;
 
     @Inject
     public MessageQueue(
-            BlockingQueue<TMessageSet> queue,
+            Queue4Server queue,
             MessageRouter router,
             QueueManager manager,
             ServerConfig config) throws Exception {
@@ -87,7 +86,7 @@ public class MessageQueue implements SuroServer.Iface {
 
     @Monitor(name ="QueueSize", type= DataSourceType.GAUGE)
     public int getQueueSize() {
-        return queue.size();
+        return (int) queue.size();
     }
 
     private static final String messageCountMetric = "messageCount";

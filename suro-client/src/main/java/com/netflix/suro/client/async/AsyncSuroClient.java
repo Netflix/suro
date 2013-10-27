@@ -46,7 +46,7 @@ public class AsyncSuroClient implements ISuroClient {
 
     private final ClientConfig config;
     private final ConnectionPool connectionPool;
-    private final BlockingQueue<Message> messageQueue;
+    private final Queue4Client messageQueue;
 
     private final BlockingQueue<Runnable> jobQueue;
     private final ThreadPoolExecutor senders;
@@ -90,7 +90,7 @@ public class AsyncSuroClient implements ISuroClient {
     @Inject
     public AsyncSuroClient(
             ClientConfig config,
-            BlockingQueue<Message> messageQueue,
+            Queue4Client messageQueue,
             ConnectionPool connectionPool) {
         this.config = config;
         this.messageQueue = messageQueue;
@@ -179,7 +179,7 @@ public class AsyncSuroClient implements ISuroClient {
                     }
                 }
 
-                builder.drainFrom(messageQueue, messageQueue.size());
+                builder.drainFrom(messageQueue, (int) messageQueue.size());
                 if (builder.size() > 0) {
                     senders.execute(new AsyncSuroSender(builder.build(), client, config));
                 }
@@ -206,7 +206,7 @@ public class AsyncSuroClient implements ISuroClient {
 
     @Monitor(name = "MessageQueueSize", type = DataSourceType.GAUGE)
     private int getMessageQueueSize() {
-        return messageQueue.size();
+        return (int) messageQueue.size();
     }
 
     @Monitor(name = "JobQueueSize", type = DataSourceType.GAUGE)
