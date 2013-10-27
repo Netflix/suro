@@ -29,7 +29,7 @@ public class FastPropertyRoutingMapConfigurator {
     private final ObjectMapper  jsonMapper;
 
     @Configuration(ROUTING_MAP_PROPERTY)
-    private String initialRoutingMap = "{}";
+    private String initialRoutingMap;
 
     @Inject
     public FastPropertyRoutingMapConfigurator(
@@ -39,15 +39,17 @@ public class FastPropertyRoutingMapConfigurator {
         this.jsonMapper = jsonMapper;
     }
 
-    private DynamicStringProperty routingMapFP = new DynamicStringProperty(ROUTING_MAP_PROPERTY, initialRoutingMap) {
-        @Override
-        protected void propertyChanged() {
-            buildMap(get());
-        }
-    };
+    private DynamicStringProperty routingMapFP;
 
     @PostConstruct
     public void init() {
+        routingMapFP = new DynamicStringProperty(ROUTING_MAP_PROPERTY, initialRoutingMap) {
+            @Override
+            protected void propertyChanged() {
+                buildMap(get());
+            }
+        };
+
         buildMap(routingMapFP.get());
     }
 

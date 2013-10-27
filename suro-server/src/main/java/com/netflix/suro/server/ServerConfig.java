@@ -68,11 +68,11 @@ public class ServerConfig {
         return queueType;
     }
 
-    public static final String MEMORY_QUEUE_SIZE = "SuroServer.memoryQueueSize";
-    @Configuration(MEMORY_QUEUE_SIZE)
-    private int memoryQueueSize = 100;
+    public static final String MEMORY_QUEUE_CAPACITY = "SuroServer.memoryQueueCapacity";
+    @Configuration(MEMORY_QUEUE_CAPACITY)
+    private int memoryQueueCapacity = 100;
     public int getQueueSize() {
-        return memoryQueueSize;
+        return memoryQueueCapacity;
     }
 
     public static final String MESSAGE_ROUTER_THREADS = "SuroServer.messageRouterThreads";
@@ -88,6 +88,27 @@ public class ServerConfig {
         return statusServerPort;
     }
 
+    public static final String FILEQUEUE_PATH = "SuroServer.fileQueuePath";
+    @Configuration(FILEQUEUE_PATH)
+    private String fileQueuePath = "/logs/suroserver";
+    public String getFileQueuePath() {
+        return fileQueuePath;
+    }
+
+    public static final String FILEQUEUE_NAME = "SuroServer.fileQueueName";
+    @Configuration(FILEQUEUE_NAME)
+    private String fileQueueName = "messageset";
+    public String getFileQueueName() {
+        return fileQueueName;
+    }
+
+    public static final String FILEQUEUE_GC_PERIOD = "SuroServer.fileQueueGCPeriod";
+    @Configuration(FILEQUEUE_GC_PERIOD)
+    private String fileQueueGCPeriod = "PT1h";
+    public String getFileQueueGCPeriod() {
+        return fileQueueGCPeriod;
+    }
+
     public int messageRouterDefaultPollTimeout = 500;
     public int messageRouterMaxPollTimeout = 10000;
     @Override
@@ -98,7 +119,7 @@ public class ServerConfig {
                 + thriftMaxReadBufferBytes + ", socketSendBufferBytes="
                 + socketSendBufferBytes + ", socketRecvBufferBytes="
                 + socketRecvBufferBytes + ", queueType=" + queueType
-                + ", memoryQueueSize=" + memoryQueueSize
+                + ", memoryQueueCapacity=" + memoryQueueCapacity
                 + ", messageRouterThreads=" + messageRouterThreads
                 + ", statusServerPort=" + statusServerPort
                 + ", messageRouterDefaultPollTimeout="

@@ -18,7 +18,7 @@ package com.netflix.suro.sink.remotefile.formatter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.netflix.suro.sink.RemotePrefixFormatter;
+import com.netflix.suro.sink.remotefile.RemotePrefixFormatter;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;

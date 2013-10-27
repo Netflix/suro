@@ -17,7 +17,6 @@
 package com.netflix.suro.client.async;
 
 import com.google.inject.Injector;
-import com.google.inject.TypeLiteral;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
@@ -28,14 +27,15 @@ import com.netflix.suro.ClientConfig;
 import com.netflix.suro.SuroServer4Test;
 import com.netflix.suro.connection.StaticLoadBalancer;
 import com.netflix.suro.connection.TestConnectionPool;
-import com.netflix.suro.message.Message;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -61,8 +61,6 @@ public class TestAsyncSuroSender {
                     public void configure(BootstrapBinder binder) {
                         binder.bindConfigurationProvider().toInstance(new PropertiesConfigurationProvider(props));
                         binder.bind(ILoadBalancer.class).to(StaticLoadBalancer.class);
-                        binder.bind(new TypeLiteral<BlockingQueue<Message>>(){})
-                                .to(new TypeLiteral<LinkedBlockingQueue<Message>>(){});
                     }
                 }).build().createInjector();
         injector.getInstance(LifecycleManager.class).start();

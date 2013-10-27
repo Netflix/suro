@@ -18,7 +18,7 @@ package com.netflix.suro.sink.remotefile.formatter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.netflix.suro.sink.RemotePrefixFormatter;
+import com.netflix.suro.sink.remotefile.RemotePrefixFormatter;
 
 public class StaticPrefixFormatter implements RemotePrefixFormatter {
     public static final String TYPE = "static";

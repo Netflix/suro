@@ -25,6 +25,8 @@ import com.netflix.suro.message.StringSerDe;
 import java.util.regex.Pattern;
 
 public class RegexFilter implements Filter {
+    public static final String TYPE = "regex";
+
     private final Pattern filterPattern;
     private final SerDe<String> serde = new StringSerDe();
 

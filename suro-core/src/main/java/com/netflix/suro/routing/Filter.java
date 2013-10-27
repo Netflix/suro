@@ -14,27 +14,11 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.nofify;
+package com.netflix.suro.routing;
 
-public class NoNotify implements Notify<String> {
-    public static final String TYPE = "no";
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-    @Override
-    public void init() {
-    }
-
-    @Override
-    public boolean send(String message) {
-        return true;
-    }
-
-    @Override
-    public String recv() {
-        return null;
-    }
-
-    @Override
-    public String getStat() {
-        return "No";
-    }
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+public interface Filter {
+    public boolean doFilter(Object obj);
 }

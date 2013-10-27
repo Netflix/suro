@@ -25,12 +25,11 @@ import com.google.common.base.Preconditions;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.nofify.Notify;
-import com.netflix.suro.nofify.QueueNotify;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.FileNameFormatter;
 import com.netflix.suro.sink.localfile.LocalFileSink;
-import com.netflix.suro.sink.RemotePrefixFormatter;
+import com.netflix.suro.sink.nofify.QueueNotify;
+import com.netflix.suro.sink.notify.Notify;
 import com.netflix.suro.sink.remotefile.formatter.SimpleDateFormatter;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -41,6 +40,7 @@ import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.model.S3Object;
 import org.jets3t.service.security.AWSCredentials;
 import org.jets3t.service.utils.MultipartUtils;
+import org.joda.time.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +58,8 @@ public class S3FileSink implements Sink {
     static Logger log = LoggerFactory.getLogger(S3FileSink.class);
 
     private final LocalFileSink localFileSink;
+    private final boolean batchUpload;
+
     private final String bucket;
     private final String s3Endpoint;
     private final long maxPartSize;
@@ -73,6 +75,8 @@ public class S3FileSink implements Sink {
     private final ExecutorService uploader;
     private final ExecutorService localFilePoller;
 
+    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
     @JsonCreator
     public S3FileSink(
             @JsonProperty("localFileSink") LocalFileSink localFileSink,
@@ -82,6 +86,7 @@ public class S3FileSink implements Sink {
             @JsonProperty("concurrentUpload") int concurrentUpload,
             @JsonProperty("notify") Notify notify,
             @JsonProperty("prefixFormatter") RemotePrefixFormatter prefixFormatter,
+            @JsonProperty("batchUpload") boolean batchUpload,
             @JacksonInject("multipartUtils") MultipartUtils mpUtils,
             @JacksonInject("credentials") AWSCredentialsProvider credentialProvider) {
         this.localFileSink = localFileSink;
@@ -90,6 +95,8 @@ public class S3FileSink implements Sink {
         this.maxPartSize = maxPartSize == 0 ? 20 * 1024 * 1024 : maxPartSize;
         this.notify = notify == null ? new QueueNotify<String>() : notify;
         this.prefixFormatter = prefixFormatter == null ? new SimpleDateFormatter("'P'yyyyMMdd'T'HHmmss") : prefixFormatter;
+        this.batchUpload = batchUpload;
+
         this.mpUtils = mpUtils;
         this.credentialsProvider = credentialProvider;
 
@@ -102,7 +109,9 @@ public class S3FileSink implements Sink {
         Preconditions.checkNotNull(localFileSink, "localFileSink is needed");
         Preconditions.checkNotNull(bucket, "bucket is needed");
 
-        localFileSink.cleanUp();
+        if (batchUpload == false) {
+            localFileSink.cleanUp();
+        }
     }
 
     @Override
@@ -111,6 +120,9 @@ public class S3FileSink implements Sink {
     }
 
     private boolean running = false;
+    private static final int processingFileQueueThreshold = 1000;
+    private static final String processingFileQueueCleanupInterval = "PT60s";
+
     @Override
     public void open() {
         if (mpUtils == null) { // not injected
@@ -136,26 +148,51 @@ public class S3FileSink implements Sink {
 
         notify.init();
 
-        running = true;
+        if (batchUpload == false) {
+            running = true;
 
-        localFilePoller.submit(new Runnable() {
-            @Override
-            public void run() {
-                while (running) {
-                    String note = localFileSink.recvNotify();
-                    if (note != null) {
-                        uploadFile(note);
+            localFilePoller.submit(new Runnable() {
+                @Override
+                public void run() {
+                    while (running) {
+                        uploadAllFromQueue();
+                        localFileSink.cleanUp();
                     }
-                    localFileSink.cleanUp();
+                    uploadAllFromQueue();
                 }
-                String note = localFileSink.recvNotify();
-                while (note != null) {
-                    uploadFile(note);
-                    note = localFileSink.recvNotify();
+            });
+            localFileSink.open();
+
+            int schedulingSecond = new Period(processingFileQueueCleanupInterval).toStandardSeconds().getSeconds();
+            scheduler.scheduleAtFixedRate(new Runnable() {
+                @Override
+                public void run() {
+                    if (processingFileSet.size() > processingFileQueueThreshold) {
+                        String file = null;
+                        int count = 0;
+                        while (processingFileSet.size() > processingFileQueueThreshold &&
+                                (file = processedFileQueue.poll()) != null) {
+                            processingFileSet.remove(file);
+                            ++count;
+                        }
+                        log.info(count + " files are removed from processingFileSet");
+                    }
                 }
-            }
-        });
-        localFileSink.open();
+            }, schedulingSecond, schedulingSecond, TimeUnit.SECONDS);
+        }
+    }
+
+    private void clearFileHistory() {
+        processedFileQueue.clear();
+        processingFileSet.clear();
+    }
+
+    private void uploadAllFromQueue() {
+        String note = localFileSink.recvNotify();
+        while (note != null) {
+            uploadFile(note);
+            note = localFileSink.recvNotify();
+        }
     }
 
     @Override
@@ -192,6 +229,9 @@ public class S3FileSink implements Sink {
     @Monitor(name = "uploadDuration", type = DataSourceType.GAUGE)
     private long uploadDuration;
     @Monitor(name = "uploadedFileCount", type = DataSourceType.COUNTER)
+    public int getUploadedFileCount() {
+        return uploadedFileCount.get();
+    }
     private AtomicInteger uploadedFileCount = new AtomicInteger(0);
 
     private Set<String> processingFileSet = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
@@ -262,5 +302,17 @@ public class S3FileSink implements Sink {
 
     private String makeUploadPath(File file) {
         return prefixFormatter.get() + file.getName();
+    }
+
+    public void uploadAll() {
+        clearFileHistory();
+
+        while (localFileSink.cleanUp() > 0) {
+            uploadAllFromQueue();
+        }
+    }
+
+    public boolean isBatchUpload() {
+        return batchUpload;
     }
 }

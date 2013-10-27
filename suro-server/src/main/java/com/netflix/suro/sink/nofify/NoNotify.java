@@ -14,15 +14,29 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.routing;
+package com.netflix.suro.sink.nofify;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.netflix.suro.sink.notify.Notify;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-        @JsonSubTypes.Type(name = "regex", value = RegexFilter.class)
-})
-public interface Filter {
-    public boolean doFilter(Object obj);
+public class NoNotify implements Notify<String> {
+    public static final String TYPE = "no";
+
+    @Override
+    public void init() {
+    }
+
+    @Override
+    public boolean send(String message) {
+        return true;
+    }
+
+    @Override
+    public String recv() {
+        return null;
+    }
+
+    @Override
+    public String getStat() {
+        return "No";
+    }
 }

@@ -18,6 +18,7 @@ package com.netflix.suro.message;
 
 import com.google.common.io.ByteArrayDataOutput;
 import com.netflix.suro.ClientConfig;
+import com.netflix.suro.client.async.Queue4Client;
 import com.netflix.suro.thrift.TMessageSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +28,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
 import java.util.zip.CRC32;
 
 public class MessageSetBuilder {
@@ -106,7 +106,7 @@ public class MessageSetBuilder {
         return crc.getValue();
     }
 
-    public void drainFrom(BlockingQueue<Message> queue, int size) {
-        queue.drainTo(messageList, size);
+    public void drainFrom(Queue4Client queue, int size) {
+        queue.drain(size, messageList);
     }
 }

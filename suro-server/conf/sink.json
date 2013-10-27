@@ -1,0 +1,9 @@
+{
+    "default": {
+        "type": "local",
+        "outputDir": "/tmp/suroserver",
+        "writer": {
+            "type": "text"
+        }
+    }
+}

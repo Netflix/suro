@@ -17,7 +17,6 @@
 package com.netflix.suro.client;
 
 import com.google.inject.Injector;
-import com.google.inject.TypeLiteral;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
@@ -35,8 +34,6 @@ import org.junit.Test;
 
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -62,8 +59,6 @@ public class TestSyncSuroClient {
                     public void configure(BootstrapBinder binder) {
                         binder.bindConfigurationProvider().toInstance(new PropertiesConfigurationProvider(props));
                         binder.bind(ILoadBalancer.class).to(StaticLoadBalancer.class);
-                        binder.bind(new TypeLiteral<BlockingQueue<Message>>(){})
-                                .to(new TypeLiteral<LinkedBlockingQueue<Message>>(){});
                     }
                 }).build().createInjector();
         injector.getInstance(LifecycleManager.class).start();
