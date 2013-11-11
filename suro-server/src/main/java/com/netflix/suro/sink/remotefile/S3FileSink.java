@@ -215,11 +215,13 @@ public class S3FileSink implements Sink {
     @Override
     public void close() {
         try {
-            localFileSink.close();
-            running = false;
-            localFilePoller.shutdown();
+            if (batchUpload == false) {
+                localFileSink.close();
+                running = false;
+                localFilePoller.shutdown();
 
-            localFilePoller.awaitTermination(60000, TimeUnit.MILLISECONDS);
+                localFilePoller.awaitTermination(60000, TimeUnit.MILLISECONDS);
+            }
             uploader.shutdown();
             uploader.awaitTermination(60000, TimeUnit.MILLISECONDS);
         } catch (Exception e) {
