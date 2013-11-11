@@ -17,14 +17,11 @@
 package com.netflix.suro.sink.remotefile;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.BeanProperty;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.name.Names;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.sink.SinkPlugin;
 import org.joda.time.DateTime;
@@ -33,7 +30,6 @@ import org.joda.time.format.DateTimeFormatter;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -44,6 +40,8 @@ public class TestPrefixFormatter {
                 @Override
                 protected void configure() {
                     bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                    bind(String.class).annotatedWith(Names.named("region")).toInstance("eu-west-1");
+                    bind(String.class).annotatedWith(Names.named("stack")).toInstance("gps");
                 }
             }
         );
@@ -70,12 +68,6 @@ public class TestPrefixFormatter {
                 "}";
 
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
-        mapper.setInjectableValues(new InjectableValues() {
-            @Override
-            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
-                return null;
-            }
-        });
         RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>() {});
         DateTimeFormatter format = DateTimeFormat.forPattern("YYYYMMDD");
         String answer = String.format("%s/us-east-1/normal/", format.print(new DateTime()));
@@ -88,17 +80,8 @@ public class TestPrefixFormatter {
                 "    \"type\": \"DateRegionStack\",\n" +
                 "    \"date\": \"YYYYMMDD\"\n" +
                 "}";
-        final Map<String, Object> injectables = Maps.newHashMap();
-        injectables.put("region", "eu-west-1");
-        injectables.put("stack", "gps");
 
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
-        mapper.setInjectableValues(new InjectableValues() {
-            @Override
-            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
-                return injectables.get(valueId);
-            }
-        });
         RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>() {});
         DateTimeFormatter format = DateTimeFormat.forPattern("YYYYMMDD");
         String answer = String.format("%s/eu-west-1/gps/", format.print(new DateTime()));

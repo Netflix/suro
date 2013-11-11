@@ -118,6 +118,7 @@ public class SQSNotify implements Notify<String> {
                         .withQueueUrl(queueUrl)
                         .withMessageBody(message);
                 sqsClient.sendMessage(request);
+                log.info("SQSNotify: " + message + " sent to " + queueUrl);
                 if (sent == false) {
                     sentMessageCount.incrementAndGet();
                     sent = true;

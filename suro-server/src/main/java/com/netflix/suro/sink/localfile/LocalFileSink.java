@@ -241,25 +241,34 @@ public class LocalFileSink extends QueuedSink implements Sink {
     }
 
     public int cleanUp() {
+        return cleanUp(outputDir);
+    }
+
+    public int cleanUp(String dir) {
+        if (dir.endsWith("/") == false) {
+            dir += "/";
+        }
+
         int count = 0;
 
         try {
             FileSystem fs = writer.getFS();
-            FileStatus[] files = fs.listStatus(new Path(outputDir));
+            FileStatus[] files = fs.listStatus(new Path(dir));
             for (FileStatus file: files) {
                 String fileName = file.getPath().getName();
-                if (fileName.endsWith(done)) {
-                    notify.send(outputDir + fileName);
+                String fileExt = getFileExt(fileName);
+                if (fileExt != null && fileExt.equals(done)) {
+                    notify.send(dir + fileName);
                     ++count;
-                } else if (fileName.endsWith(suffix)) {
+                } else if (fileExt != null) {
                     long lastPeriod =
                             new DateTime().minus(rotationPeriod).minus(rotationPeriod).getMillis();
                     if (file.getModificationTime() < lastPeriod) {
                         ++errorClosedFiles;
-                        log.error(outputDir + fileName + " is not closed properly!!!");
-                        String doneFile = fileName.replace(suffix, done);
-                        writer.setDone(outputDir + fileName, outputDir + doneFile);
-                        notify.send(outputDir + doneFile);
+                        log.error(dir + fileName + " is not closed properly!!!");
+                        String doneFile = fileName.replace(fileExt, done);
+                        writer.setDone(dir + fileName, dir + doneFile);
+                        notify.send(dir + doneFile);
                         ++count;
                     }
                 }
@@ -268,6 +277,15 @@ public class LocalFileSink extends QueuedSink implements Sink {
             log.error("Exception while on cleanUp: " + e.getMessage(), e);
         } finally {
             return count;
+        }
+    }
+
+    public static String getFileExt(String fileName) {
+        int dotPos = fileName.lastIndexOf('.');
+        if (dotPos != -1 && dotPos != fileName.length() - 1) {
+            return fileName.substring(dotPos);
+        } else {
+            return null;
         }
     }
 
