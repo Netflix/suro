@@ -206,7 +206,7 @@ public class TestS3FileSink {
 
         S3FileSink sink = mapper.readValue(s3FileSink, new TypeReference<Sink>(){});
         sink.open();
-        sink.uploadAll();
+        sink.uploadAll(testdir);
 
         // check every file uploaded, deleted, and notified
         File[] files = getFiles();
