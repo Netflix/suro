@@ -19,11 +19,7 @@ package com.netflix.suro.sink.remotefile;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.BeanProperty;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -38,7 +34,9 @@ import com.netflix.suro.sink.SinkPlugin;
 import com.netflix.suro.sink.localfile.LocalFileSink;
 import com.netflix.suro.sink.localfile.LocalFileSink.SpaceChecker;
 import org.apache.commons.io.FileUtils;
+import org.jets3t.service.ServiceException;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
+import org.jets3t.service.model.S3Object;
 import org.jets3t.service.multi.s3.S3ServiceEventListener;
 import org.jets3t.service.utils.MultipartUtils;
 import org.junit.After;
@@ -52,7 +50,6 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -62,32 +59,6 @@ import static org.mockito.Mockito.*;
 public class TestS3FileSink {
     private static final String testdir = "/tmp/surotest/tests3filesink";
 
-    public static final String s3FileSink = "{\n" +
-            "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
-            "    \"localFileSink\": {\n" +
-            "        \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
-            "        \"outputDir\": \"" + testdir + "\",\n" +
-            "        \"writer\": {\n" +
-            "            \"type\": \"text\"\n" +
-            "        },\n" +
-            //"        \"maxFileSize\": 10240,\n" +
-            "        \"rotationPeriod\": \"PT1m\",\n" +
-            "        \"minPercentFreeDisk\": 50,\n" +
-            "        \"notify\": {\n" +
-            "            \"type\": \"queue\"\n" +
-            "        }\n" +
-            "    },\n" +
-            "    \"bucket\": \"s3bucket\",\n" +
-            "    \"maxPartSize\": 10000,\n" +
-            "    \"concurrentUpload\":5,\n" +
-            "    \"notify\": {\n" +
-            "        \"type\": \"queue\"\n" +
-            "    },\n" +
-            "    \"prefixFormatter\": {" +
-            "    \"type\": \"DateRegionStack\",\n" +
-            "    \"date\": \"YYYYMMDD\"}\n" +
-            "}";
-
     @Before
     @After
     public void clean() throws IOException {
@@ -96,59 +67,7 @@ public class TestS3FileSink {
 
     @Test
     public void testDefaultParameters() throws Exception {
-        Injector injector = Guice.createInjector(
-                new SinkPlugin(),
-                new AbstractModule() {
-                    @Override
-                    protected void configure() {
-                        bind(ObjectMapper.class).to(DefaultObjectMapper.class);
-                        bind(AWSCredentialsProvider.class)
-                            .annotatedWith(Names.named("credentials"))
-                            .toInstance(new AWSCredentialsProvider() {
-                                @Override
-                                public AWSCredentials getCredentials() {
-                                    return new AWSCredentials() {
-                                        @Override
-                                        public String getAWSAccessKeyId() {
-                                            return "accessKey";
-                                        }
-    
-                                        @Override
-                                        public String getAWSSecretKey() {
-                                            return "secretKey";
-                                        }
-                                    };
-                                }
-    
-                                @Override
-                                public void refresh() {
-                                }
-                            });
-                        
-                        MultipartUtils mpUtils = mock(MultipartUtils.class);
-                        try {
-                            doNothing().when(mpUtils).uploadObjects(
-                                    any(String.class),
-                                    any(RestS3Service.class),
-                                    any(List.class),
-                                    any(S3ServiceEventListener.class));
-                            
-                            bind(MultipartUtils.class)
-                            .annotatedWith(Names.named("multipartUtils"))
-                            .toInstance(mpUtils);
-                        } catch (Exception e) {
-                            Assert.fail(e.getMessage());
-                        }
-                        bind(QueueManager.class)
-                            .annotatedWith(Names.named("queueManager"))
-                            .toInstance(new QueueManager());
-                        bind(SpaceChecker.class)
-                            .annotatedWith(Names.named("spaceChecker"))
-                            .toInstance(mock(LocalFileSink.SpaceChecker.class));
-
-                    }
-                }
-            );
+        Injector injector = getInjector();
         
         final String s3FileSink = "{\n" +
                 "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
@@ -160,7 +79,6 @@ public class TestS3FileSink {
                 "}";
 
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
-        final Map<String, Object> injectables = Maps.newHashMap();
 
         Sink sink = mapper.readValue(s3FileSink, new TypeReference<Sink>(){});
         sink.open();
@@ -171,17 +89,7 @@ public class TestS3FileSink {
         sink.close();
 
         // check every file uploaded, deleted, and notified
-        File dir = new File(testdir);
-        File[] files = dir.listFiles(new FilenameFilter() {
-            @Override
-            public boolean accept(File file, String name) {
-                if (file.isFile() && file.getName().startsWith(".") == false) {
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-        });
+        File[] files = getFiles();
         assertEquals(files.length, 0);
         int count = 0;
         while (sink.recvNotify() != null) {
@@ -192,83 +100,36 @@ public class TestS3FileSink {
 
     @Test
     public void test() throws Exception {
-        Injector injector = Guice.createInjector(
-                new SinkPlugin(),
-                new AbstractModule() {
-                    @Override
-                    protected void configure() {
-                        bind(ObjectMapper.class).to(DefaultObjectMapper.class);
-                        bind(AWSCredentialsProvider.class)
-                            .annotatedWith(Names.named("credentials"))
-                            .toInstance(new AWSCredentialsProvider() {
-                                @Override
-                                public AWSCredentials getCredentials() {
-                                    return new AWSCredentials() {
-                                        @Override
-                                        public String getAWSAccessKeyId() {
-                                            return "accessKey";
-                                        }
-    
-                                        @Override
-                                        public String getAWSSecretKey() {
-                                            return "secretKey";
-                                        }
-                                    };
-                                }
-    
-                                @Override
-                                public void refresh() {
-                                }
-                            });
-                    }
-                }
-            );
-        
+        final String s3FileSink = "{\n" +
+                "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
+                "    \"localFileSink\": {\n" +
+                "        \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
+                "        \"outputDir\": \"" + testdir + "\",\n" +
+                "        \"writer\": {\n" +
+                "            \"type\": \"text\"\n" +
+                "        },\n" +
+                //"        \"maxFileSize\": 10240,\n" +
+                "        \"rotationPeriod\": \"PT1m\",\n" +
+                "        \"minPercentFreeDisk\": 50,\n" +
+                "        \"notify\": {\n" +
+                "            \"type\": \"queue\"\n" +
+                "        }\n" +
+                "    },\n" +
+                "    \"bucket\": \"s3bucket\",\n" +
+                "    \"maxPartSize\": 10000,\n" +
+                "    \"concurrentUpload\":5,\n" +
+                "    \"notify\": {\n" +
+                "        \"type\": \"queue\"\n" +
+                "    },\n" +
+                "    \"prefixFormatter\": {" +
+                "    \"type\": \"DateRegionStack\",\n" +
+                "    \"date\": \"YYYYMMDD\"}\n" +
+                "}";
+
+
+        Injector injector = getInjector();
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
-        final Map<String, Object> injectables = Maps.newHashMap();
 
-        injectables.put("region", "eu-west-1");
-        injectables.put("stack", "gps");
-
-        injectables.put("credentials", new AWSCredentialsProvider() {
-            @Override
-            public com.amazonaws.auth.AWSCredentials getCredentials() {
-                return new AWSCredentials() {
-                    @Override
-                    public String getAWSAccessKeyId() {
-                        return "accessKey";
-                    }
-
-                    @Override
-                    public String getAWSSecretKey() {
-                        return "secretKey";
-                    }
-                };
-            }
-
-            @Override
-            public void refresh() {
-                // do nothing
-            }
-        });
-
-        MultipartUtils mpUtils = mock(MultipartUtils.class);
-        doNothing().when(mpUtils).uploadObjects(
-                any(String.class),
-                any(RestS3Service.class),
-                any(List.class),
-                any(S3ServiceEventListener.class));
-        injectables.put("multipartUtils", mpUtils);
-        injectables.put("queueManager", new QueueManager());
-
-        mapper.setInjectableValues(new InjectableValues() {
-            @Override
-            public Object findInjectableValue(
-                    Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance
-            ) {
-                return injectables.get(valueId);
-            }
-        });
         Sink sink = mapper.readValue(s3FileSink, new TypeReference<Sink>(){});
         sink.open();
 
@@ -278,17 +139,7 @@ public class TestS3FileSink {
         sink.close();
 
         // check every file uploaded, deleted, and notified
-        File dir = new File(testdir);
-        File[] files = dir.listFiles(new FilenameFilter() {
-            @Override
-            public boolean accept(File file, String name) {
-                if (file.isFile() && file.getName().startsWith(".") == false) {
-                   return true;
-                } else {
-                    return false;
-                }
-            }
-        });
+        File[] files = getFiles();
         assertEquals(files.length, 0);
         int count = 0;
         while (sink.recvNotify() != null) {
@@ -299,65 +150,7 @@ public class TestS3FileSink {
 
     @Test
     public void testTooManyFiles() throws IOException {
-        Injector injector = Guice.createInjector(
-                new SinkPlugin(),
-                new AbstractModule() {
-                    @Override
-                    protected void configure() {
-                        bind(ObjectMapper.class).to(DefaultObjectMapper.class);
-                        bind(AWSCredentialsProvider.class)
-                                .annotatedWith(Names.named("credentials"))
-                                .toInstance(new AWSCredentialsProvider() {
-                                    @Override
-                                    public AWSCredentials getCredentials() {
-                                        return new AWSCredentials() {
-                                            @Override
-                                            public String getAWSAccessKeyId() {
-                                                return "accessKey";
-                                            }
-
-                                            @Override
-                                            public String getAWSSecretKey() {
-                                                return "secretKey";
-                                            }
-                                        };
-                                    }
-
-                                    @Override
-                                    public void refresh() {
-                                    }
-                                });
-
-                        MultipartUtils mpUtils = mock(MultipartUtils.class);
-                        try {
-                            doAnswer(new Answer() {
-                                @Override
-                                public Object answer(InvocationOnMock invocation) throws Throwable {
-                                    Thread.sleep(1000);
-                                    return null;
-                                }
-                            }).when(mpUtils).uploadObjects(
-                                    any(String.class),
-                                    any(RestS3Service.class),
-                                    any(List.class),
-                                    any(S3ServiceEventListener.class));
-
-                            bind(MultipartUtils.class)
-                                    .annotatedWith(Names.named("multipartUtils"))
-                                    .toInstance(mpUtils);
-                        } catch (Exception e) {
-                            Assert.fail(e.getMessage());
-                        }
-                        bind(QueueManager.class)
-                                .annotatedWith(Names.named("queueManager"))
-                                .toInstance(new QueueManager());
-                        bind(SpaceChecker.class)
-                                .annotatedWith(Names.named("spaceChecker"))
-                                .toInstance(mock(LocalFileSink.SpaceChecker.class));
-
-                    }
-                }
-        );
+        Injector injector = getInjector();
 
         final String s3FileSink = "{\n" +
                 "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
@@ -381,17 +174,7 @@ public class TestS3FileSink {
         sink.close();
 
         // check every file uploaded, deleted, and notified
-        File dir = new File(testdir);
-        File[] files = dir.listFiles(new FilenameFilter() {
-            @Override
-            public boolean accept(File file, String name) {
-                if (file.isFile() && file.getName().startsWith(".") == false) {
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-        });
+        File[] files = getFiles();
         assertEquals(files.length, 0);
         int count = 0;
         while (sink.recvNotify() != null) {
@@ -402,65 +185,7 @@ public class TestS3FileSink {
 
     @Test
     public void testUploadAll() throws IOException {
-        Injector injector = Guice.createInjector(
-                new SinkPlugin(),
-                new AbstractModule() {
-                    @Override
-                    protected void configure() {
-                        bind(ObjectMapper.class).to(DefaultObjectMapper.class);
-                        bind(AWSCredentialsProvider.class)
-                                .annotatedWith(Names.named("credentials"))
-                                .toInstance(new AWSCredentialsProvider() {
-                                    @Override
-                                    public AWSCredentials getCredentials() {
-                                        return new AWSCredentials() {
-                                            @Override
-                                            public String getAWSAccessKeyId() {
-                                                return "accessKey";
-                                            }
-
-                                            @Override
-                                            public String getAWSSecretKey() {
-                                                return "secretKey";
-                                            }
-                                        };
-                                    }
-
-                                    @Override
-                                    public void refresh() {
-                                    }
-                                });
-
-                        MultipartUtils mpUtils = mock(MultipartUtils.class);
-                        try {
-                            doAnswer(new Answer() {
-                                @Override
-                                public Object answer(InvocationOnMock invocation) throws Throwable {
-                                    Thread.sleep(1000);
-                                    return null;
-                                }
-                            }).when(mpUtils).uploadObjects(
-                                    any(String.class),
-                                    any(RestS3Service.class),
-                                    any(List.class),
-                                    any(S3ServiceEventListener.class));
-
-                            bind(MultipartUtils.class)
-                                    .annotatedWith(Names.named("multipartUtils"))
-                                    .toInstance(mpUtils);
-                        } catch (Exception e) {
-                            Assert.fail(e.getMessage());
-                        }
-                        bind(QueueManager.class)
-                                .annotatedWith(Names.named("queueManager"))
-                                .toInstance(new QueueManager());
-                        bind(SpaceChecker.class)
-                                .annotatedWith(Names.named("spaceChecker"))
-                                .toInstance(mock(LocalFileSink.SpaceChecker.class));
-
-                    }
-                }
-        );
+        Injector injector = getInjector();
 
         final String s3FileSink = "{\n" +
                 "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
@@ -484,22 +209,122 @@ public class TestS3FileSink {
         sink.uploadAll();
 
         // check every file uploaded, deleted, and notified
-        File dir = new File(testdir);
-        File[] files = dir.listFiles(new FilenameFilter() {
-            @Override
-            public boolean accept(File file, String name) {
-                if (file.isFile() && file.getName().startsWith(".") == false) {
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-        });
+        File[] files = getFiles();
         assertEquals(files.length, 0);
         int count = 0;
         while (sink.recvNotify() != null) {
             ++count;
         }
         assertEquals(count, 100);
+    }
+
+    @Test
+    public void testAclFailure() throws IOException, ServiceException, InterruptedException {
+        final String s3FileSink = "{\n" +
+                "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
+                "    \"localFileSink\": {\n" +
+                "        \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
+                "        \"outputDir\": \"" + testdir + "\"\n" +
+                "    },\n" +
+                "    \"bucket\": \"s3bucket\"" +
+                "}";
+
+        Injector injector = getInjector();
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
+
+        S3FileSink sink = mapper.readValue(s3FileSink, new TypeReference<Sink>(){});
+        GrantAcl grantAcl = mock(GrantAcl.class);
+        when(grantAcl.grantAcl(any(S3Object.class))).thenReturn(false);
+        sink.open();
+        sink.setGrantAcl(grantAcl);
+
+        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
+            sink.writeTo(m);
+        }
+        sink.close();
+        File[] files = getFiles();
+
+        assertTrue(files.length > 0);
+        int count = 0;
+        while (sink.recvNotify() != null) {
+            ++count;
+        }
+        assertEquals(count, 0);
+    }
+
+    private File[] getFiles() {
+        // check no file uploaded, deleted, and notified
+        File dir = new File(testdir);
+        return dir.listFiles(new FilenameFilter() {
+            @Override
+            public boolean accept(File file, String name) {
+                if (name.startsWith(".") == false) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        });
+    }
+
+    private Injector getInjector() {
+        return Guice.createInjector(
+                new SinkPlugin(),
+                new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                        bind(AWSCredentialsProvider.class)
+                                .annotatedWith(Names.named("credentials"))
+                                .toInstance(new AWSCredentialsProvider() {
+                                    @Override
+                                    public AWSCredentials getCredentials() {
+                                        return new AWSCredentials() {
+                                            @Override
+                                            public String getAWSAccessKeyId() {
+                                                return "accessKey";
+                                            }
+
+                                            @Override
+                                            public String getAWSSecretKey() {
+                                                return "secretKey";
+                                            }
+                                        };
+                                    }
+
+                                    @Override
+                                    public void refresh() {
+                                    }
+                                });
+
+                        MultipartUtils mpUtils = mock(MultipartUtils.class);
+                        try {
+                            doAnswer(new Answer() {
+                                @Override
+                                public Object answer(InvocationOnMock invocation) throws Throwable {
+                                    Thread.sleep(1000);
+                                    return null;
+                                }
+                            }).when(mpUtils).uploadObjects(
+                                    any(String.class),
+                                    any(RestS3Service.class),
+                                    any(List.class),
+                                    any(S3ServiceEventListener.class));
+
+                            bind(MultipartUtils.class)
+                                    .annotatedWith(Names.named("multipartUtils"))
+                                    .toInstance(mpUtils);
+                        } catch (Exception e) {
+                            Assert.fail(e.getMessage());
+                        }
+                        bind(QueueManager.class)
+                                .annotatedWith(Names.named("queueManager"))
+                                .toInstance(new QueueManager());
+                        bind(SpaceChecker.class)
+                                .annotatedWith(Names.named("spaceChecker"))
+                                .toInstance(mock(SpaceChecker.class));
+                    }
+                }
+        );
     }
 }

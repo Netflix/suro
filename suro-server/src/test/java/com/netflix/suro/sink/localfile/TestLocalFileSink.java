@@ -417,12 +417,19 @@ public class TestLocalFileSink {
             }
         });
         LocalFileSink sink = (LocalFileSink)mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
-        assertEquals(sink.cleanUp(), 5);
+        assertEquals(sink.cleanUp(testdir), 5);
 
         Set<String> filePathSetResult = new HashSet<String>();
         for (int i = 0; i < numFiles; ++i) {
             filePathSetResult.add(sink.recvNotify());
         }
         assertEquals(filePathSet, filePathSetResult);
+    }
+
+    @Test
+    public void testGetFileExt() {
+        assertEquals(LocalFileSink.getFileExt("abc.done"), ".done");
+        assertNull(LocalFileSink.getFileExt("abcdone"));
+        assertNull(LocalFileSink.getFileExt("abcdone."));
     }
 }

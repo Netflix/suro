@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class S3FileSink implements Sink {
     public static final String TYPE = "s3";
@@ -72,8 +73,12 @@ public class S3FileSink implements Sink {
     private AWSCredentialsProvider credentialsProvider;
 
     private RestS3Service s3Service;
+    private GrantAcl grantAcl;
     private final ExecutorService uploader;
     private final ExecutorService localFilePoller;
+
+    private final String s3Acl;
+    private final int s3AclRetries;
 
     private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
@@ -87,6 +92,8 @@ public class S3FileSink implements Sink {
             @JsonProperty("notify") Notify notify,
             @JsonProperty("prefixFormatter") RemotePrefixFormatter prefixFormatter,
             @JsonProperty("batchUpload") boolean batchUpload,
+            @JsonProperty("s3Acl") String s3Acl,
+            @JsonProperty("s3AclRetries") int s3AclRetries,
             @JacksonInject("multipartUtils") MultipartUtils mpUtils,
             @JacksonInject("credentials") AWSCredentialsProvider credentialProvider) {
         this.localFileSink = localFileSink;
@@ -106,12 +113,20 @@ public class S3FileSink implements Sink {
         uploader = Executors.newFixedThreadPool(concurrentUpload);
         localFilePoller = Executors.newSingleThreadExecutor();
 
+        this.s3Acl = s3Acl;
+        this.s3AclRetries = s3AclRetries > 0 ? s3AclRetries : 5;
+
         Preconditions.checkNotNull(localFileSink, "localFileSink is needed");
         Preconditions.checkNotNull(bucket, "bucket is needed");
 
         if (batchUpload == false) {
             localFileSink.cleanUp();
         }
+    }
+
+    // testing purpose only
+    public void setGrantAcl(GrantAcl grantAcl) {
+        this.grantAcl = grantAcl;
     }
 
     @Override
@@ -145,6 +160,8 @@ public class S3FileSink implements Sink {
         } catch (S3ServiceException e) {
             throw new RuntimeException(e);
         }
+
+        grantAcl = new GrantAcl(s3Service, s3Acl, s3AclRetries == 0 ? 5 : s3AclRetries);
 
         notify.init();
 
@@ -234,6 +251,10 @@ public class S3FileSink implements Sink {
     }
     private AtomicInteger uploadedFileCount = new AtomicInteger(0);
 
+    @Monitor(name="fail_grantAcl", type=DataSourceType.COUNTER)
+    private AtomicLong fail_grantAcl = new AtomicLong(0);
+    public long getFail_grantAcl() { return fail_grantAcl.get(); }
+
     private Set<String> processingFileSet = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     private BlockingQueue<String> processedFileQueue = new LinkedBlockingQueue<String>();
 
@@ -260,6 +281,11 @@ public class S3FileSink implements Sink {
                     List objectsToUploadAsMultipart = new ArrayList();
                     objectsToUploadAsMultipart.add(file);
                     mpUtils.uploadObjects(bucket, s3Service, objectsToUploadAsMultipart, null);
+
+                    if (grantAcl.grantAcl(file) == false) {
+                        throw new RuntimeException("Failed to set Acl");
+                    }
+
                     long t2 = System.currentTimeMillis();
 
                     log.info("upload duration: " + (t2 - t1) + " ms " +
@@ -304,10 +330,10 @@ public class S3FileSink implements Sink {
         return prefixFormatter.get() + file.getName();
     }
 
-    public void uploadAll() {
+    public void uploadAll(String dir) {
         clearFileHistory();
 
-        while (localFileSink.cleanUp() > 0) {
+        while (localFileSink.cleanUp(dir) > 0) {
             uploadAllFromQueue();
         }
     }
@@ -315,4 +341,5 @@ public class S3FileSink implements Sink {
     public boolean isBatchUpload() {
         return batchUpload;
     }
+
 }

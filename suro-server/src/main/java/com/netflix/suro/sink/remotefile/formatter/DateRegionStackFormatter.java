@@ -28,14 +28,14 @@ public class DateRegionStackFormatter implements RemotePrefixFormatter {
     public static final String TYPE = "DateRegionStack";
 
     private final DateTimeFormatter format;
-    private final String region;
-    private final String stack;
+    private String region;
+    private String stack;
 
     @JsonCreator
     public DateRegionStackFormatter(
             @JsonProperty("date") String dateFormat,
             @JsonProperty("region") @JacksonInject("region") String region,
-            @JsonProperty("stack") @JacksonInject("stack") String stack) {
+            @JsonProperty("stack")  @JacksonInject("stack") String stack) {
         this.format = DateTimeFormat.forPattern(dateFormat);
         this.region = region;
         this.stack = stack;
