@@ -28,6 +28,12 @@ import java.net.ServerSocket;
 import java.net.SocketException;
 import java.nio.channels.*;
 
+/**
+ * ServerSocket in thrift 0.7.0 is not implementing KEEP_ALIVE. To set up
+ * KEEP_ALIVE in the accepted server socket, this is implemented.
+ *
+ * @author jbae
+ */
 public class CustomServerSocket extends TNonblockingServerTransport {
     private static final Logger LOGGER = LoggerFactory.getLogger(TNonblockingServerTransport.class.getName());
 

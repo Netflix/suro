@@ -27,9 +27,18 @@ import com.netflix.suro.ClientConfig;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * LoadBalancer based on the static configuration
+ *
+ * @author jbae
+ */
 @LazySingleton
 public class StaticLoadBalancer extends BaseLoadBalancer {
 
+    /**
+     * @param config contains the server list, comma separated with the format
+     *               hostname:port
+     */
     @Inject
     public StaticLoadBalancer(ClientConfig config) {
         List<Server> serverList = new ArrayList<Server>();

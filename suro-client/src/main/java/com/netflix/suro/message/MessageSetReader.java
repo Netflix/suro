@@ -25,6 +25,11 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Iterator;
 
+/**
+ * Implements Iterator for each message in TMessageSet
+ *
+ * @author jbae
+ */
 public class MessageSetReader implements Iterable<Message> {
     static Logger log = LoggerFactory.getLogger(MessageSetReader.class);
 
@@ -32,7 +37,6 @@ public class MessageSetReader implements Iterable<Message> {
 
     public MessageSetReader(TMessageSet messageSet) {
         this.messageSet = messageSet;
-
     }
 
     public boolean checkCRC() {

@@ -39,7 +39,7 @@ import java.util.Properties;
 /**
  * Command line driver for Suro
  * 
- * @author metacret
+ * @author jbae
  * @author elandau
  */
 public class SuroServer {

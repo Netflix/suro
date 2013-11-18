@@ -23,6 +23,13 @@ import org.apache.hadoop.io.DataOutputBuffer;
 
 import java.nio.ByteBuffer;
 
+/**
+ * SerDe about TMessageSet. This is necessary when we want to persist
+ * TMessageSet to the disk based queue. Otherwise, TMessageSet which is not
+ * consumed yet would be lost when the server fails.
+ *
+ * @author jbae
+ */
 public class MessageSetSerDe implements SerDe<TMessageSet> {
     private DataOutputBuffer outBuffer = new DataOutputBuffer();
     private DataInputBuffer inBuffer = new DataInputBuffer();

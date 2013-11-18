@@ -17,12 +17,9 @@
 package com.netflix.suro.queue;
 
 import com.google.inject.Singleton;
-import org.apache.log4j.Logger;
 
 @Singleton
 public class QueueManager {
-    static Logger log = Logger.getLogger(QueueManager.class);
-
     public static final int IN_ERROR = 503;
     public static final int OK = 200;
 

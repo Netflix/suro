@@ -30,6 +30,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.CRC32;
 
+/**
+ * Suro Thrift communication payload is TMessageSet, thrift presentation of
+ * MessageSet. MessageSetBuilder can be helpful to easily create MessageSet
+ * with Builder pattern
+ *
+ * @author jbae
+ */
 public class MessageSetBuilder {
     static Logger log = LoggerFactory.getLogger(MessageSetBuilder.class);
 
@@ -37,6 +44,9 @@ public class MessageSetBuilder {
     private List<Message> messageList;
     private Compression compression = Compression.NO;
 
+    /**
+     * @param config contains information including application name, etc
+     */
     public MessageSetBuilder(ClientConfig config) {
         this.config = config;
         messageList = new ArrayList<Message>();
@@ -47,6 +57,11 @@ public class MessageSetBuilder {
         return this;
     }
 
+    /**
+     * By default, compression is NO
+     * @param compresson
+     * @return
+     */
     public MessageSetBuilder withCompression(Compression compresson) {
         this.compression = compresson;
         return this;
@@ -72,10 +87,23 @@ public class MessageSetBuilder {
         }
     }
 
+    /**
+     * @return number of messages in MessageSet
+     */
     public int size() {
         return messageList.size();
     }
 
+    /**
+     * Create compressed byte[] from the list of messages. Each message contains
+     * byte[] as its message body, so, this method is simply flattening byte[]
+     * for all messages in the messageList
+     *
+     * @param messageList
+     * @param compression
+     * @return
+     * @throws IOException
+     */
     public static byte[] createPayload(List<Message> messageList, Compression compression) throws IOException {
         ByteArrayDataOutput out = new ByteArrayDataOutputStream(outputStream.get());
         for (Message message : messageList) {
@@ -100,12 +128,25 @@ public class MessageSetBuilder {
                 }
             };
 
+    /**
+     * Compute CRC value for byte[]
+     *
+     * @param buffer
+     * @return
+     */
     public static long getCRC(byte[] buffer) {
         CRC32 crc = new CRC32();
         crc.update(buffer);
         return crc.getValue();
     }
 
+    /**
+     * Instead of calling withMessage, we can add messages from the queue.
+     * This method is reverse one of JDK BlockingQueue.drainTo.
+     *
+     * @param queue
+     * @param size
+     */
     public void drainFrom(Queue4Client queue, int size) {
         queue.drain(size, messageList);
     }

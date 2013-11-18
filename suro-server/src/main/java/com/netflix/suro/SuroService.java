@@ -58,5 +58,4 @@ public class SuroService {
             log.error("Exception while shutting down SuroServer: " + e.getMessage(), e);
         }
     }
-
 }

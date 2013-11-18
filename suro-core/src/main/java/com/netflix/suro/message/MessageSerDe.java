@@ -24,10 +24,16 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+/**
+ * Message itself should be (de)serialized. This serde is mainly used to persist
+ * messages to somewhere including file based queue
+ *
+ * @author jbae
+ */
 public class MessageSerDe implements SerDe<Message> {
     static Logger log = LoggerFactory.getLogger(MessageSerDe.class);
 
-    protected ThreadLocal<ByteArrayOutputStream> outputStream =
+    private ThreadLocal<ByteArrayOutputStream> outputStream =
             new ThreadLocal<ByteArrayOutputStream>() {
                 @Override
                 protected ByteArrayOutputStream initialValue() {
@@ -70,6 +76,4 @@ public class MessageSerDe implements SerDe<Message> {
     public String toString(byte[] payload) {
         return deserialize(payload).toString();
     }
-
-
 }

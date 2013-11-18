@@ -29,6 +29,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Memory based implementaion of {@link Notify}
+ *
+ * @param <E> type of notification
+ *
+ * @author jbae
+ */
 public class QueueNotify<E> implements Notify<E> {
     public static final String TYPE = "queue";
 

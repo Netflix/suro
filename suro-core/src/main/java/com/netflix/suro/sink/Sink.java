@@ -19,12 +19,16 @@ package com.netflix.suro.sink;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.netflix.suro.message.Message;
 
+/**
+ * Suro Sink interface
+ *
+ * @author jbae
+ */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 public interface Sink  {
     /**
      * Write a single message into the sink
      * 
-     * TODO: Is the write expected to block or return immediately?
      * @param message
      */
     void writeTo(Message message);

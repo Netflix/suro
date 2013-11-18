@@ -23,6 +23,9 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ *
+ */
 public class SerDeFactory {
     static Logger log = LoggerFactory.getLogger(SerDeFactory.class);
     private static ConcurrentMap<String, SerDe> map = new ConcurrentHashMap<String, SerDe>();

@@ -39,6 +39,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * This is actual worker for Thrift Server Processor
+ * Simply, it's accepting TMessageSet sent from suro client, checking CRC
+ * and adding it to the queue. Internally, it also implements message routing
+ * threads to read Message from TMessageSet and route them to the sinks.
+ *
+ * Since this is the frontend of Thrift Server, it is implementing service status
+ * and controlling to take the traffic or not.
+ *
+ * @author jbae
+ */
 @LazySingleton
 public class MessageQueue implements SuroServer.Iface {
     static Logger log = LoggerFactory.getLogger(MessageQueue.class);
@@ -227,9 +238,9 @@ public class MessageQueue implements SuroServer.Iface {
         isRunning = false;
         try {
             executors.shutdown();
-            executors.awaitTermination(5, TimeUnit.SECONDS);
+            executors.awaitTermination(config.messageRouterMaxPollTimeout * 2, TimeUnit.MILLISECONDS);
             if (executors.isTerminated() == false) {
-                log.error("MessageDispatcher was not shutdown gracefully within 5 seconds");
+                log.error("MessageDispatcher was not shutdown gracefully");
             }
             executors.shutdownNow();
         } catch (InterruptedException e) {

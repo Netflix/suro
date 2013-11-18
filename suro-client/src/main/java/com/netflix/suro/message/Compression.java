@@ -21,6 +21,16 @@ import com.ning.compress.lzf.LZFEncoder;
 
 import java.io.IOException;
 
+/**
+ * Suro message payload compression
+ * compress method receives byte[] and returns compressed byte[]
+ * decompress method receives compressed byte[] and returns uncompressed one
+ *
+ * 0, NO no compression
+ * 1, LZF LZF compression
+ *
+ * @author jbae
+ */
 public enum Compression {
     NO((byte)0) {
         byte[] compress(byte[] buffer) {

@@ -10,6 +10,12 @@ import org.jets3t.service.model.S3Object;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * When uploading files to S3 with opening up to the certain AWS id, this can be
+ * used
+ *
+ * @author jbae
+ */
 public class GrantAcl {
     static Logger log = LoggerFactory.getLogger(GrantAcl.class);
 

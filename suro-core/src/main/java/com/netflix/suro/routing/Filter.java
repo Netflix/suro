@@ -18,6 +18,9 @@ package com.netflix.suro.routing;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+/**
+ * Interface for message filter
+ */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 public interface Filter {
     public boolean doFilter(Object obj);
