@@ -16,6 +16,15 @@
 
 package com.netflix.suro.message;
 
+/**
+ * SerDe(Serialization/Deserialization) is necessary for converting POJO to
+ * byte[] vice versa. serialize() receives POJO and returns byte[], deserialize
+ * does reverse. For Java String, StringSerDe is implemented.
+ *
+ * @author jbae
+ *
+ * @param <T>
+ */
 public interface SerDe<T> {
     T deserialize(byte[] payload);
 

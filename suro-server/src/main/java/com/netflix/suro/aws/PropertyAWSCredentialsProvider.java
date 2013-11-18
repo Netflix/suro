@@ -8,7 +8,7 @@ import com.netflix.governator.annotations.Configuration;
  * AWSCredentialsProvider using properties to get accessKey and secretKey.
  * For command line these properties are set by SuroServer
  * 
- * @author metacret
+ * @author jbae
  * @author elandau
  */
 public class PropertyAWSCredentialsProvider implements AWSCredentialsProvider {

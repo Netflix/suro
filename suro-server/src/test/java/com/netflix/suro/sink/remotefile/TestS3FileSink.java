@@ -47,6 +47,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.List;
@@ -164,7 +165,7 @@ public class TestS3FileSink {
         // pre-create many files
         new File(testdir).mkdir();
         for (int i = 0; i < 100; ++i) {
-            new File(testdir, "fileNo" + i + ".done").createNewFile();
+            createFile(i);
         }
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
 
@@ -181,6 +182,14 @@ public class TestS3FileSink {
             ++count;
         }
         assertEquals(count, 100);
+    }
+
+    private void createFile(int i) throws IOException {
+        File f = new File(testdir, "fileNo" + i + ".done");
+        f.createNewFile();
+        FileOutputStream o = new FileOutputStream(f);
+        o.write(100/*any data*/);
+        o.close();
     }
 
     @Test
@@ -200,7 +209,7 @@ public class TestS3FileSink {
         // pre-create many files
         new File(testdir).mkdir();
         for (int i = 0; i < 100; ++i) {
-            new File(testdir, "fileNo" + i + ".done").createNewFile();
+            createFile(i);
         }
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
 

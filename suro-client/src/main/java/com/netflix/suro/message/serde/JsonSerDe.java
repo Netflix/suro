@@ -22,6 +22,9 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.SerDe;
 import org.apache.log4j.Logger;
 
+/**
+ * @param <T>
+ */
 public class JsonSerDe<T> implements SerDe<T> {
     static Logger log = Logger.getLogger(JsonSerDe.class);
 

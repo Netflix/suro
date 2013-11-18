@@ -28,10 +28,21 @@ import com.netflix.suro.ClientConfig;
 
 import java.util.List;
 
+/**
+ * LoadBalancer based on Netflix Eureka
+ * LoadBalancer will have the list of servers and it is embedded in
+ * ConnectionPool. EurekaLoadBalancer will discover all registered servers
+ * from Eureka server.
+ *
+ * @author jbae
+ */
 @LazySingleton
 public class EurekaLoadBalancer extends DynamicServerListLoadBalancer {
     private final int port;
 
+    /**
+     * @param config contains vipAddress
+     */
     @Inject
     public EurekaLoadBalancer(ClientConfig config) {
         String[] vipAddress_port = config.getLoadBalancerServer().split(":");
@@ -47,6 +58,13 @@ public class EurekaLoadBalancer extends DynamicServerListLoadBalancer {
         super.initWithNiwsConfig(loadBalancerConfig);
     }
 
+    /**
+     * This function is called from ConnectionPool to retrieve which server to
+     * communicate
+     *
+     * @param key can bel null
+     * @return
+     */
     @Override
     public Server chooseServer(Object key) {
         Server server = super.chooseServer(key);

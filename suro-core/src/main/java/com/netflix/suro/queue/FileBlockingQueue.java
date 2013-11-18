@@ -39,6 +39,21 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * File based blocking queue with <a href="https://github.com/bulldog2011/bigqueue">BigQueue</a>
+ * @param <E> Type name should be given and its SerDe should be implemented.
+ *
+ * With the argument path and name, files will be created under the directory
+ * [path]/[name]. BigQueue needs to do garge collection, which is deleting
+ * unnecessary page file. Garbage collection is done in the background every
+ * gcPeriodInSec seconds.
+ *
+ * When the messages are retrieved from the queue,
+ * we can control the behavior whether to remove messages immediately or wait
+ * until we commit. autoCommit true means removing messages immediately.
+ *
+ * @author jbae
+ */
 public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E> {
     static Logger log = LoggerFactory.getLogger(FileBlockingQueue.class);
 
@@ -66,7 +81,12 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
     private long consumedIndex;
     private final boolean autoCommit;
 
-    public FileBlockingQueue(String path, String name, int gcPeriodInSec, SerDe<E> serDe, boolean autoCommit) throws IOException {
+    public FileBlockingQueue(
+            String path,
+            String name,
+            int gcPeriodInSec,
+            SerDe<E> serDe,
+            boolean autoCommit) throws IOException {
         innerArray = new BigArrayImpl(path, name);
         // the ttl does not matter here since queue front index page is always cached
         this.queueFrontIndexPageFactory = new MappedPageFactoryImpl(QUEUE_FRONT_INDEX_PAGE_SIZE,

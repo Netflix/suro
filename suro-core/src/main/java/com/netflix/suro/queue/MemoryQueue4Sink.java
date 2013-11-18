@@ -10,6 +10,11 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Memory based MessageQueue4Sink, embedding ArrayBlockingQueue
+ *
+ * @author jbae
+ */
 @NotThreadSafe
 public class MemoryQueue4Sink implements MessageQueue4Sink {
     public static final String TYPE = "memory";

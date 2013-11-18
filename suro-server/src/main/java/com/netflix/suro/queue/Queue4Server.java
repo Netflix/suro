@@ -24,11 +24,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * BlockingQueue wrapper for MessageQueue
+ *
+ * @author jbae
+ */
 public class Queue4Server {
     static Logger logger = LoggerFactory.getLogger(Queue4Server.class);
 
@@ -47,7 +51,8 @@ public class Queue4Server {
                         config.getFileQueueName(),
                         new Period(config.getFileQueueGCPeriod()).toStandardSeconds().getSeconds(),
                         new MessageSetSerDe(),
-                        true); // auto-commit needed due to MessageSet consumers are multithreaded
+                        true); // auto-commit needed due to MessageSet consumers
+                               // are multithreaded
             } catch (IOException e) {
                 logger.error("Exception on initializing Queue4Client: " + e.getMessage(), e);
             }
@@ -60,10 +65,6 @@ public class Queue4Server {
 
     public TMessageSet poll(long timeout, TimeUnit timeUnit) throws InterruptedException {
         return queue.poll(timeout, timeUnit);
-    }
-
-    public int drain(int batchSize, List<TMessageSet> msgList) {
-        return queue.drainTo(msgList, batchSize);
     }
 
     public void close() {

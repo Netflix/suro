@@ -7,6 +7,15 @@ import com.netflix.suro.message.Message;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Queue interface used in Sink
+ * With Java BlockingQueue interface, we cannot control 'commit' behavior such as
+ * before writing messages retrieved from the queue to sink, when the process dies,
+ * we will lose messages when messages are removed immediately after being polled.
+ * To implement 'commit' behavior, we need to implement own queue interface.
+ *
+ * @author jbae
+ */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
         @JsonSubTypes.Type(name = MemoryQueue4Sink.TYPE, value = MemoryQueue4Sink.class),

@@ -26,6 +26,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+/**
+ * Message routing module according to {@link RoutingMap}
+ *
+ * @author jbae
+ */
 @LazySingleton
 public class MessageRouter {
     static Logger log = LoggerFactory.getLogger(MessageRouter.class);

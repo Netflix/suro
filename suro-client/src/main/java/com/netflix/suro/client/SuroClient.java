@@ -34,6 +34,12 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Properties;
 
+/**
+ * Wrapped implementation of ISuroClient
+ * Depending on its configuration, it will select either SyncSuroClient
+ * or AsyncSuorClient
+ * @author jbae
+ */
 public class SuroClient implements ISuroClient {
     static Logger log = LoggerFactory.getLogger(SuroClient.class);
 
@@ -54,28 +60,26 @@ public class SuroClient implements ISuroClient {
     private Injector createInjector(final Properties properties) {
         injector = LifecycleInjector
                 .builder()
-                .withBootstrapModule
-                        (
-                                new BootstrapModule() {
-                                    @Override
-                                    public void configure(BootstrapBinder binder) {
-                                        binder.bindConfigurationProvider().toInstance(
-                                                new PropertiesConfigurationProvider(properties));
+                .withBootstrapModule(
+                        new BootstrapModule() {
+                            @Override
+                            public void configure(BootstrapBinder binder) {
+                                binder.bindConfigurationProvider().toInstance(
+                                        new PropertiesConfigurationProvider(properties));
 
-                                        if (properties.getProperty(ClientConfig.LB_TYPE, "eureka").equals("eureka")) {
-                                            binder.bind(ILoadBalancer.class).to(EurekaLoadBalancer.class);
-                                        } else {
-                                            binder.bind(ILoadBalancer.class).to(StaticLoadBalancer.class);
-                                        }
-
-                                        if (properties.getProperty(ClientConfig.CLIENT_TYPE, "async").equals("async")) {
-                                            binder.bind(ISuroClient.class).to(AsyncSuroClient.class);
-                                        } else {
-                                            binder.bind(ISuroClient.class).to(SyncSuroClient.class);
-                                        }
-                                    }
+                                if (properties.getProperty(ClientConfig.LB_TYPE, "eureka").equals("eureka")) {
+                                    binder.bind(ILoadBalancer.class).to(EurekaLoadBalancer.class);
+                                } else {
+                                    binder.bind(ILoadBalancer.class).to(StaticLoadBalancer.class);
                                 }
-                        )
+
+                                if (properties.getProperty(ClientConfig.CLIENT_TYPE, "async").equals("async")) {
+                                    binder.bind(ISuroClient.class).to(AsyncSuroClient.class);
+                                } else {
+                                    binder.bind(ISuroClient.class).to(SyncSuroClient.class);
+                                }
+                            }
+                        })
                 .createInjector();
         LifecycleManager manager = injector.getInstance(LifecycleManager.class);
 

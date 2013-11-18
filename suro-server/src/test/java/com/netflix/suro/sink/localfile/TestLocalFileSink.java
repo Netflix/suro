@@ -38,10 +38,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -392,10 +389,11 @@ public class TestLocalFileSink {
             String fileName = "testFile" + i + LocalFileSink.done;
             File f = new File(testdir, fileName);
             f.createNewFile();
+            FileOutputStream o = new FileOutputStream(f);
+            o.write(100 /*any data*/);
+            o.close();
             filePathSet.add(f.getAbsolutePath());
         }
-        new File(testdir, "testFile" + (numFiles - 1) + LocalFileSink.suffix).createNewFile();
-        filePathSet.add(new File(testdir, "testFile" + (numFiles - 1) + LocalFileSink.done).getAbsolutePath());
 
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
@@ -416,11 +414,13 @@ public class TestLocalFileSink {
                 }
             }
         });
-        LocalFileSink sink = (LocalFileSink)mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
-        assertEquals(sink.cleanUp(testdir), 5);
+        LocalFileSink sink = (LocalFileSink)mapper.readValue(
+                localFileSinkSpec,
+                new TypeReference<Sink>(){});
+        assertEquals(sink.cleanUp(testdir), numFiles -1); // due to empty file wouldn't be clean up
 
         Set<String> filePathSetResult = new HashSet<String>();
-        for (int i = 0; i < numFiles; ++i) {
+        for (int i = 0; i < numFiles - 1; ++i) {
             filePathSetResult.add(sink.recvNotify());
         }
         assertEquals(filePathSet, filePathSetResult);

@@ -18,6 +18,10 @@ package com.netflix.suro.client;
 
 import com.netflix.suro.message.Message;
 
+/**
+ * Interface for SuroClient
+ * @author jbae
+ */
 public interface ISuroClient {
     void send(Message message);
 

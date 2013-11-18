@@ -23,12 +23,18 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Arrays;
 
+/**
+ * Suro message payload contains routing key as String and payload as byte[].
+ * This implements Hadoop Writable interface, so it can be written to Hadoop
+ * Sequence file. Empty constructor is needed for Writable interface.
+ *
+ * @author jbae
+ */
 public class Message implements Writable {
     private String routingKey;
     private byte[] payload;
 
     public Message() {}
-    // constructor for MessageSetBuilder
     public Message(String routingKey, byte[] payload) {
         this.routingKey = routingKey;
         this.payload = payload;

@@ -110,7 +110,7 @@ public class ServerConfig {
     }
 
     public int messageRouterDefaultPollTimeout = 500;
-    public int messageRouterMaxPollTimeout = 10000;
+    public int messageRouterMaxPollTimeout = 2500;
     @Override
     public String toString() {
         return "ServerConfig [port=" + port + ", startupTimeout="

@@ -29,6 +29,11 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * File based MessageQueue4Sink, embedding FileBlockinQueue
+ *
+ * @author jbae
+ */
 @NotThreadSafe
 public class FileQueue4Sink implements MessageQueue4Sink {
     static Logger log = LoggerFactory.getLogger(FileQueue4Sink.class);

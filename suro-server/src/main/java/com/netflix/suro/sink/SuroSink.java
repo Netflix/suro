@@ -7,6 +7,11 @@ import com.netflix.suro.message.Message;
 
 import java.util.Properties;
 
+/**
+ * Sink implementation of suro client for sending messages to suro server
+ *
+ * @author jbae
+ */
 public class SuroSink implements Sink {
     public static final String TYPE = "suro";
 

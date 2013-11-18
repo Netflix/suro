@@ -47,6 +47,14 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * LocalFileSink appends messages to the file in local file system and rotates
+ * the file when the file size reaches to the threshold or in the regular basis
+ * whenever it comes earlier. When {@link SpaceChecker} checks not enough disk
+ * space, it triggers {@link QueueManager} not to take the traffic anymore.
+ *
+ * @author jbae
+ */
 public class LocalFileSink extends QueuedSink implements Sink {
     static Logger log = LoggerFactory.getLogger(LocalFileSink.class);
 
@@ -104,8 +112,12 @@ public class LocalFileSink extends QueuedSink implements Sink {
         this.queueManager = queueManager;
         this.spaceChecker = spaceChecker;
 
-        Monitors.registerObject(LocalFileSink.class.getSimpleName() + "-" + outputDir, this);
+        Monitors.registerObject(LocalFileSink.class.getSimpleName() + "-" + outputDir.replace('/', '_'), this);
         initialize(queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+    }
+
+    public String getOutputDir() {
+        return outputDir;
     }
 
     @Override
@@ -255,22 +267,26 @@ public class LocalFileSink extends QueuedSink implements Sink {
             FileSystem fs = writer.getFS();
             FileStatus[] files = fs.listStatus(new Path(dir));
             for (FileStatus file: files) {
-                String fileName = file.getPath().getName();
-                String fileExt = getFileExt(fileName);
-                if (fileExt != null && fileExt.equals(done)) {
-                    notify.send(dir + fileName);
-                    ++count;
-                } else if (fileExt != null) {
-                    long lastPeriod =
-                            new DateTime().minus(rotationPeriod).minus(rotationPeriod).getMillis();
-                    if (file.getModificationTime() < lastPeriod) {
-                        ++errorClosedFiles;
-                        log.error(dir + fileName + " is not closed properly!!!");
-                        String doneFile = fileName.replace(fileExt, done);
-                        writer.setDone(dir + fileName, dir + doneFile);
-                        notify.send(dir + doneFile);
+                if (file.getLen() > 0) {
+                    String fileName = file.getPath().getName();
+                    String fileExt = getFileExt(fileName);
+                    if (fileExt != null && fileExt.equals(done)) {
+                        notify.send(dir + fileName);
                         ++count;
+                    } else if (fileExt != null) {
+                        long lastPeriod =
+                                new DateTime().minus(rotationPeriod).minus(rotationPeriod).getMillis();
+                        if (file.getModificationTime() < lastPeriod) {
+                            ++errorClosedFiles;
+                            log.error(dir + fileName + " is not closed properly!!!");
+                            String doneFile = fileName.replace(fileExt, done);
+                            writer.setDone(dir + fileName, dir + doneFile);
+                            notify.send(dir + doneFile);
+                            ++count;
+                        }
                     }
+                } else {
+                    log.warn("0 length file " + file.getPath().getName() + " is abandoned");
                 }
             }
         } catch (Exception e) {

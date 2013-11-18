@@ -30,7 +30,7 @@ import java.util.Map;
 /**
  * Tracks the main routing map as a volatile immutable Map of route key to filter and destination
  * 
- * @author metacret
+ * @author jbae
  * @author elandau
  *
  */

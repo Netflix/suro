@@ -41,6 +41,9 @@ import javax.annotation.PreDestroy;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Asynchronous suro client
+ */
 public class AsyncSuroClient implements ISuroClient {
     static Logger log = LoggerFactory.getLogger(AsyncSuroClient.class);
 

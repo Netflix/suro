@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
+import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.FileNameFormatter;
@@ -53,6 +54,12 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Sink for S3. Ths is embedding local file sink. When local file sink rotates
+ * the file, the file is uploaded to S3.
+ *
+ * @author jbae
+ */
 public class S3FileSink implements Sink {
     public static final String TYPE = "s3";
 
@@ -122,6 +129,10 @@ public class S3FileSink implements Sink {
         if (batchUpload == false) {
             localFileSink.cleanUp();
         }
+
+        Monitors.registerObject(
+                S3FileSink.class.getSimpleName() + '-' + localFileSink.getOutputDir().replace('/', '_'),
+                this);
     }
 
     // testing purpose only
@@ -273,6 +284,11 @@ public class S3FileSink implements Sink {
             public void run() {
                 try {
                     File localFile = new File(filePath);
+                    if (localFile.length() == 0) {
+                        log.warn("empty file: " + filePath + " is abandoned");
+                        LocalFileSink.deleteFile(filePath);
+                        return;
+                    }
                     String remoteFilePath = makeUploadPath(localFile);
 
                     long t1 = System.currentTimeMillis();

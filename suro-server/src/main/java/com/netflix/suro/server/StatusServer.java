@@ -31,6 +31,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.*;
 
+/**
+ * Embedded Jetty for status page
+ *
+ * @author jbae
+ */
 @Singleton
 public class StatusServer {
     static Logger log = LoggerFactory.getLogger(StatusServer.class);

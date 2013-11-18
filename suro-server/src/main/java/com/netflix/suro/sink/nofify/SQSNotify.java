@@ -23,9 +23,11 @@ import com.amazonaws.services.sqs.model.*;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
+import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.sink.notify.Notify;
 import org.slf4j.Logger;
@@ -35,6 +37,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * SQS {@link Notify} implementation
+ *
+ * @author jbae
+ */
 public class SQSNotify implements Notify<String> {
     static Logger log = LoggerFactory.getLogger(SQSNotify.class);
 
@@ -88,6 +95,8 @@ public class SQSNotify implements Notify<String> {
         if (maxRetries > 0) {
             clientConfig = clientConfig.withMaxErrorRetry(maxRetries);
         }
+
+        Monitors.registerObject(Joiner.on('_').join(queues), this);
     }
 
     @Override

@@ -23,6 +23,9 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+/**
+ * Exposing Guava's ByteStreams.ByteArrayDataOutput, which is private static.
+ */
 public class ByteArrayDataOutputStream implements ByteArrayDataOutput {
     private final DataOutput output;
     private final ByteArrayOutputStream byteArrayOutputSteam;

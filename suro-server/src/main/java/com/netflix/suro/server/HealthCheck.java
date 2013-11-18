@@ -32,6 +32,12 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 
+/**
+ * Healthcheck page for suro server
+ * It is checking whether connecting to the suro server itself is available
+ *
+ * @author jbae
+ */
 @Path("/healthcheck")
 @Singleton
 public class HealthCheck {

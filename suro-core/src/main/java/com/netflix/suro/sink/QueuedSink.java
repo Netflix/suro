@@ -12,6 +12,15 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Asynchronous sink would have the internal buffer to return on
+ * {@link Sink#writeTo(com.netflix.suro.message.Message)} method.
+ * Implementing asynchronous sink can be done by simply extending this class
+ * and initialize itself with {@link MessageQueue4Sink}. This is extending
+ * {@link Thread} and its start() method should be called.
+ *
+ * @author jbae
+ */
 public abstract class QueuedSink extends Thread {
     static Logger log = LoggerFactory.getLogger(QueuedSink.class);
 
@@ -99,7 +108,25 @@ public abstract class QueuedSink extends Thread {
         }
     }
 
+    /**
+     * Some preparation job before polling messages from the queue
+     *
+     * @throws IOException
+     */
     abstract protected void beforePolling() throws IOException;
+
+    /**
+     * Actual writing to the sink
+     *
+     * @param msgList
+     * @throws IOException
+     */
     abstract protected void write(List<Message> msgList) throws IOException;
+
+    /**
+     * Actual close implementation
+     *
+     * @throws IOException
+     */
     abstract protected void innerClose() throws IOException;
 }

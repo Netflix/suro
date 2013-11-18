@@ -23,6 +23,13 @@ import org.apache.hadoop.fs.FileSystem;
 
 import java.io.IOException;
 
+/**
+ * {@link LocalFileSink} is using Hadoop file IO module. For the text file, it's
+ * using FSDataOutputStream and for the binary formatted file, it's using Hadoop
+ * SequenceFile.
+ *
+ * @author jbae
+ */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
         @JsonSubTypes.Type(name = SequenceFileWriter.TYPE, value = SequenceFileWriter.class),

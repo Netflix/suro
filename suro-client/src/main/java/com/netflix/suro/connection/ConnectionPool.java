@@ -45,6 +45,15 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Pooling for thrift connection to suro-server
+ * After creating all connections to suro-server discovered by ILoadBalancer,
+ * when the client requests to get the connection, ConnectionPool returns
+ * connection. When there's no connection available, ConnectionPool will create
+ * the connection immediately, this is called OutPool connection.
+ *
+ * @author jbae
+ */
 @LazySingleton
 public class ConnectionPool {
     private static Logger logger = LoggerFactory.getLogger(ConnectionPool.class);
@@ -61,6 +70,11 @@ public class ConnectionPool {
     private BlockingQueue<SuroConnection> connectionQueue = new LinkedBlockingQueue<SuroConnection>();
     private CountDownLatch populationLatch;
 
+    /**
+     *
+     * @param config
+     * @param lb LoadBalancer implementation
+     */
     @Inject
     public ConnectionPool(ClientConfig config, ILoadBalancer lb) {
         this.config = config;
@@ -100,6 +114,9 @@ public class ConnectionPool {
         newConnectionBuilder.shutdownNow();
     }
 
+    /**
+     * @return number of connections in the pool
+     */
     @Monitor(name = "PoolSize", type = DataSourceType.GAUGE)
     public int getPoolSize() {
         return connectionList.size();
@@ -107,6 +124,10 @@ public class ConnectionPool {
 
     @Monitor(name = "OutPoolSize", type = DataSourceType.GAUGE)
     private AtomicInteger outPoolSize = new AtomicInteger(0);
+
+    /**
+     * @return number of connections created out of the pool
+     */
     public int getOutPoolSize() {
         return outPoolSize.get();
     }
@@ -172,6 +193,10 @@ public class ConnectionPool {
         }
     }
 
+    /**
+     * When the client calls this method, it will return the connection.
+     * @return connection
+     */
     public SuroConnection chooseConnection() {
         SuroConnection connection = connectionQueue.poll();
         if (connection == null) {
@@ -246,6 +271,11 @@ public class ConnectionPool {
         };
     }
 
+    /**
+     * When the client finishes communication with the client, this method
+     * should be called to release the connection and return it to the pool.
+     * @param connection
+     */
     public void endConnection(SuroConnection connection) {
         if (connection != null && shouldChangeConnection(connection)) {
             connection.initStat();
@@ -258,6 +288,12 @@ public class ConnectionPool {
         }
     }
 
+    /**
+     * Mark up the server related with the connection as down
+     * When the client fails to communicate with the connection,
+     * this method should be called to remove the server from the pool
+     * @param connection
+     */
     public void markServerDown(SuroConnection connection) {
         if (connection != null) {
             lb.markServerDown(connection.getServer());
@@ -282,6 +318,9 @@ public class ConnectionPool {
         return false;
     }
 
+    /**
+     * Thrift socket connection wrapper with configuration
+     */
     public static class SuroConnection {
         private TTransport transport;
         private SuroServer.Client client;
@@ -293,6 +332,11 @@ public class ConnectionPool {
         private int sentCount = 0;
         private long timeUsed = 0;
 
+        /**
+         * @param server hostname and port information
+         * @param config properties including timeout, etc
+         * @param inPool whether this connection is in the pool or out of it
+         */
         public SuroConnection(Server server, ClientConfig config, boolean inPool) {
             this.server = server;
             this.config = config;
@@ -337,10 +381,17 @@ public class ConnectionPool {
 
         public Server getServer() { return server; }
 
+        /**
+         * @return How many times send() method is called
+         */
         public int getSentCount() {
             return sentCount;
         }
 
+        /**
+         * For the connection retention control
+         * @return how long it has been used from the client
+         */
         public long getTimeUsed() {
             return timeUsed;
         }

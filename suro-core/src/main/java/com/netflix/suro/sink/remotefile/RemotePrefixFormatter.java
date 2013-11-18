@@ -18,6 +18,13 @@ package com.netflix.suro.sink.remotefile;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+/**
+ * When uploading files to the remote file system such as S3 or HDFS, the file
+ * path should be specified. This interface is describing which file path would
+ * be prefixed to the file name.
+ *
+ * @author jbae
+ */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 public interface RemotePrefixFormatter {
     String get();
