@@ -11,6 +11,10 @@ import com.netflix.suro.sink.remotefile.formatter.DateRegionStackFormatter;
 import com.netflix.suro.sink.remotefile.formatter.SimpleDateFormatter;
 import com.netflix.suro.sink.remotefile.formatter.StaticPrefixFormatter;
 
+/**
+ *
+ * @author jbae
+ */
 public class SinkPlugin extends SuroPlugin {
     @Override
     protected void configure() {

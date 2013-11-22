@@ -19,6 +19,11 @@ package com.netflix.suro.sink.remotefile;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import org.jets3t.service.security.AWSSessionCredentials;
 
+/**
+ * AWSCredentialsProvider wrapper for jets3t library
+ *
+ * @author jbae
+ */
 public class AWSSessionCredentialsAdapter extends AWSSessionCredentials {
     private final AWSCredentialsProvider provider;
 

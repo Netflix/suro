@@ -10,6 +10,11 @@ import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
 
+/**
+ * Simple tool viewing sequence file
+ *
+ * @author jbae
+ */
 public class SequenceFileViewer {
     public static void main(String[] args) throws IOException {
         Configuration conf = new Configuration();

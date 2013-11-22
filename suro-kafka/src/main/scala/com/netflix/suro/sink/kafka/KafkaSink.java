@@ -21,6 +21,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+/**
+ * Kafka 0.8 Sink
+ *
+ * @author jbae
+ */
 public class KafkaSink extends QueuedSink implements Sink {
     public final static String TYPE = "Kafka";
 

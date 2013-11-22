@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Memory based implementaion of {@link Notify}
+ * Memory based implementation of {@link Notify}
  *
  * @param <E> type of notification
  *

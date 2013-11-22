@@ -12,6 +12,13 @@ import com.netflix.suro.sink.SinkManager;
 
 import java.util.Properties;
 
+/**
+ * Guice module for binding {@link AWSCredentialsProvider},
+ * Jackson {@link ObjectMapper}, {@link SinkManager}, {@link RoutingMap},
+ * {@link SuroService}, {@link StatusServer}
+ *
+ * @author elandau
+ */
 public class SuroModule extends AbstractModule {
     private final Properties properties;
     

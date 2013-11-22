@@ -40,6 +40,5 @@ public class PropertyAWSCredentialsProvider implements AWSCredentialsProvider {
     
     @Override
     public void refresh() {
-        // TODO: Hmmm... what should we do here
     }
 }
