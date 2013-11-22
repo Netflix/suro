@@ -23,6 +23,11 @@ import org.apache.log4j.Logger;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ * SinkManager contains map of sink name and its sink object.
+ *
+ * @author jbae
+ */
 @Singleton
 public class SinkManager {
     static Logger log = Logger.getLogger(SinkManager.class);

@@ -25,8 +25,9 @@ import java.io.IOException;
 
 /**
  * {@link LocalFileSink} is using Hadoop file IO module. For the text file, it's
- * using FSDataOutputStream and for the binary formatted file, it's using Hadoop
- * SequenceFile.
+ * using <a href=http://hadoop.apache.org/docs/r1.0.4/api/org/apache/hadoop/fs/FSDataOutputStream.html>FSDataOutputStream</a>
+ * and for the binary formatted file, it's using
+ * <a href=http://hadoop.apache.org/docs/r1.0.4/api/org/apache/hadoop/io/SequenceFile.html>SequenceFile</a>.
  *
  * @author jbae
  */
@@ -36,13 +37,47 @@ import java.io.IOException;
         @JsonSubTypes.Type(name = TextFileWriter.TYPE, value = TextFileWriter.class)
 })
 public interface FileWriter {
+    /**
+     * Open the file under outputDir with the file name formatted by
+     * {@link FileNameFormatter}
+     *
+     * @param outputDir
+     * @throws IOException
+     */
     void open(String outputDir) throws IOException;
+
+    /**
+     * @return the file length
+     * @throws IOException
+     */
     long getLength() throws IOException;
     void writeTo(Message message) throws IOException;
+
+    /**
+     * Flush all data to the disk
+     *
+     * @throws IOException
+     */
     void sync() throws IOException;
+
+    /**
+     * Close the current file, create and open the new file.
+     *
+     * @param newPath
+     * @throws IOException
+     */
     void rotate(String newPath) throws IOException;
     FileSystem getFS();
 
     void close() throws IOException;
+
+    /**
+     * This function markes the file as done. When the file is makred as done,
+     * it can be processed further such as uploading it to S3.
+     *
+     * @param oldName
+     * @param newName
+     * @throws IOException
+     */
     void setDone(String oldName, String newName) throws IOException;
 }

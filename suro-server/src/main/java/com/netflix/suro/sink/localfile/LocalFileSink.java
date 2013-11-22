@@ -152,6 +152,13 @@ public class LocalFileSink extends QueuedSink implements Sink {
         @Monitor(name = "freeSpace", type = DataSourceType.GAUGE)
         private long freeSpace;
 
+        /**
+         * When the disk free space percentage becomes less than minPercentFreeDisk
+         * we should stop taking the traffic.
+         *
+         * @param minPercentFreeDisk minimum percentage of free space
+         * @param outputDir
+         */
         public SpaceChecker(int minPercentFreeDisk, String outputDir) {
             this.minPercentFreeDisk = minPercentFreeDisk;
             this.outputDir = new File(outputDir);
@@ -159,6 +166,10 @@ public class LocalFileSink extends QueuedSink implements Sink {
             Monitors.registerObject(this);
         }
 
+        /**
+         *
+         * @return true when the local disk on output directory has enough space, otherwise false
+         */
         public boolean hasEnoughSpace() {
             long totalSpace = outputDir.getTotalSpace();
 
@@ -176,7 +187,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
         String newName = FileNameFormatter.get(outputDir) + suffix;
         writer.rotate(newName);
 
-        renameNotify(filePath);
+        renameAndNotify(filePath);
 
         filePath = newName;
 
@@ -189,6 +200,12 @@ public class LocalFileSink extends QueuedSink implements Sink {
         }
     }
 
+    /**
+     * Before polling messages from the queue, it should check whether to rotate
+     * the file and start to write to new file.
+     *
+     * @throws IOException
+     */
     @Override
     protected void beforePolling() throws IOException {
         // Don't rotate if we are not running
@@ -199,6 +216,13 @@ public class LocalFileSink extends QueuedSink implements Sink {
         }
     }
 
+    /**
+     * Write all messages in msgList to file writer, sync the file,
+     * commit the queue and clear messages
+     *
+     * @param msgList
+     * @throws IOException
+     */
     @Override
     protected void write(List<Message> msgList) throws IOException {
         for (Message msg : msgList) {
@@ -225,7 +249,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
     @Override
     protected void innerClose() throws IOException {
         writer.close();
-        renameNotify(filePath);
+        renameAndNotify(filePath);
     }
 
     @Override
@@ -233,7 +257,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
         return notify.recv();
     }
 
-    private void renameNotify(String filePath) throws IOException {
+    private void renameAndNotify(String filePath) throws IOException {
         if (filePath != null) {
             if (messageWrittenInRotation) {
                 // if we have the previous file
@@ -252,10 +276,24 @@ public class LocalFileSink extends QueuedSink implements Sink {
         messageWrittenInRotation = false;
     }
 
+    /**
+     * This method calls {@link #cleanUp(String)} with outputDir
+     *
+     * @return
+     */
     public int cleanUp() {
         return cleanUp(outputDir);
     }
 
+    /**
+     * List all files under the directory. If the file is marked as done, the
+     * notification for that file would be sent. Otherwise, it checks the file
+     * is not closed properly, the file is marked as done and the notification
+     * would be sent. That file would cause EOFException when reading.
+     *
+     * @param dir
+     * @return the number of files found in the directory
+     */
     public int cleanUp(String dir) {
         if (dir.endsWith("/") == false) {
             dir += "/";
@@ -296,6 +334,12 @@ public class LocalFileSink extends QueuedSink implements Sink {
         }
     }
 
+    /**
+     * Simply returns file extension from the file path
+     *
+     * @param fileName
+     * @return
+     */
     public static String getFileExt(String fileName) {
         int dotPos = fileName.lastIndexOf('.');
         if (dotPos != -1 && dotPos != fileName.length() - 1) {
@@ -314,9 +358,15 @@ public class LocalFileSink extends QueuedSink implements Sink {
     }
 
     private static final int deleteFileRetryCount = 5;
+
+    /**
+     *  With AWS EBS, sometimes deletion failure without any IOException was
+     *  observed To prevent the surplus files, let's iterate file deletion.
+     *  By default, it will try for five times.
+     *
+     * @param filePath
+     */
     public static void deleteFile(String filePath) {
-        // with AWS EBS, sometimes deletion failure without any IOException was observed
-        // To prevent the surplus files, let's iterate file deletion
         int retryCount = 1;
         while (new File(filePath).exists() && retryCount <= deleteFileRetryCount) {
             try {

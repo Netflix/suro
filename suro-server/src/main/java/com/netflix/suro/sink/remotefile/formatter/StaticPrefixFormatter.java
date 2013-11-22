@@ -20,6 +20,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.netflix.suro.sink.remotefile.RemotePrefixFormatter;
 
+/**
+ * Append static prefix for the remote file path
+ *
+ * @author jbae
+ */
 public class StaticPrefixFormatter implements RemotePrefixFormatter {
     public static final String TYPE = "static";
 

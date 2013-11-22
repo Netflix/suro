@@ -23,6 +23,11 @@ import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+/**
+ * Append only date formatted string to the remote file path
+ *
+ * @author jbae
+ */
 public class SimpleDateFormatter implements RemotePrefixFormatter {
     public static final String TYPE = "date";
 

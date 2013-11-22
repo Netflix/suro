@@ -18,6 +18,11 @@ package com.netflix.suro.sink.nofify;
 
 import com.netflix.suro.sink.notify.Notify;
 
+/**
+ * Do nothing on notification for debugging purpose
+ *
+ * @author jbae
+ */
 public class NoNotify implements Notify<String> {
     public static final String TYPE = "no";
 

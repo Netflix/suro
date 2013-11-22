@@ -24,6 +24,14 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.rmi.server.UID;
 
+/**
+ * File name formatter used in LocalFileSink
+ * File name is formated as [PyyyyMMDDtHHmmss][hostname][random UID]
+ *
+ * TODO: This should be configurable
+ *
+ * @author jbae
+ */
 public class FileNameFormatter {
     public static String localHostAddr;
     static {
@@ -36,6 +44,11 @@ public class FileNameFormatter {
 
     private static DateTimeFormatter fmt = DateTimeFormat.forPattern("'P'yyyyMMdd'T'HHmmss");
 
+    /**
+     *
+     * @param dir directory path where the files are written
+     * @return full file path with the directory suffixed
+     */
     public static String get(String dir) {
         StringBuilder sb = new StringBuilder(dir);
         if (dir.endsWith("/") == false) {

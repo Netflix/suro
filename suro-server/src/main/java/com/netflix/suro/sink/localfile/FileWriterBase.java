@@ -31,14 +31,17 @@ import org.slf4j.Logger;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+/**
+ * This class is used at both {@link SequenceFileWriter} and {@link TextFileWriter}.
+ *
+ * @author jbae
+ */
 public class FileWriterBase {
     private final FileSystem fs;
     private final CompressionCodec codec;
     private final Configuration conf;
-    private final Logger log;
 
     public FileWriterBase(String codecClass, Logger log, Configuration conf) {
-        this.log = log;
         this.conf = conf;
 
         try {
@@ -55,6 +58,13 @@ public class FileWriterBase {
         }
     }
 
+    /**
+     * Implementation of {@link FileWriter#setDone(String, String)}
+     *
+     * @param oldName
+     * @param newName
+     * @throws IOException
+     */
     public void setDone(String oldName, String newName) throws IOException {
         Path oldPath = new Path(oldName);
         fs.rename(oldPath, new Path(newName));
@@ -80,11 +90,24 @@ public class FileWriterBase {
         }
     }
 
+    /**
+     *
+     * @param codecClass codec class path
+     * @return
+     * @throws ClassNotFoundException
+     */
     public static CompressionCodec createCodecInstance(String codecClass) throws ClassNotFoundException {
         Class<?> classDefinition = Class.forName(codecClass);
         return (CompressionCodec) ReflectionUtils.newInstance(classDefinition, new Configuration());
     }
 
+    /**
+     * Create a new sequence file
+     *
+     * @param newPath
+     * @return
+     * @throws IOException
+     */
     public SequenceFile.Writer createSequenceFile(String newPath) throws IOException {
         if (codec != null) {
             return SequenceFile.createWriter(
@@ -99,10 +122,25 @@ public class FileWriterBase {
         }
     }
 
+    /**
+     * Create a new FSDataOutputStream from path
+     *
+     * @param path
+     * @return
+     * @throws IOException
+     */
     public FSDataOutputStream createFSDataOutputStream(String path) throws IOException {
         return fs.create(new Path(path), false);
     }
 
+    /**
+     * Create a DataOutputStream from FSDataOutputStream. If the codec is available,
+     * it will create compressed DataOutputStream, otherwise, it will return itself.
+     *
+     * @param outputStream
+     * @return
+     * @throws IOException
+     */
     public DataOutputStream createDataOutputStream(FSDataOutputStream outputStream) throws IOException {
         if (codec != null) {
             return new FSDataOutputStream(codec.createOutputStream(outputStream), null);

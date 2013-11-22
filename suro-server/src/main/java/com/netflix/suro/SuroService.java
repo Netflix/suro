@@ -12,7 +12,9 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 /**
- * Main service for suro to control all subsystems
+ * Main service for suro to control all subsystems including
+ * {@link StatusServer}, {@link ThriftServer}, {@link MessageQueue}, and
+ * {@link SinkManager}
  * 
  * @author elandau
  */

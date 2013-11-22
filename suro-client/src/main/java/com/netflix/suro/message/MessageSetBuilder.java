@@ -42,7 +42,7 @@ public class MessageSetBuilder {
 
     private final ClientConfig config;
     private List<Message> messageList;
-    private Compression compression = Compression.NO;
+    private Compression compression = Compression.LZF;
 
     /**
      * @param config contains information including application name, etc
@@ -57,11 +57,6 @@ public class MessageSetBuilder {
         return this;
     }
 
-    /**
-     * By default, compression is NO
-     * @param compresson
-     * @return
-     */
     public MessageSetBuilder withCompression(Compression compresson) {
         this.compression = compresson;
         return this;
