@@ -19,7 +19,7 @@ package com.netflix.suro.routing;
 import com.google.inject.Inject;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.servo.monitor.Monitors;
-import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.sink.SinkManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +48,7 @@ public class MessageRouter {
         Monitors.registerObject(this);
     }
 
-    public void process(Message msg) {
+    public void process(MessageContainer msg) {
         RoutingMap.RoutingInfo info = routingMap.getRoutingInfo(msg.getRoutingKey());
 
         if (info == null) {
