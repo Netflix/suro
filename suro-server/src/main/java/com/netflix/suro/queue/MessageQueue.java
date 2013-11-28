@@ -16,6 +16,9 @@
 
 package com.netflix.suro.queue;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.servo.annotations.DataSourceType;
@@ -26,6 +29,7 @@ import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.message.MessageSetBuilder;
 import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.routing.MessageRouter;
@@ -35,6 +39,7 @@ import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -78,16 +83,19 @@ public class MessageQueue implements SuroServer.Iface {
     private final MessageRouter router;
     private final ServerConfig config;
     private ExecutorService executors;
-
+    private final ObjectMapper mapper;
+    
     @Inject
     public MessageQueue(
             Queue4Server queue,
             MessageRouter router,
             QueueManager manager,
-            ServerConfig config) throws Exception {
+            ServerConfig config, 
+            ObjectMapper mapper) throws Exception {
         this.queue = queue;
         this.router = router;
         this.config = config;
+        this.mapper = mapper;
 
         isRunning = true;
 
@@ -227,8 +235,51 @@ public class MessageQueue implements SuroServer.Iface {
     private void processMessageSet(TMessageSet tMessageSet) {
         MessageSetReader reader = new MessageSetReader(tMessageSet);
 
-        for (Message message : reader) {
-            router.process(message);
+        for (final Message message : reader) {
+            router.process(new MessageContainer() {
+                class Item {
+                    TypeReference<?> tr;
+                    Object obj;
+                }
+                
+                private String       str;
+                private List<Item> cache;
+                
+                @Override
+                public <T> T getEntity(Class<T> clazz) throws Exception {
+                    if (clazz.equals(byte[].class))
+                        return (T)message.getPayload();
+                    else if (clazz.equals(String.class)) {
+                        return (T)new String(message.getPayload());
+                    }
+                    else {
+                        TypeReference<T> typeReference = new TypeReference<T>(){};
+                        if (cache == null) {
+                            cache = Lists.newLinkedList();
+                        }
+                        for (Item item : cache) {
+                            if (item.tr.equals(typeReference))
+                                return (T)item.obj;
+                        }
+                        Item item = new Item();
+                        item.tr = typeReference;
+                        item.obj = mapper.readValue(message.getPayload(), typeReference);
+                        cache.add(item);
+                        return (T)item.obj;
+                    }
+                }
+
+                @Override
+                public String getRoutingKey() {
+                    return message.getRoutingKey();
+                }
+
+                @Override
+                public Message getMessage() {
+                    return message;
+                }
+                
+            });
         }
     }
 
