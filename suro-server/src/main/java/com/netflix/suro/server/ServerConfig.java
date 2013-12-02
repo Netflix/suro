@@ -35,8 +35,12 @@ public class ServerConfig {
 
     public static final String THRIFT_WORKER_THREAD_NUM = "SuroServer.thriftWorkerThreadNum";
     @Configuration(THRIFT_WORKER_THREAD_NUM)
-    private int thriftWorkerThreadNum = 10;
+    private int thriftWorkerThreadNum = -1;
     public int getThriftWorkerThreadNum() {
+        if(thriftWorkerThreadNum < 0) {
+            return Runtime.getRuntime().availableProcessors();
+        }
+
         return thriftWorkerThreadNum;
     }
 
