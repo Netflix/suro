@@ -21,6 +21,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.inject.Singleton;
+import com.netflix.suro.message.MessageContainer;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +54,7 @@ public class RoutingMap {
         }
 
         public List<String> getWhere() { return where; }
-        public boolean doFilter(Object message) {
+        public boolean doFilter(MessageContainer message) throws Exception {
             return filter != null ? filter.doFilter(message) : true;
         }
     }

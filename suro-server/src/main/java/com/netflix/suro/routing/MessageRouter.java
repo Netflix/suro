@@ -48,7 +48,7 @@ public class MessageRouter {
         Monitors.registerObject(this);
     }
 
-    public void process(MessageContainer msg) {
+    public void process(MessageContainer msg) throws Exception {
         RoutingMap.RoutingInfo info = routingMap.getRoutingInfo(msg.getRoutingKey());
 
         if (info == null) {
