@@ -118,9 +118,6 @@ project(':suro-integration-test') {
 }
 
 project(':suro-kafka') {
-  sourceSets.main.scala.srcDir "src/main/java"
-  sourceSets.main.java.srcDirs = []
-
   dependencies {
     compile project(':suro-core')
 

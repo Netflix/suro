@@ -61,15 +61,15 @@ public class TestMessageSet {
     @Test
     public void testEmptyBuilder() {
         TMessageSet messageSet = new MessageSetBuilder(new ClientConfig()).build();
-        assertEquals(messageSet.getMessages().length, 0);
+        assertEquals(messageSet.getNumMessages(), 0);
     }
     @Test
     public void testBuilder() throws IOException {
         TMessageSet messageSet = buildMessageSet();
 
-        assertEquals(messageSet.getCompression(), 0);
+        assertEquals(messageSet.getCompression(), 1);
         byte[] bytePayload = messageSet.getMessages();
-        byte[] payload = MessageSetBuilder.createPayload(messageList, Compression.NO);
+        byte[] payload = MessageSetBuilder.createPayload(messageList, Compression.LZF);
         assertEquals(bytePayload.length, payload.length);
         for (int i = 0; i < bytePayload.length; ++i) {
             assertEquals(bytePayload[i], payload[i]);
