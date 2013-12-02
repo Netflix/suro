@@ -171,17 +171,17 @@ public class TestAsyncSuroClient {
         setupFile(props);
 
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
+
+        long start = System.currentTimeMillis();
         for (int i = 0; i < 50; ++i) {
             client.send(new Message("routingKey", "testMessage".getBytes()));
         }
 
-        long start = System.currentTimeMillis();
         while (client.getSentMessageCount() < 50) {
             Thread.sleep(100);
         }
 
         long duration = System.currentTimeMillis() - start;
-        System.out.println(duration);
-        assertTrue(duration > 5000);
+        assertTrue(duration >= 5000);
     }
 }
