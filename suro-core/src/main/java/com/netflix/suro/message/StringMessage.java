@@ -4,6 +4,10 @@ public class StringMessage implements MessageContainer {
 
     private final Message message;
     
+    public static StringMessage from(String routingKey, String body) {
+        return new StringMessage(routingKey, body);
+    }
+    
     public StringMessage(String routingKey, String body) {
         message = new Message(routingKey, body.getBytes());
     }
