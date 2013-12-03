@@ -73,7 +73,7 @@ public class TestStatusServer {
                         }
                 )
                 .withModules(
-                        new SuroModule(props),
+                        new SuroModule(),
                         new SuroFastPropertyModule(),
                         new SuroPlugin() {
                             @Override
