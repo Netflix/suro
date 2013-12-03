@@ -29,7 +29,7 @@ import java.util.concurrent.*;
 
 @LazySingleton
 public class ThriftServer {
-    private static Logger logger = LoggerFactory.getLogger(ThriftServer.class);
+    private static final Logger logger = LoggerFactory.getLogger(ThriftServer.class);
 
     private CustomServerSocket transport = null;
     private THsHaServer server = null;
@@ -52,7 +52,7 @@ public class ThriftServer {
     public void start() throws TTransportException {
         logger.info("Starting ThriftServer with config " + config);
         transport = new CustomServerSocket(config);
-        processor =  new SuroServer.Processor(messageQueue);
+        processor =  new SuroServer.Processor<MessageQueue>(messageQueue);
 
         THsHaServer.Args serverArgs = new THsHaServer.Args(transport);
         serverArgs.workerThreads(config.getThriftWorkerThreadNum());
