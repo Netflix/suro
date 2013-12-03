@@ -8,7 +8,6 @@ import com.fasterxml.jackson.core.`type`.TypeReference
 import com.netflix.suro.message.{MessageSetBuilder, MessageSetReader}
 import org.apache.commons.io.FileUtils
 import java.io.File
-
 import org.mockito.Mockito.mock
 import org.junit.Assert._
 import com.netflix.suro.thrift.TMessageSet
@@ -27,6 +26,7 @@ import kafka.api.FetchRequestBuilder
 import kafka.message.MessageAndOffset
 import kafka.common.TopicAndPartition
 import com.fasterxml.jackson.databind.jsontype.NamedType
+import com.netflix.suro.message.StringMessage
 
 class TestKafkaSink extends JUnit3Suite {
   private val brokerId1 = 0
@@ -95,7 +95,7 @@ class TestKafkaSink extends JUnit3Suite {
     sink.open()
     val i = new MessageSetReader(createMessageSet(2)).iterator()
     while (i.hasNext) {
-      sink.writeTo(i.next)
+      sink.writeTo(new StringMessage(i.next))
     }
     sink.close()
     println(sink.getStat())

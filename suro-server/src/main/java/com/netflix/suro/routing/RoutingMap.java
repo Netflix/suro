@@ -38,8 +38,6 @@ import java.util.Map;
  */
 @Singleton
 public class RoutingMap {
-    static Logger log = LoggerFactory.getLogger(RoutingMap.class);
-
     public static class RoutingInfo {
         private final List<String> where;
         private final Filter filter;

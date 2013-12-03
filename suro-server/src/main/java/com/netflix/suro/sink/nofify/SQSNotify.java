@@ -23,6 +23,7 @@ import com.amazonaws.services.sqs.model.*;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.netflix.servo.annotations.DataSourceType;
@@ -30,6 +31,7 @@ import com.netflix.servo.annotations.Monitor;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.sink.notify.Notify;
+import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +51,7 @@ public class SQSNotify implements Notify<String> {
 
     private final List<String> queues;
     private final List<String> queueUrls = new ArrayList<String>();
+    private final boolean enableBase64Encoding;
 
     private AmazonSQSClient sqsClient;
     private final AWSCredentialsProvider credentialsProvider;
@@ -71,11 +74,13 @@ public class SQSNotify implements Notify<String> {
             @JsonProperty("maxConnections") int maxConnections,
             @JsonProperty("socketTimeout") int socketTimeout,
             @JsonProperty("maxRetries") int maxRetries,
+            @JsonProperty("enableBase64Encoding") boolean enableBase64Encoding,
             @JacksonInject("sqsClient") AmazonSQSClient sqsClient,
             @JacksonInject("credentials") AWSCredentialsProvider credentialsProvider) {
         this.queues = queues;
         this.region = region;
 
+        this.enableBase64Encoding = enableBase64Encoding;
         this.sqsClient = sqsClient;
         this.credentialsProvider = credentialsProvider;
 
@@ -124,8 +129,16 @@ public class SQSNotify implements Notify<String> {
         try {
             for (String queueUrl : queueUrls) {
                 SendMessageRequest request = new SendMessageRequest()
-                        .withQueueUrl(queueUrl)
-                        .withMessageBody(message);
+                        .withQueueUrl(queueUrl);
+
+                if(enableBase64Encoding) {
+                    request = request.withMessageBody(
+                            new String(
+                                    Base64.encodeBase64(
+                                            message.getBytes(Charsets.UTF_8))));
+                } else {
+                    request = request.withMessageBody(message);
+                }
                 sqsClient.sendMessage(request);
                 log.info("SQSNotify: " + message + " sent to " + queueUrl);
                 if (sent == false) {
@@ -162,7 +175,13 @@ public class SQSNotify implements Notify<String> {
                         .withReceiptHandle(msg.getReceiptHandle());
                 sqsClient.deleteMessage(deleteReq);
 
-                return msg.getBody();
+                if (enableBase64Encoding) {
+                    return new String(
+                            Base64.decodeBase64(msg.getBody().getBytes()),
+                            Charsets.UTF_8);
+                } else {
+                    return msg.getBody();
+                }
             } else {
                 return "";
             }

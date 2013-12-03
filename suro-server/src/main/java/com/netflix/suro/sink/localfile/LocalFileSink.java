@@ -324,15 +324,13 @@ public class LocalFileSink extends QueuedSink implements Sink {
                             ++count;
                         }
                     }
-                } else {
-                    log.warn("0 length file " + file.getPath().getName() + " is abandoned");
                 }
             }
         } catch (Exception e) {
             log.error("Exception while on cleanUp: " + e.getMessage(), e);
-        } finally {
-            return count;
         }
+
+        return count;
     }
 
     /**
