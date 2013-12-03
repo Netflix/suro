@@ -30,7 +30,7 @@ public class SuroControl {
     private static final Logger log = LoggerFactory.getLogger(SuroControl.class);
 
     public void start(int port) throws IOException {
-        ServerSocket serverSocket = null;
+        ServerSocket serverSocket;
         try {
             serverSocket = new ServerSocket(port);
             log.info("Suro control service started at port " + port);
@@ -48,11 +48,11 @@ public class SuroControl {
                         return;
                     }
                 }finally {
-                    Closeables.close(clientSocket, true);
+                    closeAndIgnoreError(clientSocket);
                 }
             }
         }finally {
-            Closeables.close(serverSocket, true);
+            closeAndIgnoreError(serverSocket);
             log.info("Suro's control service exited");
         }
     }
@@ -102,6 +102,28 @@ public class SuroControl {
         return null;
     }
 
+    // Implemented this method for both Socket and ServerSocket because we want to
+    // make Suro compilable and runnable under Java 6.
+    private static void closeAndIgnoreError(Socket socket) {
+        if(socket == null) return;
+
+        try{
+            socket.close();
+        }catch(IOException e) {
+            log.warn(String.format("Failed to close the client socket on port %d: %s. Exception ignored.", socket.getPort(), e.getMessage()), e);
+        }
+    }
+
+    private static void closeAndIgnoreError(ServerSocket socket) {
+        if(socket == null) return;
+
+        try{
+            socket.close();
+        }catch(IOException e) {
+            log.warn(String.format("Failed to close the server socket on port %d: %s. Exception ignored.", socket.getLocalPort(), e.getMessage()), e);
+        }
+    }
+
     /**
      * Writes line-based response.
      * @param out the channel used to write back response
@@ -121,6 +143,10 @@ public class SuroControl {
         private final String name;
         private Command(String name) {
             this.name = name;
+        }
+
+        public String getName() {
+            return name;
         }
     }
 
