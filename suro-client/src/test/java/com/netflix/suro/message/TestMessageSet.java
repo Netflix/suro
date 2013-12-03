@@ -18,7 +18,8 @@ package com.netflix.suro.message;
 
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.thrift.TMessageSet;
-import org.junit.Before;
+import org.junit.Before; 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -63,6 +64,7 @@ public class TestMessageSet {
         TMessageSet messageSet = new MessageSetBuilder(new ClientConfig()).build();
         assertEquals(messageSet.getNumMessages(), 0);
     }
+    
     @Test
     public void testBuilder() throws IOException {
         TMessageSet messageSet = buildMessageSet();

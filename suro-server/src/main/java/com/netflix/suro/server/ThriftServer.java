@@ -47,7 +47,7 @@ public class ThriftServer {
         this.messageQueue = messageQueue;
     }
 
-    private Future serverStarted;
+    private Future<?> serverStarted;
     
     public void start() throws TTransportException {
         logger.info("Starting ThriftServer with config " + config);
