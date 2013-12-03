@@ -34,7 +34,10 @@ import org.apache.commons.io.FileUtils;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.Properties;
+import java.util.concurrent.Future;
 
 /**
  * Command line driver for Suro
@@ -44,6 +47,8 @@ import java.util.Properties;
  */
 public class SuroServer {
     private static final String PROP_PREFIX = "SuroServer.";
+    private static final int DEFAULT_CONTROL_PORT = 9090;
+    public static final String OPT_CONTROL_PORT = "controlPort";
 
     public static void main(String[] args) throws IOException {
         LifecycleManager manager = null;
@@ -97,9 +102,8 @@ public class SuroServer {
 
             manager = injector.getInstance(LifecycleManager.class);
             manager.start();
-            
-            // Hmmm... is this the right way to do this?  Should this block on the status server instead?
-            Thread.sleep(Long.MAX_VALUE);
+
+            waitForShutdown(getControlPort(options));
         } catch (Exception e) {
             System.err.println("SuroServer startup failed: " + e.getMessage());
             System.exit(-1);
@@ -107,7 +111,29 @@ public class SuroServer {
             Closeables.close(manager, true);
         }
     }
-    
+
+    private static void waitForShutdown(int port) {
+        ServerSocket serverSocket;
+        try {
+            serverSocket = new ServerSocket(port);
+            Socket client = serverSocket.accept();
+        }
+        catch (IOException e) {
+            System.err.println("Exception: couldn't create socket");
+            System.exit(1);
+        }
+    }
+
+    private static int getControlPort(Options options) {
+        Option opt = options.getOption("controlPort");
+        String value = opt.getValue();
+        if(value == null) {
+            return DEFAULT_CONTROL_PORT;
+        }
+
+        return Integer.parseInt(value);
+    }
+
     @SuppressWarnings("static-access")
     private static Options createOptions() {
         Option propertyFile = OptionBuilder.withArgName("serverProperty")
@@ -139,12 +165,20 @@ public class SuroServer {
                 .withDescription("AWSSecretKey")
                 .create('k');
 
+        Option controlPort = OptionBuilder.withArgName(OPT_CONTROL_PORT)
+            .hasArg()
+            .isRequired(false)
+            .withDescription("The port used to send command to this server")
+            .create('c');
+
         Options options = new Options();
         options.addOption(propertyFile);
         options.addOption(mapFile);
         options.addOption(sinkFile);
         options.addOption(accessKey);
         options.addOption(secretKey);
+        options.addOption(controlPort);
+
         return options;
     }
 }
