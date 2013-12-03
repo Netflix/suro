@@ -28,7 +28,7 @@ import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.message.MessageSetBuilder;
 import com.netflix.suro.message.SerDe;
 import com.netflix.suro.message.StringSerDe;
@@ -37,6 +37,8 @@ import com.netflix.suro.routing.RoutingMap.RoutingInfo;
 import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
+
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.*;
@@ -59,14 +61,18 @@ public class TestMessageRouter {
         }
 
         @Override
-        public void writeTo(Message message) {
+        public void writeTo(MessageContainer message) {
             Integer count = messageCount.get(this.message);
             if (count == null) {
                 messageCount.put(this.message, 1);
             } else {
                 messageCount.put(this.message, count + 1);
             }
-            messageList.add(serde.deserialize(message.getPayload()));
+            try {
+                messageList.add(serde.deserialize(message.getEntity(byte[].class)));
+            } catch (Exception e) {
+                Assert.fail(e.getMessage());
+            }
         }
 
         @Override

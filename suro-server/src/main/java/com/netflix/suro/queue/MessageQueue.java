@@ -16,6 +16,9 @@
 
 package com.netflix.suro.queue;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.servo.annotations.DataSourceType;
@@ -26,6 +29,7 @@ import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.message.MessageSetBuilder;
 import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.routing.MessageRouter;
@@ -35,9 +39,11 @@ import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * This is actual worker for Thrift Server Processor
@@ -78,16 +84,19 @@ public class MessageQueue implements SuroServer.Iface {
     private final MessageRouter router;
     private final ServerConfig config;
     private ExecutorService executors;
-
+    private final ObjectMapper mapper;
+    
     @Inject
     public MessageQueue(
             Queue4Server queue,
             MessageRouter router,
             QueueManager manager,
-            ServerConfig config) throws Exception {
+            ServerConfig config, 
+            ObjectMapper mapper) throws Exception {
         this.queue = queue;
         this.router = router;
         this.config = config;
+        this.mapper = mapper;
 
         isRunning = true;
 
@@ -102,15 +111,19 @@ public class MessageQueue implements SuroServer.Iface {
 
     private static final String messageCountMetric = "messageCount";
     @Monitor(name= messageCountMetric, type=DataSourceType.COUNTER)
-    private long messageCount;
+    private AtomicLong messageCount = new AtomicLong();
 
     private static final String retryCountMetric = "retryCount";
     @Monitor(name=retryCountMetric, type=DataSourceType.COUNTER)
-    private long retryCount;
+    private AtomicLong retryCount = new AtomicLong();
 
     private static final String dataCorruptionCountMetric = "dataCorruptionCount";
-    @Monitor(name="dataCorruption", type=DataSourceType.COUNTER)
-    private long dataCorruption;
+    @Monitor(name=dataCorruptionCountMetric, type=DataSourceType.COUNTER)
+    private AtomicLong dataCorruption = new AtomicLong();
+
+    private static final String messageProcessErrorMetric = "processErrorCount";
+    @Monitor(name=dataCorruptionCountMetric, type=DataSourceType.COUNTER)
+    private AtomicLong processErrorCount = new AtomicLong();
 
     @Override
     public String getName() throws TException {
@@ -143,7 +156,7 @@ public class MessageQueue implements SuroServer.Iface {
 
             MessageSetReader reader = new MessageSetReader(messageSet);
             if (reader.checkCRC() == false) {
-                ++dataCorruption;
+                dataCorruption.incrementAndGet();
 
                 DynamicCounter.increment(dataCorruptionCountMetric, TagKey.APP, messageSet.getApp());
 
@@ -153,7 +166,7 @@ public class MessageQueue implements SuroServer.Iface {
             }
 
             if (queue.offer(messageSet)) {
-                ++messageCount;
+                messageCount.incrementAndGet();
 
                 DynamicCounter.increment(
                         MonitorConfig.builder(messageCountMetric)
@@ -163,7 +176,7 @@ public class MessageQueue implements SuroServer.Iface {
                 result.setMessage(Long.toString(messageSet.getCrc()));
                 result.setResultCode(ResultCode.OK);
             } else {
-                ++retryCount;
+                retryCount.incrementAndGet();
 
                 DynamicCounter.increment(retryCountMetric, TagKey.APP, messageSet.getApp());
 
@@ -227,8 +240,56 @@ public class MessageQueue implements SuroServer.Iface {
     private void processMessageSet(TMessageSet tMessageSet) {
         MessageSetReader reader = new MessageSetReader(tMessageSet);
 
-        for (Message message : reader) {
-            router.process(message);
+        for (final Message message : reader) {
+            try {
+                router.process(new MessageContainer() {
+                    class Item {
+                        TypeReference<?> tr;
+                        Object obj;
+                    }
+                    
+                    private String       str;
+                    private List<Item> cache;
+                    
+                    @Override
+                    public <T> T getEntity(Class<T> clazz) throws Exception {
+                        if (clazz.equals(byte[].class))
+                            return (T)message.getPayload();
+                        else if (clazz.equals(String.class)) {
+                            return (T)new String(message.getPayload());
+                        }
+                        else {
+                            TypeReference<T> typeReference = new TypeReference<T>(){};
+                            if (cache == null) {
+                                cache = Lists.newLinkedList();
+                            }
+                            for (Item item : cache) {
+                                if (item.tr.equals(typeReference))
+                                    return (T)item.obj;
+                            }
+                            Item item = new Item();
+                            item.tr = typeReference;
+                            item.obj = mapper.readValue(message.getPayload(), typeReference);
+                            cache.add(item);
+                            return (T)item.obj;
+                        }
+                    }
+    
+                    @Override
+                    public String getRoutingKey() {
+                        return message.getRoutingKey();
+                    }
+    
+                    @Override
+                    public Message getMessage() {
+                        return message;
+                    }
+                    
+                });
+            }
+            catch (Exception e) {
+                processErrorCount.incrementAndGet();
+            }
         }
     }
 
