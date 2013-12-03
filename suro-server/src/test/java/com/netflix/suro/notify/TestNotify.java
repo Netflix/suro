@@ -23,18 +23,19 @@ import com.fasterxml.jackson.databind.BeanProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
+import com.netflix.suro.sink.TestSinkManager.TestSink;
 import com.netflix.suro.sink.nofify.NoNotify;
 import com.netflix.suro.sink.nofify.QueueNotify;
 import com.netflix.suro.sink.nofify.SQSNotify;
 import com.netflix.suro.sink.notify.Notify;
-import com.netflix.suro.sink.TestSinkManager.TestSink;
-
+import org.apache.commons.codec.binary.Base64;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -47,7 +48,7 @@ import static junit.framework.TestCase.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
-public class TestQueueNotify {
+public class TestNotify {
     private static Injector injector = Guice.createInjector(
             new SuroPlugin() {
                 @Override
@@ -95,36 +96,88 @@ public class TestQueueNotify {
                 "    \"maxRetries\": 3\n" +
                 "}";
 
-        ObjectMapper mapper = injector.getInstance(DefaultObjectMapper.class);
-
-        AmazonSQSClient client = mock(AmazonSQSClient.class);
-        doReturn(new SendMessageResult()).when(client).sendMessage(any(SendMessageRequest.class));
-
-        ReceiveMessageResult result = new ReceiveMessageResult();
-        result.setMessages(Arrays.asList(new Message[]{new Message().withBody("receivedMessage")}));
-        doReturn(result).when(client).receiveMessage(any(ReceiveMessageRequest.class));
-        doReturn(new GetQueueUrlResult().withQueueUrl("queueURL")).when(client).getQueueUrl(any(GetQueueUrlRequest.class));
-
-        final Map<String, Object> injectables = Maps.newHashMap();
-        injectables.put("sqsClient", client);
-        mapper.setInjectableValues(new InjectableValues() {
-            @Override
-            public Object findInjectableValue(
-                    Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance
-            ) {
-                return injectables.get(valueId);
-            }
-        });
-
-        Notify queueNotify = mapper.readValue(desc, new TypeReference<Notify>(){});
-        queueNotify.init();
-        queueNotify.send("message");
-        ArgumentCaptor<SendMessageRequest> captor = ArgumentCaptor.forClass(SendMessageRequest.class);
-        verify(client).sendMessage(captor.capture());
+        SqsTest sqsTest = new SqsTest(desc).invoke();
+        ArgumentCaptor<SendMessageRequest> captor = sqsTest.getCaptor();
+        Notify queueNotify = sqsTest.getQueueNotify();
 
         assertEquals(captor.getValue().getMessageBody(), "message");
         assertEquals(captor.getValue().getQueueUrl(), "queueURL");
 
         assertEquals(queueNotify.recv(), "receivedMessage");
+    }
+
+    @Test
+    public void testSQSBase64() throws IOException {
+        String desc = "{\n" +
+                "    \"type\": \"sqs\",\n" +
+                "    \"queues\": [\n" +
+                "        \"queue1\"\n" +
+                "    ],\n" +
+                "    \"enableBase64Encoding\": true,\n" +
+                "    \"region\": \"us-east-1\",\n" +
+                "    \"connectionTimeout\": 3000,\n" +
+                "    \"maxConnections\": 3,\n" +
+                "    \"socketTimeout\": 1000,\n" +
+                "    \"maxRetries\": 3\n" +
+                "}";
+
+        SqsTest sqsTest = new SqsTest(desc).invoke();
+        ArgumentCaptor<SendMessageRequest> captor = sqsTest.getCaptor();
+        Notify queueNotify = sqsTest.getQueueNotify();
+
+        assertEquals(captor.getValue().getMessageBody(), new String(Base64.encodeBase64("message".getBytes()),
+                Charsets.UTF_8));
+        assertEquals(captor.getValue().getQueueUrl(), "queueURL");
+
+        assertEquals(queueNotify.recv(), new String(Base64.decodeBase64("receivedMessage".getBytes())));
+    }
+
+    private class SqsTest {
+        private String desc;
+        private Notify queueNotify;
+        private ArgumentCaptor<SendMessageRequest> captor;
+
+        public SqsTest(String desc) {
+            this.desc = desc;
+        }
+
+        public Notify getQueueNotify() {
+            return queueNotify;
+        }
+
+        public ArgumentCaptor<SendMessageRequest> getCaptor() {
+            return captor;
+        }
+
+        public SqsTest invoke() throws IOException {
+            ObjectMapper mapper = injector.getInstance(DefaultObjectMapper.class);
+
+            AmazonSQSClient client = mock(AmazonSQSClient.class);
+            doReturn(new SendMessageResult()).when(client).sendMessage(any(SendMessageRequest.class));
+
+            ReceiveMessageResult result = new ReceiveMessageResult();
+            result.setMessages(Arrays.asList(new Message[]{new Message().withBody("receivedMessage")}));
+            doReturn(result).when(client).receiveMessage(any(ReceiveMessageRequest.class));
+            doReturn(new GetQueueUrlResult().withQueueUrl("queueURL")).when(client).getQueueUrl(any(GetQueueUrlRequest.class));
+
+            final Map<String, Object> injectables = Maps.newHashMap();
+            injectables.put("sqsClient", client);
+            mapper.setInjectableValues(new InjectableValues() {
+                @Override
+                public Object findInjectableValue(
+                        Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance
+                ) {
+                    return injectables.get(valueId);
+                }
+            });
+
+            queueNotify = mapper.readValue(desc, new TypeReference<Notify>() {
+            });
+            queueNotify.init();
+            queueNotify.send("message");
+            captor = ArgumentCaptor.forClass(SendMessageRequest.class);
+            verify(client).sendMessage(captor.capture());
+            return this;
+        }
     }
 }

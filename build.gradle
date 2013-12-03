@@ -23,7 +23,7 @@ allprojects {
 
 apply from: file('gradle/convention.gradle')
 apply from: file('gradle/maven.gradle')
-apply from: file('gradle/check.gradle')
+//apply from: file('gradle/check.gradle')
 apply from: file('gradle/license.gradle')
 apply from: file('gradle/release.gradle')
 
@@ -118,9 +118,6 @@ project(':suro-integration-test') {
 }
 
 project(':suro-kafka') {
-  sourceSets.main.scala.srcDir "src/main/java"
-  sourceSets.main.java.srcDirs = []
-
   dependencies {
     compile project(':suro-core')
 

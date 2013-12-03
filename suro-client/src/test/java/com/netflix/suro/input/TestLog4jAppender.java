@@ -17,10 +17,12 @@
 package com.netflix.suro.input;
 
 import com.netflix.suro.SuroServer4Test;
-import com.netflix.suro.queue.TestFileBlockingQueue;
 import com.netflix.suro.connection.TestConnectionPool;
+import com.netflix.suro.queue.TestFileBlockingQueue;
 import org.apache.log4j.Level;
 import org.apache.log4j.spi.LoggingEvent;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -35,10 +37,19 @@ public class TestLog4jAppender {
     private Log4jAppender appender = new Log4jAppender();
     private List<SuroServer4Test> collectors;
 
+    @Before
+    public void setup() throws Exception {
+        collectors = TestConnectionPool.startServers(1, 8500);
+    }
+
+    @After
+    public void clean() {
+        TestConnectionPool.shutdownServers(collectors);
+    }
+
     @Test
     public void testMemory() throws Exception {
         TestFileBlockingQueue.clean();
-        List<SuroServer4Test> collectors = TestConnectionPool.startServers(1, 8500);
 
         appender.setLoadBalancerType("static");
         appender.setLoadBalancerServer("localhost:8500");
@@ -55,7 +66,6 @@ public class TestLog4jAppender {
 
         assertEquals(appender.getSentMessageCount(), 1); // it should be successful
 
-        TestConnectionPool.shutdownServers(collectors);
 
         appender.close();
     }
@@ -63,7 +73,6 @@ public class TestLog4jAppender {
     @Test
     public void testFile() throws Exception {
         TestFileBlockingQueue.clean();
-        List<SuroServer4Test> collectors = TestConnectionPool.startServers(1, 8500);
 
         appender.setAsyncQueueType("file");
         appender.setAsyncFileQueuePath(System.getProperty("java.io.tmpdir"));
@@ -80,9 +89,10 @@ public class TestLog4jAppender {
         // Make sure client has enough time to drain the intermediary message queue
         Thread.sleep(5000);
 
-        assertEquals(appender.getSentMessageCount(), 1); // it should be successful
-
-        TestConnectionPool.shutdownServers(collectors);
+        for (int i = 0; i < 10 && appender.getSentMessageCount() == 0; ++i) {
+            Thread.sleep(1000);
+        }
+        assertEquals(appender.getSentMessageCount(), 1);
 
         appender.close();
     }
