@@ -34,10 +34,7 @@ import org.apache.commons.io.FileUtils;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.Properties;
-import java.util.concurrent.Future;
 
 /**
  * Command line driver for Suro
@@ -112,16 +109,8 @@ public class SuroServer {
         }
     }
 
-    private static void waitForShutdown(int port) {
-        ServerSocket serverSocket;
-        try {
-            serverSocket = new ServerSocket(port);
-            Socket client = serverSocket.accept();
-        }
-        catch (IOException e) {
-            System.err.println("Exception: couldn't create socket");
-            System.exit(1);
-        }
+    private static void waitForShutdown(int port) throws IOException {
+       new SuroControl().start(port);
     }
 
     private static int getControlPort(Options options) {
