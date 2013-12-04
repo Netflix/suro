@@ -92,7 +92,7 @@ public class SuroServer {
                             new RoutingPlugin(),
                             new SinkPlugin(),
                             new SuroFastPropertyModule(),
-                            new SuroModule(properties),
+                            new SuroModule(),
                             StatusServer.createJerseyServletModule()
                     )
                     .createInjector();
