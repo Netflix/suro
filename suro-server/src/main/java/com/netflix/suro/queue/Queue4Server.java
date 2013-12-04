@@ -29,12 +29,14 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
- * BlockingQueue wrapper for MessageQueue
+ * {@link BlockingQueue} wrapper that decides whether delegate queue operations to an in-memory bounded queue, or
+ * to a disk-backed queue. An in-memory bounded blocking queue will be used if the configuration {@link com.netflix.suro.server.ServerConfig#getQueueType()}
+ * returns "memory". Otherwise, a disk-backed queue will be used.
  *
  * @author jbae
  */
 public class Queue4Server {
-    static Logger logger = LoggerFactory.getLogger(Queue4Server.class);
+    private static final Logger logger = LoggerFactory.getLogger(Queue4Server.class);
 
     private BlockingQueue<TMessageSet> queue;
     private boolean isFile;
@@ -52,9 +54,9 @@ public class Queue4Server {
                         new Period(config.getFileQueueGCPeriod()).toStandardSeconds().getSeconds(),
                         new MessageSetSerDe(),
                         true); // auto-commit needed due to MessageSet consumers
-                               // are multithreaded
+                               // are multi-threaded
             } catch (IOException e) {
-                logger.error("Exception on initializing Queue4Client: " + e.getMessage(), e);
+                logger.error("Exception on initializing Queue4Server: " + e.getMessage(), e);
             }
         }
     }
