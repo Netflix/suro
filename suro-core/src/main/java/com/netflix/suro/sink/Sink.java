@@ -17,7 +17,7 @@
 package com.netflix.suro.sink;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageContainer;
 
 /**
  * Suro Sink interface
@@ -31,7 +31,7 @@ public interface Sink  {
      * 
      * @param message
      */
-    void writeTo(Message message);
+    void writeTo(MessageContainer message);
 
     /**
      * Open the Sink by establishing any network connections and setting up writing threads

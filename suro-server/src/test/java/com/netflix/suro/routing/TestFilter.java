@@ -8,6 +8,7 @@ import com.google.inject.Injector;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.message.StringMessage;
 import com.netflix.suro.sink.TestSinkManager.TestSink;
 
 import org.junit.Test;
@@ -35,7 +36,7 @@ public class TestFilter {
         );
 
     @Test
-    public void testRegexFilter() throws IOException {
+    public void testRegexFilter() throws Exception {
         String desc = "{\n" +
                 "  \"type\":\"regex\",\n" +
                 "  \"regex\":\"abcd\"\n" +
@@ -43,10 +44,10 @@ public class TestFilter {
 
         ObjectMapper jsonMapper = injector.getInstance(ObjectMapper.class);
         Filter filter = jsonMapper.readValue(desc, new TypeReference<Filter>(){});
-        assertTrue(filter.doFilter("abcdefg"));
-        assertFalse(filter.doFilter("zcb"));
+        assertTrue(filter.doFilter(StringMessage.from(null, "abcdefg")));
+        assertFalse(filter.doFilter(StringMessage.from(null, "zcb")));
 
-        assertTrue(filter.doFilter(new Message("routingKey", "abcdefg".getBytes())));
-        assertFalse(filter.doFilter(new Message("routingKey", "zcb".getBytes())));
+        assertTrue(filter.doFilter(StringMessage.from("routingKey", "abcdefg")));
+        assertFalse(filter.doFilter(StringMessage.from("routingKey", "zcb")));
     }
 }

@@ -17,11 +17,12 @@
 package com.netflix.suro.routing;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.netflix.suro.message.MessageContainer;
 
 /**
  * Interface for message filter
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 public interface Filter {
-    public boolean doFilter(Object obj);
+    public boolean doFilter(MessageContainer message) throws Exception;
 }
