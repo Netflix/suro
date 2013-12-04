@@ -40,10 +40,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * This is actual worker for Thrift Server Processor
- * Simply, it's accepting TMessageSet sent from suro client, checking CRC
- * and adding it to the queue. Internally, it also implements message routing
- * threads to read Message from TMessageSet and route them to the sinks.
+ * The {@link TMessageSet} processor used by {@link com.netflix.suro.server.ThriftServer}. It takes incoming {@link TMessageSet}
+ * sent by Suro client, validates each message set's CRC32 code, and then hands off validated message set to an internal queue.
+ * A {@link MessageRouter} instance will asynchronously route the messages in the queue into configured sinks based on routing rules,
+ * represented by {@link com.amazonaws.services.s3.model.RoutingRule}.
  *
  * Since this is the frontend of Thrift Server, it is implementing service status
  * and controlling to take the traffic or not.
@@ -52,7 +52,7 @@ import java.util.concurrent.TimeUnit;
  */
 @LazySingleton
 public class MessageQueue implements SuroServer.Iface {
-    static Logger log = LoggerFactory.getLogger(MessageQueue.class);
+    private static final Logger log = LoggerFactory.getLogger(MessageQueue.class);
     
     private boolean isTakingTraffic = true;
 
@@ -100,17 +100,10 @@ public class MessageQueue implements SuroServer.Iface {
         return (int) queue.size();
     }
 
-    private static final String messageCountMetric = "messageCount";
-    @Monitor(name= messageCountMetric, type=DataSourceType.COUNTER)
-    private long messageCount;
-
-    private static final String retryCountMetric = "retryCount";
-    @Monitor(name=retryCountMetric, type=DataSourceType.COUNTER)
-    private long retryCount;
-
-    private static final String dataCorruptionCountMetric = "dataCorruptionCount";
-    @Monitor(name="dataCorruption", type=DataSourceType.COUNTER)
-    private long dataCorruption;
+    private static final String messageCountMetrics = "messageCount";
+    private static final String retryCountMetrics = "retryCount";
+    private static final String dataCorruptionCountMetrics = "corruptedMessageCount";
+    private static final String rejectedMessageCountMetrics = "rejectedMessageCount";
 
     @Override
     public String getName() throws TException {
@@ -127,25 +120,31 @@ public class MessageQueue implements SuroServer.Iface {
         Result result = new Result();
         try {
             // Stop adding chunks if it's no running
-            if (isRunning == false) {
-                log.warn("Rejecting some incoming trafic!");
-                result.setMessage("Shutting down");
+            if ( !isRunning) {
+                DynamicCounter.increment(rejectedMessageCountMetrics,
+                    TagKey.APP, messageSet.getApp(),
+                    TagKey.REJECTED_REASON, "SURO_STOPPED");
+
+                log.warn("Message processor is not running. Message rejected");
+                result.setMessage("Suro server stopped");
                 result.setResultCode(ResultCode.STOPPED);
                 return result;
             }
 
-            if (isTakingTraffic == false) {
-                log.warn("Rejecting some incoming trafic! - >>>>>>> Flag is ON <<<<<<< ");
-                result.setMessage("collector in error");
+            if ( !isTakingTraffic ) {
+                DynamicCounter.increment(rejectedMessageCountMetrics,
+                    TagKey.APP, messageSet.getApp(),
+                    TagKey.REJECTED_REASON, "SURO_THROTTLING");
+
+                log.warn("Suro is not taking traffic. Message rejected. ");
+                result.setMessage("Suro server is not taking traffic");
                 result.setResultCode(ResultCode.OTHER_ERROR);
                 return result;
             }
 
             MessageSetReader reader = new MessageSetReader(messageSet);
-            if (reader.checkCRC() == false) {
-                ++dataCorruption;
-
-                DynamicCounter.increment(dataCorruptionCountMetric, TagKey.APP, messageSet.getApp());
+            if ( !reader.checkCRC()) {
+                DynamicCounter.increment(dataCorruptionCountMetrics, TagKey.APP, messageSet.getApp());
 
                 result.setMessage("data corrupted");
                 result.setResultCode(ResultCode.CRC_CORRUPTED);
@@ -153,34 +152,31 @@ public class MessageQueue implements SuroServer.Iface {
             }
 
             if (queue.offer(messageSet)) {
-                ++messageCount;
-
                 DynamicCounter.increment(
-                        MonitorConfig.builder(messageCountMetric)
-                                .withTag(TagKey.APP, messageSet.getApp())
-                                .build(), messageSet.getNumMessages());
+                    MonitorConfig.builder(messageCountMetrics)
+                        .withTag(TagKey.APP, messageSet.getApp())
+                        .build(),
+                    messageSet.getNumMessages());
 
                 result.setMessage(Long.toString(messageSet.getCrc()));
                 result.setResultCode(ResultCode.OK);
             } else {
-                ++retryCount;
-
-                DynamicCounter.increment(retryCountMetric, TagKey.APP, messageSet.getApp());
+                DynamicCounter.increment(retryCountMetrics, TagKey.APP, messageSet.getApp());
 
                 result.setMessage(Long.toString(messageSet.getCrc()));
                 result.setResultCode(ResultCode.QUEUE_FULL);
             }
 
             return result;
-        } catch (Throwable e) {
-            log.error("Throable handled: " + e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("Exception when processing message set " + e.getMessage(), e);
         }
 
         return result;
     }
 
     public void start() {
-        log.info("MessageQueue starting");
+        log.info("Starting processing message queue.");
         
         isRunning = true;
 
@@ -210,13 +206,13 @@ public class MessageQueue implements SuroServer.Iface {
                             log.error("Exception while handling TMessageSet: " + e.getMessage(), e);
                         }
                     }
-                    // drain remains when shutdown
-                    while (queue.isEmpty() == false) {
+                    // drain remain when shutting down
+                    while ( !queue.isEmpty() ) {
                         try {
                             tMessageSet = queue.poll(0, TimeUnit.MILLISECONDS);
                             processMessageSet(tMessageSet);
                         } catch (Exception e) {
-                            log.error("Exception while handling TMessageSet");
+                            log.error("Exception while processing drained message set: "+e.getMessage(), e);
                         }
                     }
                 }
@@ -239,12 +235,12 @@ public class MessageQueue implements SuroServer.Iface {
         try {
             executors.shutdown();
             executors.awaitTermination(config.messageRouterMaxPollTimeout * 2, TimeUnit.MILLISECONDS);
-            if (executors.isTerminated() == false) {
+            if ( !executors.isTerminated() ) {
                 log.error("MessageDispatcher was not shutdown gracefully");
             }
             executors.shutdownNow();
         } catch (InterruptedException e) {
-            // ignore exceptions while shutting down
+            Thread.interrupted();
         }
         return 0;
     }
@@ -253,7 +249,7 @@ public class MessageQueue implements SuroServer.Iface {
         try {
             return queue.poll(timeout, unit);
         } catch (InterruptedException e) {
-            // return empty payload
+            Thread.interrupted();
             return new MessageSetBuilder(new ClientConfig()).build();
         }
     }
