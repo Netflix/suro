@@ -15,8 +15,22 @@
  */
 package com.netflix.suro.util;
 
+import java.io.Closeable;
+import java.io.IOException;
+
+import static com.google.common.io.Closeables.close;
+
 /**
- *
+ * Utility class that handles {@link java.io.Closeable} objects
  */
 public class Closeables {
+
+    public static void closeQuietly(Closeable closeable) {
+        try{
+            close(closeable, true);
+        }catch(IOException e){
+            // No need to do anything here as any IOException should
+            // have been suppressed here.
+        }
+    }
 }
