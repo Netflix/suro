@@ -29,7 +29,7 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.message.StringMessage;
-import com.netflix.suro.queue.MessageQueue;
+import com.netflix.suro.queue.MessageSetProcessor;
 import com.netflix.suro.queue.QueueManager;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkPlugin;
@@ -197,7 +197,7 @@ public class TestLocalFileSink {
 
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         final QueueManager queueManager = new QueueManager();
-        final MessageQueue queue = new MessageQueue(null, null, queueManager, null, mapper);
+        final MessageSetProcessor queue = new MessageSetProcessor(null, null, queueManager, null, mapper);
         queueManager.registerService(queue);
 
         final LocalFileSink.SpaceChecker spaceChecker = mock(LocalFileSink.SpaceChecker.class);

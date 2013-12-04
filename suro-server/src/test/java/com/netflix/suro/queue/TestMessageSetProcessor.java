@@ -38,14 +38,14 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 
-public class TestMessageQueue {
+public class TestMessageSetProcessor {
     private Injector injector;
     private String dir;
 
     @Before
     @After
     public void cleanUp() {
-        dir = System.getProperty("java.io.tmpdir") + "/testmessagequeue";
+        dir = System.getProperty("java.io.tmpdir") + "/testMessageSetProcessor";
         FileUtil.deleteDirectory(new File(dir));
     }
 
@@ -76,7 +76,7 @@ public class TestMessageQueue {
                 }).build().createInjector();
         injector.getInstance(LifecycleManager.class).start();
 
-        MessageQueue queue = injector.getInstance(MessageQueue.class);
+        MessageSetProcessor queue = injector.getInstance(MessageSetProcessor.class);
 
         assertEquals(queue.getQueueSize(), 0);
         assertEquals(queue.getStatus(), ServiceStatus.ALIVE);

@@ -111,7 +111,7 @@ public class MessageSetProcessor implements SuroServer.Iface {
 
     @Monitor(name ="QueueSize", type= DataSourceType.GAUGE)
     public int getQueueSize() {
-        return (int) queue.size();
+        return queue.size();
     }
 
     @Override

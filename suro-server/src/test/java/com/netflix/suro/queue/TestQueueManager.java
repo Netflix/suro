@@ -45,7 +45,7 @@ public class TestQueueManager {
                 }).build().createInjector();
         injector.getInstance(LifecycleManager.class).start();
 
-        MessageQueue queue = injector.getInstance(MessageQueue.class);
+        MessageSetProcessor queue = injector.getInstance(MessageSetProcessor.class);
         QueueManager manager = injector.getInstance(QueueManager.class);
         manager.registerService(queue);
 

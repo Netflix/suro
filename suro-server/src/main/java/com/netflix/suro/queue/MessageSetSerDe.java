@@ -36,6 +36,7 @@ public class MessageSetSerDe implements SerDe<TMessageSet> {
     @Override
     public TMessageSet deserialize(byte[] payload) {
         DataInputBuffer inBuffer = new DataInputBuffer();
+        inBuffer.reset(payload, payload.length);
 
         try {
             String app = inBuffer.readUTF();

@@ -32,7 +32,7 @@ import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.message.MessageSetBuilder;
 import com.netflix.suro.message.SerDe;
 import com.netflix.suro.message.StringSerDe;
-import com.netflix.suro.queue.MessageQueue;
+import com.netflix.suro.queue.MessageSetProcessor;
 import com.netflix.suro.routing.RoutingMap.RoutingInfo;
 import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.sink.Sink;
@@ -138,7 +138,7 @@ public class TestMessageRouter {
 
         startMessageRouter(injector);
 
-        MessageQueue queue = injector.getInstance(MessageQueue.class);
+        MessageSetProcessor queue = injector.getInstance(MessageSetProcessor.class);
         queue.start();
 
         MessageSetBuilder builder = new MessageSetBuilder(new ClientConfig());
