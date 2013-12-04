@@ -43,7 +43,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The {@link TMessageSet} processor used by {@link com.netflix.suro.server.ThriftServer}. It takes incoming {@link TMessageSet}
@@ -57,8 +56,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author jbae
  */
 @LazySingleton
-public class MessageQueue implements SuroServer.Iface {
-    private static final Logger log = LoggerFactory.getLogger(MessageQueue.class);
+public class MessageSetProcessor implements SuroServer.Iface {
+    private static final Logger log = LoggerFactory.getLogger(MessageSetProcessor.class);
     
     private boolean isTakingTraffic = true;
 
@@ -87,12 +86,12 @@ public class MessageQueue implements SuroServer.Iface {
     private final ObjectMapper mapper;
     
     @Inject
-    public MessageQueue(
-            Queue4Server queue,
-            MessageRouter router,
-            QueueManager manager,
-            ServerConfig config, 
-            ObjectMapper mapper) throws Exception {
+    public MessageSetProcessor(
+        Queue4Server queue,
+        MessageRouter router,
+        QueueManager manager,
+        ServerConfig config,
+        ObjectMapper mapper) throws Exception {
         this.queue = queue;
         this.router = router;
         this.config = config;
