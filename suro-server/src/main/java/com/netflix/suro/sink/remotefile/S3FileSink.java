@@ -26,6 +26,7 @@ import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.FileNameFormatter;
 import com.netflix.suro.sink.localfile.LocalFileSink;
@@ -141,7 +142,7 @@ public class S3FileSink implements Sink {
     }
 
     @Override
-    public void writeTo(Message message) {
+    public void writeTo(MessageContainer message) {
         localFileSink.writeTo(message);
     }
 

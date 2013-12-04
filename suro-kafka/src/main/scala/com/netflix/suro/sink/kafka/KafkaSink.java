@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.sink.QueuedSink;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.queue.MemoryQueue4Sink;
@@ -87,8 +88,8 @@ public class KafkaSink extends QueuedSink implements Sink {
     }
 
     @Override
-    public void writeTo(Message message) {
-        queue4Sink.offer(message);
+    public void writeTo(MessageContainer message) {
+        queue4Sink.offer(message.getMessage());
     }
 
     @Override

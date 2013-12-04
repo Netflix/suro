@@ -28,6 +28,7 @@ import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetReader;
+import com.netflix.suro.message.StringMessage;
 import com.netflix.suro.queue.QueueManager;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkPlugin;
@@ -85,7 +86,7 @@ public class TestS3FileSink {
         sink.open();
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
-            sink.writeTo(m);
+            sink.writeTo(new StringMessage(m));
         }
         sink.close();
 
@@ -135,7 +136,7 @@ public class TestS3FileSink {
         sink.open();
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
-            sink.writeTo(m);
+            sink.writeTo(new StringMessage(m));
         }
         sink.close();
 
@@ -248,7 +249,7 @@ public class TestS3FileSink {
         sink.setGrantAcl(grantAcl);
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
-            sink.writeTo(m);
+            sink.writeTo(new StringMessage(m));
         }
         sink.close();
         File[] files = getFiles();

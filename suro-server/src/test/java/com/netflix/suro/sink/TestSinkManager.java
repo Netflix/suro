@@ -28,7 +28,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageContainer;
 
 import org.junit.Test;
 
@@ -59,7 +59,7 @@ public class TestSinkManager {
         }
 
         @Override
-        public void writeTo(Message message) {}
+        public void writeTo(MessageContainer message) {}
 
         @Override
         public void open() {
