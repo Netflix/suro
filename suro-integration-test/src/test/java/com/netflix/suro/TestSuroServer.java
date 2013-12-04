@@ -94,7 +94,7 @@ public class TestSuroServer {
                         }
                      )
                     .withModules(
-                        new SuroModule(properties),
+                        new SuroModule(),
                         new SuroPlugin() {
                             @Override
                             protected void configure() {

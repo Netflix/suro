@@ -24,9 +24,9 @@ import org.apache.hadoop.io.DataOutputBuffer;
 import java.nio.ByteBuffer;
 
 /**
- * SerDe about TMessageSet. This is necessary when we want to persist
- * TMessageSet to the disk based queue. Otherwise, TMessageSet which is not
- * consumed yet would be lost when the server fails.
+ * {@link SerDe} implementation that serializes and de-serializes {@link TMessageSet}. This is serde is used to persist
+ * {@link TMessageSet} objects to a disk-based queue. Messages in {@link TMessageSet} objects that are not consumed would be lost when the server fails,
+ * if only in-memory queue is used to store {@link TMessageSet} objects.
  *
  * @author jbae
  */
@@ -47,14 +47,14 @@ public class MessageSetSerDe implements SerDe<TMessageSet> {
             inBuffer.read(messages);
 
             return new TMessageSet(
-                    app,
-                    numMessages,
-                    compression,
-                    crc,
-                    ByteBuffer.wrap(messages)
+                app,
+                numMessages,
+                compression,
+                crc,
+                ByteBuffer.wrap(messages)
             );
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to de-serialize payload into TMessageSet: "+e.getMessage(), e);
         }
     }
 
@@ -72,7 +72,7 @@ public class MessageSetSerDe implements SerDe<TMessageSet> {
 
             return ByteBuffer.wrap(outBuffer.getData(), 0, outBuffer.getLength()).array();
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to serialize TMessageSet: "+e.getMessage(), e);
         }
     }
 

@@ -29,11 +29,9 @@ import java.util.concurrent.*;
 
 @LazySingleton
 public class ThriftServer {
-    private static Logger logger = LoggerFactory.getLogger(ThriftServer.class);
+    private static final Logger logger = LoggerFactory.getLogger(ThriftServer.class);
 
-    private CustomServerSocket transport = null;
     private THsHaServer server = null;
-    private SuroServer.Processor processor = null;
 
     private final ServerConfig config;
     private final MessageQueue messageQueue;
@@ -47,12 +45,10 @@ public class ThriftServer {
         this.messageQueue = messageQueue;
     }
 
-    private Future<?> serverStarted;
-    
     public void start() throws TTransportException {
         logger.info("Starting ThriftServer with config " + config);
-        transport = new CustomServerSocket(config);
-        processor =  new SuroServer.Processor(messageQueue);
+        CustomServerSocket transport = new CustomServerSocket(config);
+        SuroServer.Processor processor =  new SuroServer.Processor<MessageQueue>(messageQueue);
 
         THsHaServer.Args serverArgs = new THsHaServer.Args(transport);
         serverArgs.workerThreads(config.getThriftWorkerThreadNum());
@@ -62,7 +58,7 @@ public class ThriftServer {
         executor = Executors.newSingleThreadExecutor();
 
         server = new THsHaServer(serverArgs);
-        serverStarted = executor.submit(new Runnable() {
+        Future<?> serverStarted = executor.submit(new Runnable() {
             @Override
             public void run() {
                 server.serve();
