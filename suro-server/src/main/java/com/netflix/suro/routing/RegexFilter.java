@@ -18,9 +18,7 @@ package com.netflix.suro.routing;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.netflix.suro.message.Message;
-import com.netflix.suro.message.SerDe;
-import com.netflix.suro.message.StringSerDe;
+import com.netflix.suro.message.MessageContainer;
 
 import java.util.regex.Pattern;
 
@@ -28,7 +26,6 @@ public class RegexFilter implements Filter {
     public static final String TYPE = "regex";
 
     private final Pattern filterPattern;
-    private final SerDe<String> serde = new StringSerDe();
 
     @JsonCreator
     public RegexFilter(@JsonProperty("regex") String regex) {
@@ -36,12 +33,7 @@ public class RegexFilter implements Filter {
     }
 
     @Override
-    public boolean doFilter(Object obj) {
-        if (obj instanceof Message) {
-            String strMsg = serde.deserialize(((Message) obj).getPayload());
-            return filterPattern.matcher(strMsg).find();
-        } else {
-            return filterPattern.matcher(obj.toString()).find();
-        }
+    public boolean doFilter(MessageContainer message) throws Exception {
+        return filterPattern.matcher(message.getEntity(String.class)).find();
     }
 }

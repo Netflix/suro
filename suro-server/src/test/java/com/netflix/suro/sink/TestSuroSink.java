@@ -10,6 +10,7 @@ import com.netflix.suro.SuroServer4Test;
 import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.message.StringMessage;
 import com.netflix.suro.sink.TestSinkManager.TestSink;
 
 import org.junit.After;
@@ -65,7 +66,7 @@ public class TestSuroSink {
         Sink sink = jsonMapper.readValue(desc, new TypeReference<Sink>(){});
         sink.open();
 
-        sink.writeTo(new Message("routingKey", "testMessage".getBytes()));
+        sink.writeTo(new StringMessage("routingKey", "testMessage"));
         assertEquals(sink.getStat(), "sent: 1" + "\n" + "lost: 0");
 
         TestConnectionPool.checkMessageCount(servers, 1);
