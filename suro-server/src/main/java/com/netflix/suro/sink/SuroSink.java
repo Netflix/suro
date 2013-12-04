@@ -3,7 +3,7 @@ package com.netflix.suro.sink;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.netflix.suro.client.SuroClient;
-import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageContainer;
 
 import java.util.Properties;
 
@@ -24,8 +24,8 @@ public class SuroSink implements Sink {
     }
 
     @Override
-    public void writeTo(Message message) {
-        client.send(message);
+    public void writeTo(MessageContainer message) {
+        client.send(message.getMessage());
     }
 
     @Override

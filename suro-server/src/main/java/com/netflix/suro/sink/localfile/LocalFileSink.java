@@ -27,6 +27,7 @@ import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.sink.notify.Notify;
 import com.netflix.suro.sink.nofify.QueueNotify;
 import com.netflix.suro.queue.QueueManager;
@@ -141,8 +142,8 @@ public class LocalFileSink extends QueuedSink implements Sink {
     }
 
     @Override
-    public void writeTo(Message message) {
-        queue4Sink.offer(message);
+    public void writeTo(MessageContainer message) {
+        queue4Sink.offer(message.getMessage());
     }
 
     public static class SpaceChecker {
