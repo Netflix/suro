@@ -2,7 +2,7 @@ package com.netflix.suro;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.netflix.suro.queue.MessageQueue;
+import com.netflix.suro.queue.MessageSetProcessor;
 import com.netflix.suro.server.StatusServer;
 import com.netflix.suro.server.ThriftServer;
 import com.netflix.suro.sink.SinkManager;
@@ -13,7 +13,7 @@ import javax.annotation.PreDestroy;
 
 /**
  * Main service for suro to control all subsystems including
- * {@link StatusServer}, {@link ThriftServer}, {@link MessageQueue}, and
+ * {@link StatusServer}, {@link ThriftServer}, {@link MessageSetProcessor}, and
  * {@link SinkManager}
  * 
  * @author elandau
@@ -24,11 +24,11 @@ public class SuroService {
 
     private final StatusServer statusServer;
     private final ThriftServer server;
-    private final MessageQueue queue;
+    private final MessageSetProcessor queue;
     private final SinkManager  sinkManager;
     
     @Inject
-    private SuroService(StatusServer statusServer, ThriftServer thriftServer, MessageQueue queue, SinkManager sinkManager) {
+    private SuroService(StatusServer statusServer, ThriftServer thriftServer, MessageSetProcessor queue, SinkManager sinkManager) {
         this.statusServer = statusServer;
         this.server       = thriftServer;
         this.queue        = queue;

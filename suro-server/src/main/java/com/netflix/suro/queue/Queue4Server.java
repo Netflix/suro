@@ -77,7 +77,7 @@ public class Queue4Server {
         return queue.isEmpty();
     }
 
-    public long size() {
+    public int size() {
         return queue.size();
     }
 }

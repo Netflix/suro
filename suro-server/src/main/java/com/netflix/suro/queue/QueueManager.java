@@ -25,8 +25,8 @@ public class QueueManager {
 
     private volatile int status = OK;
 
-    private MessageQueue service;
-    public void registerService(MessageQueue service){
+    private MessageSetProcessor service;
+    public void registerService(MessageSetProcessor service){
         this.service = service;
     }
 
