@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Tracks the main routing map as a volatile immutable Map of route key to filter and destination
+ * A collection of {@link RoutingInfo}, each of which is mapped to a routing key.
  * 
  * @author jbae
  * @author elandau
@@ -52,8 +52,16 @@ public class RoutingMap {
         }
 
         public List<String> getWhere() { return where; }
+
+        /**
+         * Filters given messages based on filters defined in
+         * this object.
+         * @param message the message to be filtered.
+         * @return true if there is no filter found or if the filter returns true when applied to the message.
+         * @throws Exception thrown if filtering ran into an unexpected failure
+         */
         public boolean doFilter(MessageContainer message) throws Exception {
-            return filter != null ? filter.doFilter(message) : true;
+            return filter == null || filter.doFilter(message);
         }
     }
     
