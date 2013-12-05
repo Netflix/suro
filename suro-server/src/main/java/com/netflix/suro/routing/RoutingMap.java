@@ -19,6 +19,7 @@ package com.netflix.suro.routing;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Singleton;
 import com.netflix.suro.message.MessageContainer;
@@ -38,20 +39,48 @@ import java.util.Map;
  */
 @Singleton
 public class RoutingMap {
+    public static class Route {
+        private final String sink;
+        private final Filter filter;
+        
+        @JsonCreator
+        public Route(
+               @JsonProperty("sink") String sink,
+               @JsonProperty("filter") Filter filter) {
+            this.sink   = sink;
+            this.filter = filter;
+        }
+        
+        public String getSink() {
+            return sink;
+        }
+        
+        public Filter getFilter() {
+            return filter;
+        }
+        
+        public boolean doFilter(MessageContainer message) throws Exception {
+            return filter != null ? filter.doFilter(message) : true;
+        }
+
+    }
+    
     public static class RoutingInfo {
-        private final List<String> where;
+        private final List<Route> where;
         private final Filter filter;
 
         @JsonCreator
         public RoutingInfo(
-                @JsonProperty("where") List<String> where,
+                @JsonProperty("where") List<Route> where,
                 @JsonProperty("filter") Filter filter
         ) {
             this.where  = where;
             this.filter = filter;
         }
 
-        public List<String> getWhere() { return where; }
+        public List<Route> getWhere() { 
+            return where; 
+        }
 
         /**
          * Filters given messages based on filters defined in
