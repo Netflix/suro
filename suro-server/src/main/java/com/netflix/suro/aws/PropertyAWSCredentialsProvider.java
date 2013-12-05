@@ -5,9 +5,14 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.netflix.governator.annotations.Configuration;
 
 /**
- * AWSCredentialsProvider using properties to get accessKey and secretKey.
- * For command line these properties are set by SuroServer
- * 
+ * An {@link AWSCredentialsProvider} implementation that is backed by Java properties. It is up to wired
+ * {@link com.netflix.governator.configuration.ConfigurationProvider} to set the property values
+ * for access key and secret key. If we use {@link com.netflix.suro.SuroServer}, then such properties can
+ * be passed in using {@link com.netflix.suro.SuroServer}'s command line parameters. The properties are
+ * set at server initialization time, and does not get refreshed.
+ *
+ * If you want to integrate with the profile-based credential provider, use Amazon's <a href="http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/InstanceProfileCredentialsProvider.html">InstanceProfileCredentialsProvider</a>
+ *
  * @author jbae
  * @author elandau
  */

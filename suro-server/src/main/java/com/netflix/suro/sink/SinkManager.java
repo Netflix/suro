@@ -37,7 +37,7 @@ public class SinkManager {
     public void set(Map<String, Sink> newSinkMap) {
         try {
             for (Map.Entry<String, Sink> sink : sinkMap.entrySet()) {
-                if (newSinkMap.containsKey(sink.getKey()) == false) { // removed
+                if ( !newSinkMap.containsKey( sink.getKey() ) ) { // removed
                     Sink removedSink = sinkMap.remove(sink.getKey());
                     if (removedSink != null) {
                         log.info(String.format("Removing sink '%s'", sink.getKey()));
@@ -47,7 +47,7 @@ public class SinkManager {
             }
 
             for (Map.Entry<String, Sink> sink : newSinkMap.entrySet()) {
-                if (sinkMap.containsKey(sink.getKey()) == false) { // added
+                if (!sinkMap.containsKey( sink.getKey() ) ) { // added
                     log.info(String.format("Adding sink '%s'", sink.getKey()));
                     sink.getValue().open();
                     sinkMap.put(sink.getKey(), sink.getValue());
@@ -80,7 +80,7 @@ public class SinkManager {
     }
 
     public void shutdown() {
-        log.info("SinkManager shuting down");
+        log.info("SinkManager shutting down");
         for (Map.Entry<String, Sink> entry : sinkMap.entrySet()) {
            entry.getValue().close();
         }

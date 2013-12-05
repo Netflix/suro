@@ -41,7 +41,7 @@ import javax.ws.rs.Produces;
 @Path("/healthcheck")
 @Singleton
 public class HealthCheck {
-    static Logger log = LoggerFactory.getLogger(HealthCheck.class);
+    private static final Logger log = LoggerFactory.getLogger(HealthCheck.class);
 
     private final ServerConfig config;
 

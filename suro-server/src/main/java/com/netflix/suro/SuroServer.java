@@ -23,10 +23,10 @@ import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
-import com.netflix.suro.routing.FastPropertyRoutingMapConfigurator;
+import com.netflix.suro.routing.DynamicPropertyRoutingMapConfigurator;
 import com.netflix.suro.routing.RoutingPlugin;
 import com.netflix.suro.server.StatusServer;
-import com.netflix.suro.sink.FastPropertySinkConfigurator;
+import com.netflix.suro.sink.DynamicPropertySinkConfigurator;
 import com.netflix.suro.sink.SinkPlugin;
 import org.apache.commons.cli.*;
 import org.apache.commons.io.FileUtils;
@@ -44,6 +44,8 @@ import java.util.Properties;
  */
 public class SuroServer {
     private static final String PROP_PREFIX = "SuroServer.";
+    private static final int DEFAULT_CONTROL_PORT = 9090;
+    public static final String OPT_CONTROL_PORT = "controlPort";
 
     public static void main(String[] args) throws IOException {
         LifecycleManager manager = null;
@@ -64,11 +66,11 @@ public class SuroServer {
                 String name     = opt.getOpt();
                 String value    = line.getOptionValue(name);
                 String propName = PROP_PREFIX + opt.getArgName();
-                if (propName.equals(FastPropertyRoutingMapConfigurator.ROUTING_MAP_PROPERTY)) {
-                    properties.setProperty(FastPropertyRoutingMapConfigurator.ROUTING_MAP_PROPERTY,
+                if (propName.equals(DynamicPropertyRoutingMapConfigurator.ROUTING_MAP_PROPERTY)) {
+                    properties.setProperty(DynamicPropertyRoutingMapConfigurator.ROUTING_MAP_PROPERTY,
                             FileUtils.readFileToString(new File(value)));
-                } else if (propName.equals(FastPropertySinkConfigurator.SINK_PROPERTY)) {
-                    properties.setProperty(FastPropertySinkConfigurator.SINK_PROPERTY,
+                } else if (propName.equals(DynamicPropertySinkConfigurator.SINK_PROPERTY)) {
+                    properties.setProperty(DynamicPropertySinkConfigurator.SINK_PROPERTY,
                             FileUtils.readFileToString(new File(value)));
                 } else {
                     properties.setProperty(propName, value);
@@ -90,16 +92,15 @@ public class SuroServer {
                             new RoutingPlugin(),
                             new SinkPlugin(),
                             new SuroFastPropertyModule(),
-                            new SuroModule(properties),
+                            new SuroModule(),
                             StatusServer.createJerseyServletModule()
                     )
                     .createInjector();
 
             manager = injector.getInstance(LifecycleManager.class);
             manager.start();
-            
-            // Hmmm... is this the right way to do this?  Should this block on the status server instead?
-            Thread.sleep(Long.MAX_VALUE);
+
+            waitForShutdown(getControlPort(options));
         } catch (Exception e) {
             System.err.println("SuroServer startup failed: " + e.getMessage());
             System.exit(-1);
@@ -107,7 +108,21 @@ public class SuroServer {
             Closeables.close(manager, true);
         }
     }
-    
+
+    private static void waitForShutdown(int port) throws IOException {
+       new SuroControl().start(port);
+    }
+
+    private static int getControlPort(Options options) {
+        Option opt = options.getOption("controlPort");
+        String value = opt.getValue();
+        if(value == null) {
+            return DEFAULT_CONTROL_PORT;
+        }
+
+        return Integer.parseInt(value);
+    }
+
     @SuppressWarnings("static-access")
     private static Options createOptions() {
         Option propertyFile = OptionBuilder.withArgName("serverProperty")
@@ -139,12 +154,20 @@ public class SuroServer {
                 .withDescription("AWSSecretKey")
                 .create('k');
 
+        Option controlPort = OptionBuilder.withArgName(OPT_CONTROL_PORT)
+            .hasArg()
+            .isRequired(false)
+            .withDescription("The port used to send command to this server")
+            .create('c');
+
         Options options = new Options();
         options.addOption(propertyFile);
         options.addOption(mapFile);
         options.addOption(sinkFile);
         options.addOption(accessKey);
         options.addOption(secretKey);
+        options.addOption(controlPort);
+
         return options;
     }
 }

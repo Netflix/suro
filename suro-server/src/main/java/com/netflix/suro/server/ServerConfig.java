@@ -18,6 +18,10 @@ package com.netflix.suro.server;
 
 import com.netflix.governator.annotations.Configuration;
 
+/**
+ * Configuration values for Suro server. Actual configuration values are assigned by
+ * wired {@link com.netflix.governator.configuration.ConfigurationProvider}
+ */
 public class ServerConfig {
     public static final String SERVER_PORT = "SuroServer.port";
     @Configuration(SERVER_PORT)

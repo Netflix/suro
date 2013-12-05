@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.netflix.config.DynamicStringProperty;
 import com.netflix.governator.annotations.Configuration;
-import com.netflix.suro.routing.FastPropertyRoutingMapConfigurator;
+import com.netflix.suro.routing.DynamicPropertyRoutingMapConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,49 +13,47 @@ import javax.annotation.PostConstruct;
 import java.util.Map;
 
 /**
- * FastProperty driven sink configuration.  Whenever a change is made to the
- * fast property this module will parse the JSON and set a new configuration on the
+ * {@link com.netflix.config.DynamicProperty} driven sink configuration.  Whenever a change is made to the
+ * dynamic property, this module will parse the JSON and set a new configuration on the
  * main SinkManager.
- * 
+ *
  * @author elandau
  */
-public class FastPropertySinkConfigurator {
-    private static Logger log = LoggerFactory.getLogger(FastPropertyRoutingMapConfigurator.class);
-    
+public class DynamicPropertySinkConfigurator {
+    private static final Logger log = LoggerFactory.getLogger(DynamicPropertyRoutingMapConfigurator.class);
+
     public static final String SINK_PROPERTY = "SuroServer.sinkConfig";
-    
+
     private final SinkManager     sinkManager;
     private final ObjectMapper    jsonMapper;
 
     @Configuration(SINK_PROPERTY)
     private String initialSink;
 
-    private DynamicStringProperty sinkFP;
-    
     @Inject
-    public FastPropertySinkConfigurator(
-            SinkManager  sinkManager,
-            ObjectMapper jsonMapper) {
+    public DynamicPropertySinkConfigurator(
+        SinkManager sinkManager,
+        ObjectMapper jsonMapper) {
         this.sinkManager = sinkManager;
         this.jsonMapper  = jsonMapper;
     }
-    
+
     @PostConstruct
     public void init() {
-        sinkFP = new DynamicStringProperty(SINK_PROPERTY, initialSink) {
+        DynamicStringProperty sinkDescription = new DynamicStringProperty(SINK_PROPERTY, initialSink) {
             @Override
             protected void propertyChanged() {
                 buildSink(get());
             }
         };
 
-        buildSink(sinkFP.get());
+        buildSink(sinkDescription.get());
     }
 
     private void buildSink(String sink) {
         try {
             Map<String, Sink> newSinkMap = jsonMapper.readValue(sink, new TypeReference<Map<String, Sink>>(){});
-            if (newSinkMap.containsKey("default") == false) {
+            if ( !newSinkMap.containsKey("default") ) {
                 throw new IllegalStateException("default sink should be defined");
             }
 

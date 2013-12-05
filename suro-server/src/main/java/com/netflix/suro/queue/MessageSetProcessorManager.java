@@ -19,14 +19,14 @@ package com.netflix.suro.queue;
 import com.google.inject.Singleton;
 
 @Singleton
-public class QueueManager {
+public class MessageSetProcessorManager {
     public static final int IN_ERROR = 503;
     public static final int OK = 200;
 
     private volatile int status = OK;
 
-    private MessageQueue service;
-    public void registerService(MessageQueue service){
+    private MessageSetProcessor service;
+    public void registerService(MessageSetProcessor service){
         this.service = service;
     }
 

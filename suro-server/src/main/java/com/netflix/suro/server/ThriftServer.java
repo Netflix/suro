@@ -18,7 +18,7 @@ package com.netflix.suro.server;
 
 import com.google.inject.Inject;
 import com.netflix.governator.guice.lazy.LazySingleton;
-import com.netflix.suro.queue.MessageQueue;
+import com.netflix.suro.queue.MessageSetProcessor;
 import com.netflix.suro.thrift.SuroServer;
 import org.apache.thrift.server.THsHaServer;
 import org.apache.thrift.transport.TTransportException;
@@ -29,30 +29,26 @@ import java.util.concurrent.*;
 
 @LazySingleton
 public class ThriftServer {
-    private static Logger logger = LoggerFactory.getLogger(ThriftServer.class);
+    private static final Logger logger = LoggerFactory.getLogger(ThriftServer.class);
 
-    private CustomServerSocket transport = null;
     private THsHaServer server = null;
-    private SuroServer.Processor processor = null;
 
     private final ServerConfig config;
-    private final MessageQueue messageQueue;
+    private final MessageSetProcessor MessageSetProcessor;
     private ExecutorService executor;
 
     @Inject
     public ThriftServer(
             ServerConfig config,
-            MessageQueue messageQueue) throws Exception {
+            MessageSetProcessor MessageSetProcessor) throws Exception {
         this.config = config;
-        this.messageQueue = messageQueue;
+        this.MessageSetProcessor = MessageSetProcessor;
     }
 
-    private Future<?> serverStarted;
-    
     public void start() throws TTransportException {
         logger.info("Starting ThriftServer with config " + config);
-        transport = new CustomServerSocket(config);
-        processor =  new SuroServer.Processor(messageQueue);
+        CustomServerSocket transport = new CustomServerSocket(config);
+        SuroServer.Processor processor =  new SuroServer.Processor<MessageSetProcessor>(MessageSetProcessor);
 
         THsHaServer.Args serverArgs = new THsHaServer.Args(transport);
         serverArgs.workerThreads(config.getThriftWorkerThreadNum());
@@ -62,7 +58,7 @@ public class ThriftServer {
         executor = Executors.newSingleThreadExecutor();
 
         server = new THsHaServer(serverArgs);
-        serverStarted = executor.submit(new Runnable() {
+        Future<?> serverStarted = executor.submit(new Runnable() {
             @Override
             public void run() {
                 server.serve();

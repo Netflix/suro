@@ -20,12 +20,6 @@ import java.util.Properties;
  * @author elandau
  */
 public class SuroModule extends AbstractModule {
-    private final Properties properties;
-    
-    public SuroModule(Properties properties) {
-        this.properties = properties;
-    }
-    
     @Override
     protected void configure() {
         bind(AWSCredentialsProvider.class)
@@ -33,8 +27,6 @@ public class SuroModule extends AbstractModule {
 
         bind(ObjectMapper.class).to(DefaultObjectMapper.class).asEagerSingleton();
         bind(AWSCredentialsProvider.class).to(PropertyAWSCredentialsProvider.class);
-        bind(SinkManager.class);
-        bind(RoutingMap.class);
         bind(SuroService.class);
         bind(StatusServer.class);
     }
