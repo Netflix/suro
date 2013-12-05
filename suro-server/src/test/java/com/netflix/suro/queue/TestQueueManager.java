@@ -45,13 +45,13 @@ public class TestQueueManager {
                 }).build().createInjector();
         injector.getInstance(LifecycleManager.class).start();
 
-        MessageQueue queue = injector.getInstance(MessageQueue.class);
-        QueueManager manager = injector.getInstance(QueueManager.class);
+        MessageSetProcessor queue = injector.getInstance(MessageSetProcessor.class);
+        MessageSetProcessorManager manager = injector.getInstance(MessageSetProcessorManager.class);
         manager.registerService(queue);
 
         assertEquals(queue.process(TestConnectionPool.createMessageSet(100)).getResultCode(), ResultCode.OK);
         queue.poll(1, TimeUnit.SECONDS);
-        assertEquals(manager.getStatus(), QueueManager.OK);
+        assertEquals(manager.getStatus(), MessageSetProcessorManager.OK);
 
         manager.stopTakingTraffic();
         assertEquals(queue.process(TestConnectionPool.createMessageSet(100)).getResultCode(), ResultCode.OTHER_ERROR);

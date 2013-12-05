@@ -19,7 +19,7 @@ package com.netflix.suro;
 import com.google.inject.Injector;
 import com.netflix.suro.client.SuroClient;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.queue.MessageQueue;
+import com.netflix.suro.queue.MessageSetProcessor;
 import com.netflix.suro.routing.TestMessageRouter;
 import com.netflix.suro.server.TestServer;
 import com.netflix.suro.sink.SinkManager;
@@ -42,7 +42,7 @@ public class TestSuroClient {
         serverInjector = TestServer.start();
         sinkManager = TestMessageRouter.startSinkMakager(serverInjector);
         TestMessageRouter.startMessageRouter(serverInjector);
-        serverInjector.getInstance(MessageQueue.class).start();
+        serverInjector.getInstance(MessageSetProcessor.class).start();
     }
 
     @After

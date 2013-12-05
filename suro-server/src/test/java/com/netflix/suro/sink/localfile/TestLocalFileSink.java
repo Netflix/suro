@@ -29,8 +29,8 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.message.StringMessage;
-import com.netflix.suro.queue.MessageQueue;
-import com.netflix.suro.queue.QueueManager;
+import com.netflix.suro.queue.MessageSetProcessor;
+import com.netflix.suro.queue.MessageSetProcessorManager;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkPlugin;
 import com.netflix.suro.thrift.ServiceStatus;
@@ -83,7 +83,7 @@ public class TestLocalFileSink {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
                 if (valueId.equals("queueManager")) {
-                    return new QueueManager();
+                    return new MessageSetProcessorManager();
                 } else {
                     return null;
                 }
@@ -141,7 +141,7 @@ public class TestLocalFileSink {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
                 if (valueId.equals("queueManager")) {
-                    return new QueueManager();
+                    return new MessageSetProcessorManager();
                 } else {
                     return null;
                 }
@@ -196,9 +196,9 @@ public class TestLocalFileSink {
                 "}";
 
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
-        final QueueManager queueManager = new QueueManager();
-        final MessageQueue queue = new MessageQueue(null, null, queueManager, null, mapper);
-        queueManager.registerService(queue);
+        final MessageSetProcessorManager messageSetProcessorManager = new MessageSetProcessorManager();
+        final MessageSetProcessor queue = new MessageSetProcessor(null, null, messageSetProcessorManager, null, mapper);
+        messageSetProcessorManager.registerService(queue);
 
         final LocalFileSink.SpaceChecker spaceChecker = mock(LocalFileSink.SpaceChecker.class);
         when(spaceChecker.hasEnoughSpace()).thenReturn(false);
@@ -207,7 +207,7 @@ public class TestLocalFileSink {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
                 if (valueId.equals("queueManager")) {
-                    return queueManager;
+                    return messageSetProcessorManager;
                 } else if (valueId.equals("spaceChecker")) {
                     return spaceChecker;
                 } else {
@@ -216,7 +216,7 @@ public class TestLocalFileSink {
             }
         });
         assertEquals(queue.getStatus(), ServiceStatus.ALIVE);
-        assertEquals(queueManager.getStatus(), QueueManager.OK);
+        assertEquals(messageSetProcessorManager.getStatus(), MessageSetProcessorManager.OK);
 
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
@@ -224,7 +224,7 @@ public class TestLocalFileSink {
         Thread.sleep(1000); // wait until thread starts
 
         assertEquals(queue.getStatus(), ServiceStatus.WARNING);
-        assertEquals(queueManager.getStatus(), QueueManager.IN_ERROR);
+        assertEquals(messageSetProcessorManager.getStatus(), MessageSetProcessorManager.IN_ERROR);
         assertNull(sink.recvNotify());
 
         when(spaceChecker.hasEnoughSpace()).thenReturn(true);
@@ -275,7 +275,7 @@ public class TestLocalFileSink {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
                 if (valueId.equals("queueManager")) {
-                    return new QueueManager();
+                    return new MessageSetProcessorManager();
                 } else {
                     return null;
                 }
@@ -338,7 +338,7 @@ public class TestLocalFileSink {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
                 if (valueId.equals("queueManager")) {
-                    return new QueueManager();
+                    return new MessageSetProcessorManager();
                 } else {
                     return null;
                 }
@@ -409,7 +409,7 @@ public class TestLocalFileSink {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
                 if (valueId.equals("queueManager")) {
-                    return new QueueManager();
+                    return new MessageSetProcessorManager();
                 } else {
                     return null;
                 }

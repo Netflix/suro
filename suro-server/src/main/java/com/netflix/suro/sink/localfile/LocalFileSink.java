@@ -30,7 +30,7 @@ import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.sink.notify.Notify;
 import com.netflix.suro.sink.nofify.QueueNotify;
-import com.netflix.suro.queue.QueueManager;
+import com.netflix.suro.queue.MessageSetProcessorManager;
 import com.netflix.suro.sink.QueuedSink;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.queue.MemoryQueue4Sink;
@@ -52,7 +52,7 @@ import java.util.List;
  * LocalFileSink appends messages to the file in local file system and rotates
  * the file when the file size reaches to the threshold or in the regular basis
  * whenever it comes earlier. When {@link SpaceChecker} checks not enough disk
- * space, it triggers {@link QueueManager} not to take the traffic anymore.
+ * space, it triggers {@link com.netflix.suro.queue.MessageSetProcessorManager} not to take the traffic anymore.
  *
  * @author jbae
  */
@@ -71,7 +71,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
     private final int minPercentFreeDisk;
     private final Notify<String> notify;
 
-    private QueueManager queueManager;
+    private MessageSetProcessorManager messageSetProcessorManager;
     private SpaceChecker spaceChecker;
 
     private String filePath;
@@ -97,7 +97,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
             @JsonProperty("queue4Sink") MessageQueue4Sink queue4Sink,
             @JsonProperty("batchSize") int batchSize,
             @JsonProperty("batchTimeout") int batchTimeout,
-            @JacksonInject("queueManager") QueueManager queueManager,
+            @JacksonInject("queueManager") MessageSetProcessorManager messageSetProcessorManager,
             @JacksonInject("spaceChecker") SpaceChecker spaceChecker) {
         if (outputDir.endsWith("/") == false) {
             outputDir += "/";
@@ -110,7 +110,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
         this.rotationPeriod = new Period(rotationPeriod == null ? "PT1m" : rotationPeriod);
         this.minPercentFreeDisk = minPercentFreeDisk == 0 ? 50 : minPercentFreeDisk;
         this.notify = notify == null ? new QueueNotify<String>() : notify;
-        this.queueManager = queueManager;
+        this.messageSetProcessorManager = messageSetProcessorManager;
         this.spaceChecker = spaceChecker;
 
         Monitors.registerObject(LocalFileSink.class.getSimpleName() + "-" + outputDir.replace('/', '_'), this);
@@ -127,8 +127,8 @@ public class LocalFileSink extends QueuedSink implements Sink {
             if (spaceChecker == null) {
                 spaceChecker = new SpaceChecker(minPercentFreeDisk, outputDir);
             }
-            if (queueManager == null) {
-                queueManager = new QueueManager();
+            if (messageSetProcessorManager == null) {
+                messageSetProcessorManager = new MessageSetProcessorManager();
             }
 
             notify.init();
@@ -195,9 +195,9 @@ public class LocalFileSink extends QueuedSink implements Sink {
         nextRotation = new DateTime().plus(rotationPeriod).getMillis();
 
         if (spaceChecker.hasEnoughSpace() == false) {
-            queueManager.stopTakingTraffic();
+            messageSetProcessorManager.stopTakingTraffic();
         } else {
-            queueManager.startTakingTraffic();
+            messageSetProcessorManager.startTakingTraffic();
         }
     }
 

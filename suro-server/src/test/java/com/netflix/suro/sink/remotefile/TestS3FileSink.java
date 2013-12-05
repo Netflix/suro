@@ -29,7 +29,7 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.message.StringMessage;
-import com.netflix.suro.queue.QueueManager;
+import com.netflix.suro.queue.MessageSetProcessorManager;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkPlugin;
 import com.netflix.suro.sink.localfile.LocalFileSink;
@@ -327,9 +327,9 @@ public class TestS3FileSink {
                         } catch (Exception e) {
                             Assert.fail(e.getMessage());
                         }
-                        bind(QueueManager.class)
+                        bind(MessageSetProcessorManager.class)
                                 .annotatedWith(Names.named("queueManager"))
-                                .toInstance(new QueueManager());
+                                .toInstance(new MessageSetProcessorManager());
                         bind(SpaceChecker.class)
                                 .annotatedWith(Names.named("spaceChecker"))
                                 .toInstance(mock(SpaceChecker.class));

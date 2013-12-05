@@ -34,7 +34,7 @@ import java.util.List;
  */
 @LazySingleton
 public class MessageRouter {
-    static Logger log = LoggerFactory.getLogger(MessageRouter.class);
+    private static final Logger log = LoggerFactory.getLogger(MessageRouter.class);
 
     private final RoutingMap routingMap;
     private final SinkManager sinkManager;
@@ -54,11 +54,12 @@ public class MessageRouter {
 
         if (info == null) {
             sinkManager.getSink("default").writeTo(msg);
-        } else if (info != null && info.doFilter(msg)) {
+        } else if (info.doFilter(msg)) {
             List<Route> routes = info.getWhere();
             for (Route route : routes) {
-                if (route.doFilter(msg))
+                if (route.doFilter(msg)) {
                     sinkManager.getSink(route.getSink()).writeTo(msg);
+                }
             }
         }
     }

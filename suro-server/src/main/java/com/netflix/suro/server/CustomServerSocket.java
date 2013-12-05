@@ -29,9 +29,8 @@ import java.net.SocketException;
 import java.nio.channels.*;
 
 /**
- * ServerSocket in thrift 0.7.0 is not implementing KEEP_ALIVE. To set up
- * KEEP_ALIVE in the accepted server socket, this is implemented.
- *
+ * {@link ServerSocket} used by {@link TNonblockingServerTransport} in thrift 0.7.0 does not support KEEP_ALIVE. This
+ * class enables KEEP_ALIVE in {@link TNonblockingServerTransport}.
  * @author jbae
  */
 public class CustomServerSocket extends TNonblockingServerTransport {
@@ -46,11 +45,6 @@ public class CustomServerSocket extends TNonblockingServerTransport {
      * Underlying ServerSocket object
      */
     private ServerSocket serverSocket_ = null;
-
-    /**
-     * Timeout for client sockets from accept
-     */
-    private int clientTimeout_ = 0;
 
     private final ServerConfig config;
 
@@ -95,7 +89,7 @@ public class CustomServerSocket extends TNonblockingServerTransport {
             }
 
             TNonblockingSocket tsocket = new TNonblockingSocket(socketChannel);
-            tsocket.setTimeout(clientTimeout_);
+            tsocket.setTimeout(0); // disabling client timeout
             tsocket.getSocketChannel().socket().setKeepAlive(true);
             tsocket.getSocketChannel().socket().setSendBufferSize(config.getSocketSendBufferBytes());
             tsocket.getSocketChannel().socket().setReceiveBufferSize(config.getSocketRecvBufferBytes());
