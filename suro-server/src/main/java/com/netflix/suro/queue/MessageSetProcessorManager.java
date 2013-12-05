@@ -19,7 +19,7 @@ package com.netflix.suro.queue;
 import com.google.inject.Singleton;
 
 @Singleton
-public class QueueManager {
+public class MessageSetProcessorManager {
     public static final int IN_ERROR = 503;
     public static final int OK = 200;
 

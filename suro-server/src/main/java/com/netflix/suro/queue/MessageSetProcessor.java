@@ -89,7 +89,7 @@ public class MessageSetProcessor implements SuroServer.Iface {
     public MessageSetProcessor(
         Queue4Server queue,
         MessageRouter router,
-        QueueManager manager,
+        MessageSetProcessorManager manager,
         ServerConfig config,
         ObjectMapper mapper) throws Exception {
         this.queue = queue;
