@@ -57,11 +57,17 @@ public class TestMessageRouter {
         @JsonCreator
         public TestSink(@JsonProperty("message") String message) {
             this.message = message;
-            messageList = new LinkedList<String>();
+            this.messageList = new LinkedList<String>();
         }
 
         @Override
-        public void writeTo(MessageContainer message) {
+        public void writeTo(MessageContainer message)  {
+            try {
+                System.out.println("message: " + this.message + " msg: " + message.getEntity(String.class));
+            } catch (Exception e1) {
+                // TODO Auto-generated catch block
+                e1.printStackTrace();
+            }
             Integer count = messageCount.get(this.message);
             if (count == null) {
                 messageCount.put(this.message, 1);
@@ -117,14 +123,16 @@ public class TestMessageRouter {
         final Properties properties = new Properties();
         properties.setProperty(ServerConfig.MESSAGE_ROUTER_THREADS, "1");
 
-        Injector injector = LifecycleInjector.builder().withModules(
+        Injector injector = LifecycleInjector.builder()
+            .withModules(
                 new SuroPlugin() {
                     @Override
                     protected void configure() {
                         bind(ObjectMapper.class).to(DefaultObjectMapper.class);
                         this.addSinkType("TestSink", TestSink.class);
                     }
-                }
+                },
+                new RoutingPlugin()
             )
             .withBootstrapModule(new BootstrapModule() {
                 @Override
@@ -178,13 +186,19 @@ public class TestMessageRouter {
         String mapDesc = "{\n" +
                 "    \"topic1\": {\n" +
                 "        \"where\": [\n" +
-                "            \"sink1\",\n" +
-                "            \"default\"\n" +
+                "            { \"sink\" : \"sink1\" },\n" +
+                "            { \"sink\" : \"default\" }\n" +
                 "        ]\n" +
                 "    },\n" +
                 "    \"topic2\": {\n" +
                 "        \"where\": [\n" +
-                "            \"sink1\"\n" +
+                "            { \"sink\" : \"sink1\" },\n" +
+                "            { \"sink\" : \"sink2\",\n" + 
+                "              \"filter\" : {" +
+                "                \"type\"  : \"regex\",\n" +
+                "                \"regex\" : \"1\"\n" +
+                "                }" +
+                "            }\n" +
                 "        ]\n" +
                 "    }\n" +
                 "}";
@@ -205,6 +219,10 @@ public class TestMessageRouter {
                 "    \"sink1\": {\n" +
                 "        \"type\": \"TestSink\",\n" +
                 "        \"message\": \"sink1\"\n" +
+                "    },\n" +
+                "    \"sink2\": {\n" +
+                "        \"type\": \"TestSink\",\n" +
+                "        \"message\": \"sink2\"\n" +
                 "    }\n" +
                 "}";
         SinkManager sinkManager = injector.getInstance(SinkManager.class);
@@ -216,8 +234,9 @@ public class TestMessageRouter {
 
     private boolean answer() {
         Integer sink1 = messageCount.get("sink1");
+        Integer sink2 = messageCount.get("sink2");
         Integer defaultV = messageCount.get("default");
-        if (sink1 != null && sink1 == 15 && defaultV != null && defaultV == 30) {
+        if (sink1 != null && sink1 == 15 && defaultV != null && defaultV == 30 && sink2 == 1) {
             return true;
         } else {
             return false;
