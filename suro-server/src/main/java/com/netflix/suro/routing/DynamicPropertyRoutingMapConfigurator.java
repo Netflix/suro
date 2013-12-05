@@ -20,10 +20,10 @@ import java.util.Map;
  * @author elandau
  */
 @Singleton
-public class FastPropertyRoutingMapConfigurator {
+public class DynamicPropertyRoutingMapConfigurator {
     public static final String ROUTING_MAP_PROPERTY = "SuroServer.routingMap";
 
-    private static Logger LOG = LoggerFactory.getLogger(FastPropertyRoutingMapConfigurator.class);
+    private static Logger LOG = LoggerFactory.getLogger(DynamicPropertyRoutingMapConfigurator.class);
 
     private final RoutingMap    routingMap;
     private final ObjectMapper  jsonMapper;
@@ -32,9 +32,9 @@ public class FastPropertyRoutingMapConfigurator {
     private String initialRoutingMap;
 
     @Inject
-    public FastPropertyRoutingMapConfigurator(
-            RoutingMap routingMap,
-            ObjectMapper jsonMapper) {
+    public DynamicPropertyRoutingMapConfigurator(
+        RoutingMap routingMap,
+        ObjectMapper jsonMapper) {
         this.routingMap = routingMap;
         this.jsonMapper = jsonMapper;
     }

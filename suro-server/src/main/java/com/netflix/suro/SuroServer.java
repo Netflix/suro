@@ -23,10 +23,10 @@ import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
-import com.netflix.suro.routing.FastPropertyRoutingMapConfigurator;
+import com.netflix.suro.routing.DynamicPropertyRoutingMapConfigurator;
 import com.netflix.suro.routing.RoutingPlugin;
 import com.netflix.suro.server.StatusServer;
-import com.netflix.suro.sink.FastPropertySinkConfigurator;
+import com.netflix.suro.sink.DynamicPropertySinkConfigurator;
 import com.netflix.suro.sink.SinkPlugin;
 import org.apache.commons.cli.*;
 import org.apache.commons.io.FileUtils;
@@ -66,11 +66,11 @@ public class SuroServer {
                 String name     = opt.getOpt();
                 String value    = line.getOptionValue(name);
                 String propName = PROP_PREFIX + opt.getArgName();
-                if (propName.equals(FastPropertyRoutingMapConfigurator.ROUTING_MAP_PROPERTY)) {
-                    properties.setProperty(FastPropertyRoutingMapConfigurator.ROUTING_MAP_PROPERTY,
+                if (propName.equals(DynamicPropertyRoutingMapConfigurator.ROUTING_MAP_PROPERTY)) {
+                    properties.setProperty(DynamicPropertyRoutingMapConfigurator.ROUTING_MAP_PROPERTY,
                             FileUtils.readFileToString(new File(value)));
-                } else if (propName.equals(FastPropertySinkConfigurator.SINK_PROPERTY)) {
-                    properties.setProperty(FastPropertySinkConfigurator.SINK_PROPERTY,
+                } else if (propName.equals(DynamicPropertySinkConfigurator.SINK_PROPERTY)) {
+                    properties.setProperty(DynamicPropertySinkConfigurator.SINK_PROPERTY,
                             FileUtils.readFileToString(new File(value)));
                 } else {
                     properties.setProperty(propName, value);
