@@ -21,6 +21,7 @@ import com.google.inject.Injector;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
+import com.netflix.suro.routing.RoutingPlugin;
 import com.netflix.suro.routing.TestMessageRouter;
 import org.apache.thrift.transport.TTransportException;
 import org.junit.Test;
@@ -30,13 +31,16 @@ public class TestServer {
 
     public static Injector start() throws TTransportException {
         Injector injector = LifecycleInjector.builder()
-            .withModules(new SuroPlugin() {
-                @Override
-                protected void configure() {
-                    bind(ObjectMapper.class).to(DefaultObjectMapper.class);
-                    this.addSinkType("TestSink", TestMessageRouter.TestSink.class);
-                }
-            }).createInjector();
+            .withModules(
+                new SuroPlugin() {
+                    @Override
+                    protected void configure() {
+                        bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                        this.addSinkType("TestSink", TestMessageRouter.TestSink.class);
+                    }
+                },
+                new RoutingPlugin()
+            ).createInjector();
 
         server = injector.getInstance(ThriftServer.class);
         server.start();

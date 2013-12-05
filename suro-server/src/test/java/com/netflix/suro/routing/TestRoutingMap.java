@@ -18,18 +18,25 @@ package com.netflix.suro.routing;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Function;
+import com.google.common.collect.Collections2;
+import com.google.common.collect.Lists;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
+import com.netflix.suro.routing.RoutingMap.Route;
 import com.netflix.suro.routing.RoutingMap.RoutingInfo;
 import com.netflix.suro.sink.TestSinkManager.TestSink;
 
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+
+import javax.annotation.Nullable;
 
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -48,7 +55,8 @@ public class TestRoutingMap {
                 protected void configure() {
                     bind(ObjectMapper.class).to(DefaultObjectMapper.class);
                 }
-            }
+            },
+            new RoutingPlugin()
         );
     
     private Map<String, RoutingInfo> getRoutingMap(String desc) throws Exception {
@@ -63,15 +71,15 @@ public class TestRoutingMap {
         String mapDesc = "{\n" +
                 "    \"request_trace\": {\n" +
                 "        \"where\": [\n" +
-                "            \"sink1\",\n" +
-                "            \"sink2\",\n" +
-                "            \"sink3\"\n" +
+                "            {\"sink\":\"sink1\"},\n" +
+                "            {\"sink\":\"sink2\"},\n" +
+                "            {\"sink\":\"sink3\"}\n" +
                 "        ]\n" +
                 "    },\n" +
                 "    \"nf_errors_log\": {\n" +
                 "        \"where\": [\n" +
-                "            \"sink3\",\n" +
-                "            \"sink4\"\n" +
+                "            {\"sink\":\"sink3\"},\n" +
+                "            {\"sink\":\"sink4\"}\n" +
                 "        ]\n" +
                 "    }\n" +
                 "}";
@@ -80,12 +88,12 @@ public class TestRoutingMap {
         routingMap.set(getRoutingMap(mapDesc));
         assertTrue(
                 Arrays.equals(
-                        routingMap.getRoutingInfo("request_trace").getWhere().toArray(),
+                        getSinkNames(routingMap.getRoutingInfo("request_trace").getWhere()),
                         new String[]{"sink1", "sink2", "sink3"}));
 
         assertTrue(
                 Arrays.equals(
-                        routingMap.getRoutingInfo("nf_errors_log").getWhere().toArray(),
+                        getSinkNames(routingMap.getRoutingInfo("nf_errors_log").getWhere()),
                         new String[]{"sink3", "sink4"}));
         assertNull(routingMap.getRoutingInfo("streaming"));
 
@@ -95,27 +103,27 @@ public class TestRoutingMap {
         mapDesc = "{\n" +
                 "    \"request_trace\": {\n" +
                 "        \"where\": [\n" +
-                "            \"sink1\",\n" +
-                "            \"sink2\",\n" +
-                "            \"sink3\"\n" +
+                "            {\"sink\":\"sink1\"},\n" +
+                "            {\"sink\":\"sink2\"},\n" +
+                "            {\"sink\":\"sink3\"}\n" +
                 "        ]\n" +
                 "    },\n" +
                 "    \"nf_errors_log\": {\n" +
                 "        \"where\": [\n" +
-                "            \"sink3\",\n" +
-                "            \"sink4\"\n" +
+                "            {\"sink\":\"sink3\"},\n" +
+                "            {\"sink\":\"sink4\"}\n" +
                 "        ]\n" +
                 "    }\n" +
                 "}";
         routingMap.set(getRoutingMap(mapDesc));
         assertTrue(
                 Arrays.equals(
-                        routingMap.getRoutingInfo("request_trace").getWhere().toArray(),
+                        getSinkNames(routingMap.getRoutingInfo("request_trace").getWhere()),
                         new String[]{"sink1", "sink2", "sink3"}));
 
         assertTrue(
                 Arrays.equals(
-                        routingMap.getRoutingInfo("nf_errors_log").getWhere().toArray(),
+                        getSinkNames(routingMap.getRoutingInfo("nf_errors_log").getWhere()),
                         new String[]{"sink3", "sink4"}));
         assertNull(routingMap.getRoutingInfo("streaming"));
 
@@ -123,20 +131,30 @@ public class TestRoutingMap {
         mapDesc = "{\n" +
                 "    \"request_trace\": {\n" +
                 "        \"where\": [\n" +
-                "            \"sink1\",\n" +
-                "            \"sink2\",\n" +
-                "            \"sink3\"\n" +
+                "            {\"sink\":\"sink1\"},\n" +
+                "            {\"sink\":\"sink2\"},\n" +
+                "            {\"sink\":\"sink3\"}\n" +
                 "        ]\n" +
                 "    }\n" +
                 "}";
         routingMap.set(getRoutingMap(mapDesc));
         assertTrue(
                 Arrays.equals(
-                        routingMap.getRoutingInfo("request_trace").getWhere().toArray(),
+                        getSinkNames(routingMap.getRoutingInfo("request_trace").getWhere()),
                         new String[]{"sink1", "sink2", "sink3"}));
 
         assertNull(routingMap.getRoutingInfo("nf_errors_log"));
         assertNull(routingMap.getRoutingInfo("streaming"));
+    }
+    
+    private Object[] getSinkNames(List<Route> routes) {
+        return Lists.newArrayList(Collections2.transform(routes, new Function<Route, String>() {
+            @Override
+            @Nullable
+            public String apply(@Nullable Route input) {
+                return input.getSink();
+            }
+        })).toArray();
     }
 
 }
