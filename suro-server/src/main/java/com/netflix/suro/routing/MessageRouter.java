@@ -20,6 +20,7 @@ import com.google.inject.Inject;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.message.MessageContainer;
+import com.netflix.suro.routing.RoutingMap.Route;
 import com.netflix.suro.sink.SinkManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,9 +55,11 @@ public class MessageRouter {
         if (info == null) {
             sinkManager.getSink("default").writeTo(msg);
         } else if (info.doFilter(msg)) {
-            List<String> sinkList = info.getWhere();
-            for (String sink : sinkList) {
-                sinkManager.getSink(sink).writeTo(msg);
+            List<Route> routes = info.getWhere();
+            for (Route route : routes) {
+                if (route.doFilter(msg)) {
+                    sinkManager.getSink(route.getSink()).writeTo(msg);
+                }
             }
         }
     }

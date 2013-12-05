@@ -28,6 +28,7 @@ import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.client.SuroClient;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.routing.RoutingMap;
+import com.netflix.suro.routing.RoutingPlugin;
 import com.netflix.suro.routing.TestMessageRouter;
 import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.server.StatusServer;
@@ -56,13 +57,13 @@ public class TestSuroServer {
     private final String mapDesc = "{\n" +
             "    \"topic1\": {\n" +
             "        \"where\": [\n" +
-            "            \"sink1\",\n" +
-            "            \"default\"\n" +
+            "            {\"sink\" : \"sink1\"},\n" +
+            "            {\"sink\" : \"default\"}\n" +
             "        ]\n" +
             "    },\n" +
             "    \"topic2\": {\n" +
             "        \"where\": [\n" +
-            "            \"sink1\"\n" +
+            "            {\"sink\" : \"sink1\"}\n" +
             "        ]\n" +
             "    }\n" +
             "}";
@@ -94,6 +95,7 @@ public class TestSuroServer {
                         }
                      )
                     .withModules(
+                        new RoutingPlugin(),
                         new SuroModule(),
                         new SuroPlugin() {
                             @Override
