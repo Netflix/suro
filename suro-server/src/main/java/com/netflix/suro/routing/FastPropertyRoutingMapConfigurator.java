@@ -13,9 +13,9 @@ import javax.annotation.PostConstruct;
 import java.util.Map;
 
 /**
- * FastProperty driven routing map configuration.  Whenever a change is made to the
- * fast property this module will parse the JSON and set a new configuration on the
- * main RoutingMap.
+ * {@link com.netflix.config.DynamicProperty} driven routing map configuration.  Whenever a change is made to the
+ * dynamic property of routing rules, this module will parse the JSON and set a new configuration on the
+ * main {@link RoutingMap}.
  *
  * @author elandau
  */
@@ -39,11 +39,9 @@ public class FastPropertyRoutingMapConfigurator {
         this.jsonMapper = jsonMapper;
     }
 
-    private DynamicStringProperty routingMapFP;
-
     @PostConstruct
     public void init() {
-        routingMapFP = new DynamicStringProperty(ROUTING_MAP_PROPERTY, initialRoutingMap) {
+        DynamicStringProperty routingMapFP = new DynamicStringProperty(ROUTING_MAP_PROPERTY, initialRoutingMap) {
             @Override
             protected void propertyChanged() {
                 buildMap(get());
@@ -60,7 +58,7 @@ public class FastPropertyRoutingMapConfigurator {
                     new TypeReference<Map<String, RoutingMap.RoutingInfo>>() {});
             routingMap.set(routes);
         } catch (Exception e) {
-            LOG.info("Error reading routing map from fast property", e);
+            LOG.info("Error reading routing map from fast property: "+e.getMessage(), e);
         }
     }
 }
