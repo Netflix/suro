@@ -60,7 +60,7 @@ public class RoutingMap {
         }
         
         public boolean doFilter(MessageContainer message) throws Exception {
-            return filter != null ? filter.doFilter(message) : true;
+            return filter == null || filter.doFilter(message);
         }
 
     }
