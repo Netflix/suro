@@ -267,10 +267,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
                 notify.send(doneFile);
             } else {
                 // delete it
-                LocalFileSink.deleteFile(filePath);
-                File f = new File(filePath);
-                String crcName = "." + f.getName() + ".crc";
-                LocalFileSink.deleteFile(f.getParent() + "/" + crcName);
+                deleteFile(filePath);
             }
         }
 
@@ -365,12 +362,12 @@ public class LocalFileSink extends QueuedSink implements Sink {
      *
      * @param filePath
      */
-    public static void deleteFile(String filePath) {
+    public void deleteFile(String filePath) {
         int retryCount = 1;
         while (new File(filePath).exists() && retryCount <= deleteFileRetryCount) {
             try {
                 Thread.sleep(1000 * retryCount);
-                new File(filePath).delete();
+                writer.getFS().delete(new Path(filePath), false);
                 ++retryCount;
             } catch (Exception e) {
                 log.warn("Exception while deleting the file: " + e.getMessage(), e);

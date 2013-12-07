@@ -129,7 +129,7 @@ public class TestNotify {
                 Charsets.UTF_8));
         assertEquals(captor.getValue().getQueueUrl(), "queueURL");
 
-        assertEquals(queueNotify.recv(), new String(Base64.decodeBase64("receivedMessage".getBytes())));
+        assertEquals(queueNotify.recv(), new String(Base64.decodeBase64("receivedMessage".getBytes()), Charsets.UTF_8));
     }
 
     private class SqsTest {
