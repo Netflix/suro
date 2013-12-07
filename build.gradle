@@ -10,13 +10,14 @@ buildscript {
 
 allprojects {
     repositories { 
-      maven {
-        url 'https://repository.apache.org/content/groups/public'
-      }
       mavenCentral()
       maven{
         name 'github.release.repo'
         url 'https://raw.github.com/bulldog2011/bulldog-repo/master/repo/releases/'
+      }
+      maven{
+        name 'sonatype'
+        url 'https://oss.sonatype.org/content/groups/public/'
       }
     }
 }
@@ -121,13 +122,13 @@ project(':suro-kafka') {
   dependencies {
     compile project(':suro-core')
 
-    compile('org.apache.kafka:kafka_2.8.0:0.8.0-beta1') {
+    compile('org.apache.kafka:kafka_2.8.2:0.8.0') {
       exclude module: 'jms'
       exclude module: 'jmxtools'
       exclude module: 'jmxri'
     }
 
-    testCompile 'org.scalatest:scalatest:1.2'
+    testCompile 'org.scalatest:scalatest_2.8.2:1.8'
     testCompile project(':suro-client')
   }
 }
