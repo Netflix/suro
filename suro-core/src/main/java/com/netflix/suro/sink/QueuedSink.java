@@ -48,7 +48,7 @@ public abstract class QueuedSink extends Thread {
         isRunning = true;
         List<Message> msgList = new LinkedList<Message>();
 
-        while (isRunning || msgList.isEmpty() == false) {
+        while (isRunning || !msgList.isEmpty()) {
             try {
                 beforePolling();
 
@@ -56,7 +56,7 @@ public abstract class QueuedSink extends Thread {
                         Math.max(0, lastBatch + batchTimeout - System.currentTimeMillis()),
                         TimeUnit.MILLISECONDS);
                 boolean expired = (msg == null);
-                if (expired == false) {
+                if (!expired) {
                     msgList.add(msg);
                     queue4Sink.drain(batchSize - msgList.size(), msgList);
                 }
@@ -73,7 +73,7 @@ public abstract class QueuedSink extends Thread {
         }
         log.info("Shutdown request exit loop ..., queue.size at exit time: " + queue4Sink.size());
         try {
-            while (queue4Sink.isEmpty() == false) {
+            while (!queue4Sink.isEmpty()) {
                 if (queue4Sink.drain(batchSize, msgList) > 0) {
                     write(msgList);
                 }
@@ -96,7 +96,7 @@ public abstract class QueuedSink extends Thread {
             } catch (Exception ignored) {
                 log.error("ignoring an exception on close");
             }
-        } while (isStopped == false);
+        } while (!isStopped);
 
         try {
             innerClose();

@@ -268,7 +268,7 @@ public class TestS3FileSink {
         return dir.listFiles(new FilenameFilter() {
             @Override
             public boolean accept(File file, String name) {
-                if (name.startsWith(".") == false) {
+                if (!name.startsWith(".")) {
                     return true;
                 } else {
                     return false;

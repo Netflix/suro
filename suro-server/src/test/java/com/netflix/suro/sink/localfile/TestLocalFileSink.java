@@ -107,7 +107,7 @@ public class TestLocalFileSink {
         File[] files = dir.listFiles();
         for (File file : files) {
             assertTrue(file.getName().contains(".done"));
-            if (file.getName().contains("crc") == false) {
+            if (!file.getName().contains("crc")) {
                 BufferedReader br = new BufferedReader(new FileReader(file));
                 String line = null;
                 while ((line = br.readLine()) != null) {
@@ -164,7 +164,7 @@ public class TestLocalFileSink {
         File[] files = dir.listFiles();
         for (File file : files) {
             assertTrue(file.getName().contains(".done"));
-            if (file.getName().contains("crc") == false) {
+            if (!file.getName().contains("crc")) {
                 ++fileCount;
                 BufferedReader br = new BufferedReader(new FileReader(file));
                 String line = null;
@@ -240,7 +240,7 @@ public class TestLocalFileSink {
         File[] files = dir.listFiles();
         for (File file : files) {
             assertTrue(file.getName().contains(".done"));
-            if (file.getName().contains("crc") == false) {
+            if (!file.getName().contains("crc")) {
                 BufferedReader br = new BufferedReader(new FileReader(file));
                 String line = null;
                 while ((line = br.readLine()) != null) {
@@ -299,7 +299,7 @@ public class TestLocalFileSink {
         for (File file : files) {
             System.out.println(file.getName());
             assertTrue(file.getName().contains(".done"));
-            if (file.getName().contains("crc") == false) {
+            if (!file.getName().contains("crc")) {
                 if (file.length() > 12000) {
                     ++errorCount;
                     // last file can be bigger due to flushing
@@ -363,7 +363,7 @@ public class TestLocalFileSink {
         File[] files = dir.listFiles();
         for (File file : files) {
             assertTrue(file.getName().contains(".done"));
-            if (file.getName().contains("crc") == false) {
+            if (!file.getName().contains("crc")) {
                 ++fileCount;
                 BufferedReader br = new BufferedReader(new FileReader(file));
                 String line = null;

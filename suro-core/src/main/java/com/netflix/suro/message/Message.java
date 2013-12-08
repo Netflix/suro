@@ -57,7 +57,7 @@ public class Message implements Writable {
 
     @Override
     public boolean equals(Object o) {
-        if (o == null || (o instanceof Message) == false) {
+        if (o == null || !(o instanceof Message)) {
             return false;
         }
 
