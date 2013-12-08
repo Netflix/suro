@@ -140,7 +140,7 @@ public class SQSNotification implements Notification<String> {
                 }
                 sqsClient.sendMessage(request);
                 log.info("SQSNotification: " + message + " sent to " + queueUrl);
-                if (sent == false) {
+                if (!sent) {
                     sentMessageCount.incrementAndGet();
                     sent = true;
                 }
@@ -149,7 +149,7 @@ public class SQSNotification implements Notification<String> {
             log.error("Exception while sending SQS notification: " + e.getMessage(), e);
         }
 
-        if (sent == false) {
+        if (!sent) {
             lostMessageCount.incrementAndGet();
         }
 
@@ -164,7 +164,7 @@ public class SQSNotification implements Notification<String> {
 
         try {
             ReceiveMessageResult result = sqsClient.receiveMessage(request);
-            if (result.getMessages().isEmpty() == false) {
+            if (!result.getMessages().isEmpty()) {
                 Message msg = result.getMessages().get(0);
 
                 recvMessageCount.incrementAndGet();

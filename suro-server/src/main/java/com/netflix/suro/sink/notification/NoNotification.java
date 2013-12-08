@@ -16,8 +16,6 @@
 
 package com.netflix.suro.sink.notification;
 
-import com.netflix.suro.sink.notification.Notification;
-
 /**
  * Do nothing on notification for debugging purpose
  *
