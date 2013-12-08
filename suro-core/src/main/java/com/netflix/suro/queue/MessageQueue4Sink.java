@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Queue interface used in Sink
- * With Java BlockingQueue interface, we cannot control 'commit' behavior such as
+ * Queue interface used in {@link com.netflix.suro.sink.Sink}.
+ * With Java's {@code java.util.concurrent.BlockingQueue} interface, we cannot control 'commit' behavior such as
  * before writing messages retrieved from the queue to sink, when the process dies,
  * we will lose messages when messages are removed immediately after being polled.
  * To implement 'commit' behavior, we need to implement own queue interface.

@@ -23,7 +23,8 @@ import com.netflix.suro.queue.FileQueue4Sink;
 import com.netflix.suro.queue.MemoryQueue4Sink;
 
 /**
- * Interface for message filter
+ * Interface for filtering messages. Implementation of this filter must be serializable into
+ * JSON.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
@@ -32,5 +33,11 @@ import com.netflix.suro.queue.MemoryQueue4Sink;
     @JsonSubTypes.Type(name = RoutingKeyFilter.TYPE, value = RoutingKeyFilter.class)
 })
 public interface Filter {
+    /**
+     * Performs message matching to help determine if a message should be filtered.
+     * @param message The message container that will be matched against
+     * @return true if the given message matches an implementation's filtering rule. False otherwise.
+     * @throws Exception if unexpected error happens
+     */
     public boolean doFilter(MessageContainer message) throws Exception;
 }

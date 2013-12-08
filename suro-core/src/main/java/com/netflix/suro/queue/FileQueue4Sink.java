@@ -30,13 +30,13 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * File based MessageQueue4Sink, embedding FileBlockinQueue
+ * File based {@link MessageQueue4Sink}, delegating actual logic to {@link FileBlockingQueue}
  *
  * @author jbae
  */
 @NotThreadSafe
 public class FileQueue4Sink implements MessageQueue4Sink {
-    static Logger log = LoggerFactory.getLogger(FileQueue4Sink.class);
+    private static final Logger log = LoggerFactory.getLogger(FileQueue4Sink.class);
 
     public static final String TYPE = "file";
 

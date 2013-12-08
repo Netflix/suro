@@ -11,7 +11,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Memory based MessageQueue4Sink, embedding ArrayBlockingQueue
+ * Memory based {@link MessageQueue4Sink}, delegating actual queueing work to {@link ArrayBlockingQueue}
  *
  * @author jbae
  */
