@@ -287,7 +287,7 @@ public class S3FileSink implements Sink {
                     File localFile = new File(filePath);
                     if (localFile.length() == 0) {
                         log.warn("empty file: " + filePath + " is abandoned");
-                        LocalFileSink.deleteFile(filePath);
+                        localFileSink.deleteFile(filePath);
                         return;
                     }
                     String remoteFilePath = makeUploadPath(localFile);
@@ -314,7 +314,7 @@ public class S3FileSink implements Sink {
                     uploadDuration = t2 - t1;
 
                     doNotify(remoteFilePath, localFile.length());
-                    LocalFileSink.deleteFile(filePath);
+                    localFileSink.deleteFile(filePath);
 
                     log.info("upload done deleting from local: " + filePath);
                 } catch (Throwable e) {

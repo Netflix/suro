@@ -1,5 +1,6 @@
 package com.netflix.suro;
 
+import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.netflix.suro.queue.MessageSetProcessor;
@@ -44,7 +45,7 @@ public class SuroService {
         } 
         catch (Exception e) {
             log.error("Exception while starting up server: " + e.getMessage(), e);
-            System.exit(-1);
+            Throwables.propagate(e);
         }
     }
 

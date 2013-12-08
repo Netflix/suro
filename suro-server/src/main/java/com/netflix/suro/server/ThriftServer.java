@@ -16,6 +16,7 @@
 
 package com.netflix.suro.server;
 
+import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.suro.queue.MessageSetProcessor;
@@ -73,16 +74,16 @@ public class ThriftServer {
             }
         } catch (InterruptedException e) {
             // ignore this type of exception
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        } catch (TimeoutException e) {
+        }  catch (TimeoutException e) {
             if (server.isServing()) {
                 logger.info("Server started on port:" + config.getPort());
             } else {
                 logger.error("ThriftServer didn't start up within: " + config.getStartupTimeout());
-                System.exit(-1);
+                Throwables.propagate(e);
             }
+        } catch (ExecutionException e) {
+            logger.error("Exception on starting ThriftServer: " + e.getMessage(), e);
+            Throwables.propagate(e);
         }
     }
 
