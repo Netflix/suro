@@ -50,7 +50,7 @@ public class Message implements Writable {
 
     @Override
     public String toString() {
-        return String.format("routingKey: %s, hostname: %s, app: %s, serde: %s, payload byte size: %d",
+        return String.format("routingKey: %s, payload byte size: %d",
                 routingKey,
                 payload.length);
     }
