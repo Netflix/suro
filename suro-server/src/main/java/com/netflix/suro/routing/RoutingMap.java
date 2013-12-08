@@ -40,21 +40,25 @@ import java.util.Map;
 @Singleton
 public class RoutingMap {
     public static class Route {
+        public static final String JSON_PROPERTY_SINK = "sink";
+        public static final String JSON_PROPERTY_FILTER = "filter";
         private final String sink;
         private final Filter filter;
         
         @JsonCreator
         public Route(
-               @JsonProperty("sink") String sink,
-               @JsonProperty("filter") Filter filter) {
+               @JsonProperty(JSON_PROPERTY_SINK) String sink,
+               @JsonProperty(JSON_PROPERTY_FILTER) Filter filter) {
             this.sink   = sink;
             this.filter = filter;
         }
-        
+
+        @JsonProperty(JSON_PROPERTY_SINK)
         public String getSink() {
             return sink;
         }
-        
+
+        @JsonProperty(JSON_PROPERTY_FILTER)
         public Filter getFilter() {
             return filter;
         }
@@ -66,20 +70,28 @@ public class RoutingMap {
     }
     
     public static class RoutingInfo {
+        public static final String JSON_PROPERTY_WHERE = "where";
+        public static final String JSON_PROPERTY_FILTER = "filter";
         private final List<Route> where;
         private final Filter filter;
 
         @JsonCreator
         public RoutingInfo(
-                @JsonProperty("where") List<Route> where,
-                @JsonProperty("filter") Filter filter
+                @JsonProperty(JSON_PROPERTY_WHERE) List<Route> where,
+                @JsonProperty(JSON_PROPERTY_FILTER) Filter filter
         ) {
             this.where  = where;
             this.filter = filter;
         }
 
+        @JsonProperty(JSON_PROPERTY_WHERE)
         public List<Route> getWhere() { 
             return where; 
+        }
+
+        @JsonProperty(JSON_PROPERTY_FILTER)
+        public Filter getFilter() {
+            return filter;
         }
 
         /**
@@ -102,5 +114,9 @@ public class RoutingMap {
 
     public void set(Map<String, RoutingInfo> routes) {
         this.routingMap = ImmutableMap.copyOf(routes);
+    }
+
+    public Map<String, RoutingInfo> getRoutingMap() {
+        return ImmutableMap.copyOf(routingMap);
     }
 }

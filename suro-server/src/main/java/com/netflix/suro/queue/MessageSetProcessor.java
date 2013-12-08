@@ -245,12 +245,11 @@ public class MessageSetProcessor implements SuroServer.Iface {
                     
                     @Override
                     public <T> T getEntity(Class<T> clazz) throws Exception {
-                        if (clazz.equals(byte[].class))
+                        if (clazz.equals(byte[].class)){
                             return (T)message.getPayload();
-                        else if (clazz.equals(String.class)) {
+                        } else if (clazz.equals(String.class)) {
                             return (T)new String(message.getPayload());
-                        }
-                        else {
+                        } else {
                             TypeReference<T> typeReference = new TypeReference<T>(){};
                             if (cache == null) {
                                 cache = Lists.newLinkedList();
@@ -263,6 +262,7 @@ public class MessageSetProcessor implements SuroServer.Iface {
                             item.tr = typeReference;
                             item.obj = mapper.readValue(message.getPayload(), typeReference);
                             cache.add(item);
+
                             return (T)item.obj;
                         }
                     }

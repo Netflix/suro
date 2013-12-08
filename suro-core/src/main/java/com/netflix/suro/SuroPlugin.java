@@ -4,7 +4,7 @@ import com.google.inject.AbstractModule;
 import com.google.inject.multibindings.Multibinder;
 import com.netflix.suro.routing.Filter;
 import com.netflix.suro.sink.Sink;
-import com.netflix.suro.sink.notify.Notify;
+import com.netflix.suro.sink.notification.Notify;
 import com.netflix.suro.sink.remotefile.RemotePrefixFormatter;
 import org.apache.log4j.Logger;
 
