@@ -20,24 +20,27 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
+import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.routing.RoutingMap.Route;
 import com.netflix.suro.routing.RoutingMap.RoutingInfo;
 import com.netflix.suro.sink.TestSinkManager.TestSink;
-
 import org.junit.Test;
+import org.mockito.Mockito;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.Nullable;
-
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -64,7 +67,48 @@ public class TestRoutingMap {
                 desc,
                 new TypeReference<Map<String, RoutingInfo>>() {});
     }
-    
+
+    @Test
+    public void testRoutingMapWithXPathFilter () throws Exception {
+        String mapDesc = "{\n" +
+            "  \"request_trace\" : {\n" +
+            "    \"where\" : [ {\n" +
+            "      \"sink\" : \"sink1\",\n" +
+            "      \"filter\" : {\n" +
+            "        \"type\" : \"xpath\",\n" +
+            "        \"filter\" : \"xpath(\\\"//foo/bar\\\") =~ \\\"(?i)test\\\"\",\n" +
+            "        \"converter\" : {\n" +
+            "          \"type\" : \"jsonmap\"\n" +
+            "        }\n" +
+            "      }\n" +
+            "    } ],\n" +
+            "    \"filter\" : {\n" +
+            "      \"type\" : \"regex\",\n" +
+            "      \"regex\" : \"[a-b]+\"\n" +
+            "    }\n" +
+            "  }\n" +
+            "}";
+
+        Map<String, RoutingInfo> map = getRoutingMap(mapDesc);
+
+        String routingKey = "request_trace";
+        assertEquals("There should be one and only one key", 1, map.size());
+        assertTrue("The only key is " + routingKey, map.containsKey(routingKey));
+
+        RoutingInfo info = map.get(routingKey);
+        List<Route> routes = info.getWhere();
+        assertEquals("There should be only one sink", 1, routes.size());
+
+        Route route = routes.get(0);
+        assertEquals("sink1", route.getSink());
+
+        Map<String, Map<String, String>> obj = Maps.newHashMap();
+        obj.put("foo", ImmutableMap.of("bar", "tESt"));
+
+        MessageContainer container = Mockito.mock(MessageContainer.class);
+        Mockito.when(container.getEntity(Map.class)).thenReturn(obj);
+        assertEquals(true, route.getFilter().doFilter(container));
+    }
 
     @Test
     public void test() throws Exception {

@@ -18,7 +18,7 @@ package com.netflix.suro.message;
 
 import org.junit.Test;
 
-import static junit.framework.Assert.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 public class TestStringSerDe {
     @Test
