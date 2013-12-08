@@ -35,13 +35,13 @@ import org.slf4j.LoggerFactory;
 import java.util.Properties;
 
 /**
- * Wrapped implementation of ISuroClient
- * Depending on its configuration, it will select either SyncSuroClient
- * or AsyncSuorClient
+ * Wrapped implementation of {@link ISuroClient}.
+ * Depending on its configuration, it will select either {@link SyncSuroClient}
+ * or {@link AsyncSuroClient}
  * @author jbae
  */
 public class SuroClient implements ISuroClient {
-    static Logger log = LoggerFactory.getLogger(SuroClient.class);
+    private static final Logger log = LoggerFactory.getLogger(SuroClient.class);
 
     private final ISuroClient client;
 
@@ -86,7 +86,7 @@ public class SuroClient implements ISuroClient {
         try {
             manager.start();
         } catch (Exception e) {
-            throw new RuntimeException("LifecycleManager cannot start with an exception: " + e.getMessage());
+            throw new RuntimeException("LifecycleManager cannot start with an exception: " + e.getMessage(), e);
         }
         return injector;
     }

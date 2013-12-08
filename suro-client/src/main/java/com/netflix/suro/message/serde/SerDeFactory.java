@@ -27,7 +27,7 @@ import java.util.concurrent.ConcurrentMap;
  *
  */
 public class SerDeFactory {
-    static Logger log = LoggerFactory.getLogger(SerDeFactory.class);
+    private static final Logger log = LoggerFactory.getLogger(SerDeFactory.class);
     private static ConcurrentMap<String, SerDe> map = new ConcurrentHashMap<String, SerDe>();
 
     public static SerDe create(String clazz) {
@@ -37,8 +37,7 @@ public class SerDeFactory {
                 serDe = (SerDe) Class.forName(clazz).newInstance();
                 map.putIfAbsent(clazz, serDe);
             } catch (Exception e) {
-                log.error("Exception on creating SerDe using reflection: " + e.getMessage(), e);
-                throw new RuntimeException(e);
+                throw new RuntimeException("Exception on creating SerDe using reflection: " + e.getMessage(), e);
             }
         }
 

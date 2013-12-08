@@ -14,10 +14,11 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.client;
+package com.netflix.suro.client.example;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.netflix.suro.ClientConfig;
+import com.netflix.suro.client.SuroClient;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 

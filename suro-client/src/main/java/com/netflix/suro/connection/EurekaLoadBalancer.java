@@ -29,10 +29,8 @@ import com.netflix.suro.ClientConfig;
 import java.util.List;
 
 /**
- * LoadBalancer based on Netflix Eureka
- * LoadBalancer will have the list of servers and it is embedded in
- * ConnectionPool. EurekaLoadBalancer will discover all registered servers
- * from Eureka server.
+ * A load balancer that depends on <a href="https://github.com/Netflix/eureka">Netflix Eureka</a> to find
+ * all the registered server instances.
  *
  * @author jbae
  */

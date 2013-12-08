@@ -47,16 +47,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Pooling for thrift connection to suro-server
- * After creating all connections to suro-server discovered by ILoadBalancer,
- * when the client requests to get the connection, ConnectionPool returns
- * connection. When there's no connection available, ConnectionPool will create
- * the connection immediately, this is called OutPool connection.
+ * After creating all connections to suro-server discovered by {@link ILoadBalancer}, a {@code ConnectionPool} returns
+ * a connection when the client requests to get one. When there's no connection available, {@code ConnectionPool} will
+ * create a new connection immediately. This is called OutPool connection.
  *
  * @author jbae
  */
 @LazySingleton
 public class ConnectionPool {
-    private static Logger logger = LoggerFactory.getLogger(ConnectionPool.class);
+    private static final Logger logger = LoggerFactory.getLogger(ConnectionPool.class);
 
     private Map<Server, SuroConnection> connectionPool = new ConcurrentHashMap<Server, SuroConnection>();
     private Set<Server> serverSet = Collections.newSetFromMap(new ConcurrentHashMap<Server, Boolean>());
@@ -72,7 +71,7 @@ public class ConnectionPool {
 
     /**
      *
-     * @param config
+     * @param config Client configuration
      * @param lb LoadBalancer implementation
      */
     @Inject
@@ -177,7 +176,7 @@ public class ConnectionPool {
 
         Iterator<SuroConnection> i = connectionQueue.iterator();
         while (i.hasNext()) {
-            if (serverSet.contains(i.next().getServer()) == false) {
+            if (!serverSet.contains(i.next().getServer())) {
                 i.remove();
                 logger.info("connection was removed from the queue");
             }
@@ -186,7 +185,7 @@ public class ConnectionPool {
         i = connectionList.iterator();
         while (i.hasNext()) {
             SuroConnection c = i.next();
-            if (serverSet.contains(c.getServer()) == false) {
+            if (!serverSet.contains(c.getServer())) {
                 c.disconnect();
                 i.remove();
             }
@@ -233,7 +232,7 @@ public class ConnectionPool {
         while (connection == null) {
             Server server = lb.chooseServer(null);
             if (server != null) {
-                if (serverSet.contains(server) == false) {
+                if (!serverSet.contains(server)) {
                     newConnectionBuilder.execute(createNewConnection(server, true));
                 } else {
                     connection = connectionPool.remove(server);
@@ -302,20 +301,21 @@ public class ConnectionPool {
     }
 
     private boolean shouldChangeConnection(SuroConnection connection) {
-        if (connection.isInPool() == false) {
+        if (!connection.isInPool()) {
             return false;
         }
 
         long now = System.currentTimeMillis();
 
         long minimumTimeSpan = connection.getTimeUsed() + config.getMinimumReconnectTimeInterval();
-        if (minimumTimeSpan <= now &&
-                (connection.getSentCount() >= config.getReconnectInterval() ||
-                        connection.getTimeUsed() + config.getReconnectTimeInterval() <= now)) {
-            return true;
-        }
+        return connectionExpired(connection, now, minimumTimeSpan);
 
-        return false;
+    }
+
+    private boolean connectionExpired(SuroConnection connection, long now, long minimumTimeSpan) {
+        return minimumTimeSpan <= now &&
+            (connection.getSentCount() >= config.getReconnectInterval() ||
+                connection.getTimeUsed() + config.getReconnectTimeInterval() <= now);
     }
 
     /**

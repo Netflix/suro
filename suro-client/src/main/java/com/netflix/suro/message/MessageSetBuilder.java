@@ -31,9 +31,8 @@ import java.util.List;
 import java.util.zip.CRC32;
 
 /**
- * Suro Thrift communication payload is TMessageSet, thrift presentation of
- * MessageSet. MessageSetBuilder can be helpful to easily create MessageSet
- * with Builder pattern
+ * The payload for Suro's Thrift communication is {@link TMessageSet}, a thrift presentation of
+ * a set of messages. This class can be helpful to easily create {@link TMessageSet} instances.
  *
  * @author jbae
  */
@@ -94,9 +93,9 @@ public class MessageSetBuilder {
      * byte[] as its message body, so, this method is simply flattening byte[]
      * for all messages in the messageList
      *
-     * @param messageList
-     * @param compression
-     * @return
+     * @param messageList a list of messages for payload
+     * @param compression Compression method to be applied to the payload
+     * @return A byte array that encodes the build payload
      * @throws IOException
      */
     public static byte[] createPayload(List<Message> messageList, Compression compression) throws IOException {
@@ -124,10 +123,11 @@ public class MessageSetBuilder {
             };
 
     /**
-     * Compute CRC value for byte[]
+     * Compute CRC32 value for byte[]
      *
-     * @param buffer
-     * @return
+     * @param buffer all the bytes in the buffer will be used for CRC32 calculation
+     *
+     * @return a CRC32 value for the given byte array
      */
     public static long getCRC(byte[] buffer) {
         CRC32 crc = new CRC32();
@@ -136,11 +136,12 @@ public class MessageSetBuilder {
     }
 
     /**
-     * Instead of calling withMessage, we can add messages from the queue.
+     * Drains the given number of messages from the givne queue. Instead of calling {@link #withMessage(String, byte[])},
+     * we can call this method.
      * This method is reverse one of JDK BlockingQueue.drainTo.
      *
-     * @param queue
-     * @param size
+     * @param queue the queue to drain messages from
+     * @param size the number of messages to drain from the given queue
      */
     public void drainFrom(Queue4Client queue, int size) {
         queue.drain(size, messageList);

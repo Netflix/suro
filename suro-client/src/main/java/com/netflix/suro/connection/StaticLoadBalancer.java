@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * LoadBalancer based on the static configuration
+ * A load balancer that works on a static list of servers as defined in client configuration.
  *
  * @author jbae
  */
