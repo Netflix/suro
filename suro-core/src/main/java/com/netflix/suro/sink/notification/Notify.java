@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.sink.notify;
+package com.netflix.suro.sink.notification;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 

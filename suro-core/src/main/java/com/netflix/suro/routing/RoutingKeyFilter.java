@@ -22,18 +22,35 @@ import com.netflix.suro.message.MessageContainer;
 
 import java.util.regex.Pattern;
 
-public class RegexFilter implements Filter {
-    public static final String TYPE = "regex";
+/**
+ * An implementation of {@link com.netflix.suro.routing.Filter} that filters a message's routing key by regex pattern.
+ * The matching is partial.
+ *
+ */
+public class RoutingKeyFilter implements Filter {
+    public static final String TYPE = "routingkey";
+    public static final String JSON_PROPERTY_REGEX = "regex";
 
     private final Pattern filterPattern;
 
     @JsonCreator
-    public RegexFilter(@JsonProperty("regex") String regex) {
+    public RoutingKeyFilter(@JsonProperty(JSON_PROPERTY_REGEX) String regex) {
         filterPattern = Pattern.compile(regex);
     }
 
+    @JsonProperty(JSON_PROPERTY_REGEX)
+    public String getRegex() {
+        return filterPattern.pattern();
+    }
+
+    /**
+     *
+     * @param message The message that is to be matched against the routing key's regex pattern
+     * @return true if the message's routing key contains the regex pattern. False otherwise.
+     * @throws Exception If filtering fails.
+     */
     @Override
     public boolean doFilter(MessageContainer message) throws Exception {
-        return filterPattern.matcher(message.getEntity(String.class)).find();
+        return filterPattern.matcher(message.getRoutingKey()).find();
     }
 }

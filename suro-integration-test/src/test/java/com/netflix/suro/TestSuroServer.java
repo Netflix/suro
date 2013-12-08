@@ -136,7 +136,7 @@ public class TestSuroServer {
             }
 
             int count = 10;
-            while (answer() == false && count > 0) {
+            while (!answer() && count > 0) {
                 Thread.sleep(1000);
                 --count;
             }
@@ -154,10 +154,6 @@ public class TestSuroServer {
     private boolean answer() {
         Integer sink1 = TestMessageRouter.messageCount.get("sink1");
         Integer defaultV = TestMessageRouter.messageCount.get("default");
-        if (sink1 != null && sink1 == 15 && defaultV != null && defaultV == 30) {
-            return true;
-        } else {
-            return false;
-        }
+        return sink1 != null && sink1 == 15 && defaultV != null && defaultV == 30;
     }
 }
