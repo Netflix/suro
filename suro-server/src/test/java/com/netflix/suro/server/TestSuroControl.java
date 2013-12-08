@@ -64,7 +64,7 @@ public class TestSuroControl {
             }
         }).start();
 
-        Socket client = new Socket(InetAddress.getLocalHost(), port);
+        Socket client = new Socket("127.0.0.1", port);
         PrintWriter out = new PrintWriter(client.getOutputStream(), true);
         BufferedReader reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
 
