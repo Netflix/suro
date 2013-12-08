@@ -94,7 +94,7 @@ public class TestS3FileSink {
         File[] files = getFiles();
         assertEquals(files.length, 0);
         int count = 0;
-        while (sink.recvNotify() != null) {
+        while (sink.recvNotice() != null) {
             ++count;
         }
         assertTrue(count > 0);
@@ -113,14 +113,14 @@ public class TestS3FileSink {
                 //"        \"maxFileSize\": 10240,\n" +
                 "        \"rotationPeriod\": \"PT1m\",\n" +
                 "        \"minPercentFreeDisk\": 50,\n" +
-                "        \"notify\": {\n" +
+                "        \"notice\": {\n" +
                 "            \"type\": \"queue\"\n" +
                 "        }\n" +
                 "    },\n" +
                 "    \"bucket\": \"s3bucket\",\n" +
                 "    \"maxPartSize\": 10000,\n" +
                 "    \"concurrentUpload\":5,\n" +
-                "    \"notify\": {\n" +
+                "    \"notice\": {\n" +
                 "        \"type\": \"queue\"\n" +
                 "    },\n" +
                 "    \"prefixFormatter\": {" +
@@ -144,7 +144,7 @@ public class TestS3FileSink {
         File[] files = getFiles();
         assertEquals(files.length, 0);
         int count = 0;
-        while (sink.recvNotify() != null) {
+        while (sink.recvNotice() != null) {
             ++count;
         }
         assertTrue(count > 0);
@@ -179,7 +179,7 @@ public class TestS3FileSink {
         File[] files = getFiles();
         assertEquals(files.length, 0);
         int count = 0;
-        while (sink.recvNotify() != null) {
+        while (sink.recvNotice() != null) {
             ++count;
         }
         assertEquals(count, 100);
@@ -222,7 +222,7 @@ public class TestS3FileSink {
         File[] files = getFiles();
         assertEquals(files.length, 0);
         int count = 0;
-        while (sink.recvNotify() != null) {
+        while (sink.recvNotice() != null) {
             ++count;
         }
         assertEquals(count, 100);
@@ -256,7 +256,7 @@ public class TestS3FileSink {
 
         assertTrue(files.length > 0);
         int count = 0;
-        while (sink.recvNotify() != null) {
+        while (sink.recvNotice() != null) {
             ++count;
         }
         assertEquals(count, 0);

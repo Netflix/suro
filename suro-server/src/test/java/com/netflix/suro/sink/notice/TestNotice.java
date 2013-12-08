@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.notify;
+package com.netflix.suro.sink.notice;
 
 import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.*;
@@ -31,10 +31,10 @@ import com.google.inject.Injector;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.sink.TestSinkManager.TestSink;
-import com.netflix.suro.sink.nofify.NoNotify;
-import com.netflix.suro.sink.nofify.QueueNotify;
-import com.netflix.suro.sink.nofify.SQSNotify;
-import com.netflix.suro.sink.notify.Notify;
+import com.netflix.suro.sink.notice.NoNotice;
+import com.netflix.suro.sink.notice.QueueNotice;
+import com.netflix.suro.sink.notice.SQSNotice;
+import com.netflix.suro.sink.notice.Notice;
 import org.apache.commons.codec.binary.Base64;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -48,16 +48,16 @@ import static junit.framework.TestCase.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
-public class TestNotify {
+public class TestNotice {
     private static Injector injector = Guice.createInjector(
             new SuroPlugin() {
                 @Override
                 protected void configure() {
                     this.addSinkType("TestSink", TestSink.class);
 
-                    this.addNotifyType(NoNotify.TYPE, NoNotify.class);
-                    this.addNotifyType(QueueNotify.TYPE, QueueNotify.class);
-                    this.addNotifyType(SQSNotify.TYPE, SQSNotify.class);
+                    this.addNoticeType(NoNotice.TYPE, NoNotice.class);
+                    this.addNoticeType(QueueNotice.TYPE, QueueNotice.class);
+                    this.addNoticeType(SQSNotice.TYPE, SQSNotice.class);
                 }
             },
             new AbstractModule() {
@@ -75,11 +75,11 @@ public class TestNotify {
                 "}";
 
         ObjectMapper mapper = injector.getInstance(DefaultObjectMapper.class);
-        Notify queueNotify = mapper.readValue(desc, new TypeReference<Notify>(){});
-        queueNotify.init();
-        queueNotify.send("message");
-        assertEquals(queueNotify.recv(), "message");
-        assertNull(queueNotify.recv());
+        Notice queueNotice = mapper.readValue(desc, new TypeReference<Notice>(){});
+        queueNotice.init();
+        queueNotice.send("message");
+        assertEquals(queueNotice.recv(), "message");
+        assertNull(queueNotice.recv());
     }
 
     @Test
@@ -98,12 +98,12 @@ public class TestNotify {
 
         SqsTest sqsTest = new SqsTest(desc).invoke();
         ArgumentCaptor<SendMessageRequest> captor = sqsTest.getCaptor();
-        Notify queueNotify = sqsTest.getQueueNotify();
+        Notice queueNotice = sqsTest.getQueueNotice();
 
         assertEquals(captor.getValue().getMessageBody(), "message");
         assertEquals(captor.getValue().getQueueUrl(), "queueURL");
 
-        assertEquals(queueNotify.recv(), "receivedMessage");
+        assertEquals(queueNotice.recv(), "receivedMessage");
     }
 
     @Test
@@ -123,26 +123,26 @@ public class TestNotify {
 
         SqsTest sqsTest = new SqsTest(desc).invoke();
         ArgumentCaptor<SendMessageRequest> captor = sqsTest.getCaptor();
-        Notify queueNotify = sqsTest.getQueueNotify();
+        Notice queueNotice = sqsTest.getQueueNotice();
 
         assertEquals(captor.getValue().getMessageBody(), new String(Base64.encodeBase64("message".getBytes()),
                 Charsets.UTF_8));
         assertEquals(captor.getValue().getQueueUrl(), "queueURL");
 
-        assertEquals(queueNotify.recv(), new String(Base64.decodeBase64("receivedMessage".getBytes()), Charsets.UTF_8));
+        assertEquals(queueNotice.recv(), new String(Base64.decodeBase64("receivedMessage".getBytes()), Charsets.UTF_8));
     }
 
     private class SqsTest {
         private String desc;
-        private Notify queueNotify;
+        private Notice queueNotice;
         private ArgumentCaptor<SendMessageRequest> captor;
 
         public SqsTest(String desc) {
             this.desc = desc;
         }
 
-        public Notify getQueueNotify() {
-            return queueNotify;
+        public Notice getQueueNotice() {
+            return queueNotice;
         }
 
         public ArgumentCaptor<SendMessageRequest> getCaptor() {
@@ -171,10 +171,10 @@ public class TestNotify {
                 }
             });
 
-            queueNotify = mapper.readValue(desc, new TypeReference<Notify>() {
+            queueNotice = mapper.readValue(desc, new TypeReference<Notice>() {
             });
-            queueNotify.init();
-            queueNotify.send("message");
+            queueNotice.init();
+            queueNotice.send("message");
             captor = ArgumentCaptor.forClass(SendMessageRequest.class);
             verify(client).sendMessage(captor.capture());
             return this;

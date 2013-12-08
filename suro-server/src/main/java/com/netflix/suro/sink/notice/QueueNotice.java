@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.sink.nofify;
+package com.netflix.suro.sink.notice;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -22,7 +22,7 @@ import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
-import com.netflix.suro.sink.notify.Notify;
+import com.netflix.suro.sink.notice.Notice;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -30,13 +30,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Memory based implementation of {@link Notify}
+ * Memory based implementation of {@link com.netflix.suro.sink.notice.Notice}
  *
- * @param <E> type of notification
+ * @param <E> type of notice
  *
  * @author jbae
  */
-public class QueueNotify<E> implements Notify<E> {
+public class QueueNotice<E> implements Notice<E> {
     public static final String TYPE = "queue";
 
     private static final int DEFAULT_LENGTH = 100;
@@ -52,7 +52,7 @@ public class QueueNotify<E> implements Notify<E> {
     @Monitor(name = TagKey.LOST_COUNT, type = DataSourceType.COUNTER)
     private AtomicLong lostMessageCount = new AtomicLong(0);
 
-    public QueueNotify() {
+    public QueueNotice() {
         queue = new LinkedBlockingQueue<E>(DEFAULT_LENGTH);
         timeout = DEFAULT_TIMEOUT;
 
@@ -60,7 +60,7 @@ public class QueueNotify<E> implements Notify<E> {
     }
 
     @JsonCreator
-    public QueueNotify(
+    public QueueNotice(
             @JsonProperty("length") int length,
             @JsonProperty("recvTimeout") long timeout) {
         this.queue = new LinkedBlockingQueue<E>(length > 0 ? length : DEFAULT_LENGTH);
@@ -93,7 +93,7 @@ public class QueueNotify<E> implements Notify<E> {
 
     @Override
     public String getStat() {
-        return String.format("QueueNotify with the size: %d, sent : %d, received: %d, dropped: %d",
+        return String.format("QueueNotice with the size: %d, sent : %d, received: %d, dropped: %d",
                 queue.size(), sentMessageCount.get(), recvMessageCount.get(), lostMessageCount.get());
     }
 }

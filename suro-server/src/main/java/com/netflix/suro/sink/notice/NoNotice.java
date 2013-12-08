@@ -14,16 +14,16 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.sink.nofify;
+package com.netflix.suro.sink.notice;
 
-import com.netflix.suro.sink.notify.Notify;
+import com.netflix.suro.sink.notice.Notice;
 
 /**
- * Do nothing on notification for debugging purpose
+ * Do nothing for debugging purpose
  *
  * @author jbae
  */
-public class NoNotify implements Notify<String> {
+public class NoNotice implements Notice<String> {
     public static final String TYPE = "no";
 
     @Override

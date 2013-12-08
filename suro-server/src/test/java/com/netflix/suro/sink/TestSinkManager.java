@@ -74,7 +74,7 @@ public class TestSinkManager {
         }
         
         @Override
-        public String recvNotify() {
+        public String recvNotice() {
             return null;
         }
 
