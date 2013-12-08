@@ -25,13 +25,12 @@ import com.google.common.base.Preconditions;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.servo.monitor.Monitors;
-import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.FileNameFormatter;
 import com.netflix.suro.sink.localfile.LocalFileSink;
-import com.netflix.suro.sink.nofify.QueueNotify;
-import com.netflix.suro.sink.notify.Notify;
+import com.netflix.suro.sink.notice.Notice;
+import com.netflix.suro.sink.notice.QueueNotice;
 import com.netflix.suro.sink.remotefile.formatter.SimpleDateFormatter;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -73,7 +72,7 @@ public class S3FileSink implements Sink {
     private final String s3Endpoint;
     private final long maxPartSize;
 
-    private final Notify<String> notify;
+    private final Notice<String> notice;
     private final RemotePrefixFormatter prefixFormatter;
 
     private MultipartUtils mpUtils;
@@ -97,7 +96,7 @@ public class S3FileSink implements Sink {
             @JsonProperty("s3Endpoint") String s3Endpoint,
             @JsonProperty("maxPartSize") long maxPartSize,
             @JsonProperty("concurrentUpload") int concurrentUpload,
-            @JsonProperty("notify") Notify notify,
+            @JsonProperty("notice") Notice notice,
             @JsonProperty("prefixFormatter") RemotePrefixFormatter prefixFormatter,
             @JsonProperty("batchUpload") boolean batchUpload,
             @JsonProperty("s3Acl") String s3Acl,
@@ -108,7 +107,7 @@ public class S3FileSink implements Sink {
         this.bucket = bucket;
         this.s3Endpoint = s3Endpoint == null ? "s3.amazonaws.com" : s3Endpoint;
         this.maxPartSize = maxPartSize == 0 ? 20 * 1024 * 1024 : maxPartSize;
-        this.notify = notify == null ? new QueueNotify<String>() : notify;
+        this.notice = notice == null ? new QueueNotice<String>() : notice;
         this.prefixFormatter = prefixFormatter == null ? new SimpleDateFormatter("'P'yyyyMMdd'T'HHmmss") : prefixFormatter;
         this.batchUpload = batchUpload;
 
@@ -175,7 +174,7 @@ public class S3FileSink implements Sink {
 
         grantAcl = new GrantAcl(s3Service, s3Acl, s3AclRetries == 0 ? 5 : s3AclRetries);
 
-        notify.init();
+        notice.init();
 
         if (batchUpload == false) {
             running = true;
@@ -217,10 +216,10 @@ public class S3FileSink implements Sink {
     }
 
     private void uploadAllFromQueue() {
-        String note = localFileSink.recvNotify();
+        String note = localFileSink.recvNotice();
         while (note != null) {
             uploadFile(note);
-            note = localFileSink.recvNotify();
+            note = localFileSink.recvNotice();
         }
     }
 
@@ -243,8 +242,8 @@ public class S3FileSink implements Sink {
     }
 
     @Override
-    public String recvNotify() {
-        return notify.recv();
+    public String recvNotice() {
+        return notice.recv();
     }
 
     @Override
@@ -313,7 +312,7 @@ public class S3FileSink implements Sink {
                     uploadedFileCount.incrementAndGet();
                     uploadDuration = t2 - t1;
 
-                    doNotify(remoteFilePath, localFile.length());
+                    S3FileSink.this.notify(remoteFilePath, localFile.length());
                     localFileSink.deleteFile(filePath);
 
                     log.info("upload done deleting from local: " + filePath);
@@ -333,15 +332,15 @@ public class S3FileSink implements Sink {
         });
     }
 
-    private void doNotify(String filePath, long fileSize) throws JSONException {
+    private void notify(String filePath, long fileSize) throws JSONException {
         JSONObject jsonMessage = new JSONObject();
         jsonMessage.put("bucket", bucket);
         jsonMessage.put("filePath", filePath);
         jsonMessage.put("size", fileSize);
         jsonMessage.put("collector", FileNameFormatter.localHostAddr);
 
-        if (notify.send(jsonMessage.toString()) == false) {
-            throw new RuntimeException("Notification failed");
+        if (notice.send(jsonMessage.toString()) == false) {
+            throw new RuntimeException("Notice failed");
         }
     }
 

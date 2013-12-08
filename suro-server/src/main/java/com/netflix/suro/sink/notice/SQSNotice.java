@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.sink.nofify;
+package com.netflix.suro.sink.notice;
 
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -30,7 +30,6 @@ import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
-import com.netflix.suro.sink.notify.Notify;
 import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,12 +39,12 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * SQS {@link Notify} implementation
+ * SQS {@link com.netflix.suro.sink.notice.Notice} implementation
  *
  * @author jbae
  */
-public class SQSNotify implements Notify<String> {
-    static Logger log = LoggerFactory.getLogger(SQSNotify.class);
+public class SQSNotice implements Notice<String> {
+    static Logger log = LoggerFactory.getLogger(SQSNotice.class);
 
     public static final String TYPE = "sqs";
 
@@ -67,7 +66,7 @@ public class SQSNotify implements Notify<String> {
     private AtomicLong recvMessageCount = new AtomicLong(0);
 
     @JsonCreator
-    public SQSNotify(
+    public SQSNotice(
             @JsonProperty("queues") List<String> queues,
             @JsonProperty("region") @JacksonInject("region") String region,
             @JsonProperty("connectionTimeout") int connectionTimeout,
@@ -118,7 +117,7 @@ public class SQSNotify implements Notify<String> {
             queueUrls.add(sqsClient.getQueueUrl(request).getQueueUrl());
         }
 
-        log.info(String.format("SQSNotify initialized with the endpoint: %s, queue: %s",
+        log.info(String.format("SQSNotice initialized with the endpoint: %s, queue: %s",
                 endpoint, queues));
     }
 
@@ -140,14 +139,14 @@ public class SQSNotify implements Notify<String> {
                     request = request.withMessageBody(message);
                 }
                 sqsClient.sendMessage(request);
-                log.info("SQSNotify: " + message + " sent to " + queueUrl);
+                log.info("SQSNotice: " + message + " sent to " + queueUrl);
                 if (sent == false) {
                     sentMessageCount.incrementAndGet();
                     sent = true;
                 }
             }
         } catch (Exception e) {
-            log.error("Exception while sending SQS notification: " + e.getMessage(), e);
+            log.error("Exception while sending SQS notice: " + e.getMessage(), e);
         }
 
         if (sent == false) {
@@ -186,14 +185,14 @@ public class SQSNotify implements Notify<String> {
                 return "";
             }
         } catch (Exception e) {
-            log.error("Exception while recving SQS notification: " + e.getMessage(), e);
+            log.error("Exception while recving SQS notice: " + e.getMessage(), e);
             return "";
         }
     }
 
     @Override
     public String getStat() {
-        return String.format("SQSNotify with the queues: %s, sent : %d, received: %d, dropped: %d",
+        return String.format("SQSNotice with the queues: %s, sent : %d, received: %d, dropped: %d",
                 queues, sentMessageCount.get(), recvMessageCount.get(), lostMessageCount.get());
     }
 }

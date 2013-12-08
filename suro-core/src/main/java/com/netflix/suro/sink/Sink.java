@@ -43,6 +43,6 @@ public interface Sink  {
      */
     void close();
     
-    String recvNotify();
+    String recvNotice();
     String getStat();
 }

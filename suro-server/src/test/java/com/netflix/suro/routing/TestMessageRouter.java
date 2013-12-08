@@ -92,7 +92,7 @@ public class TestMessageRouter {
         }
 
         @Override
-        public String recvNotify() {
+        public String recvNotice() {
             return null;
         }
 

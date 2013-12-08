@@ -92,7 +92,7 @@ public class TestLocalFileSink {
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
 
-        assertNull(sink.recvNotify());
+        assertNull(sink.recvNotice());
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(10000))) {
             sink.writeTo(new StringMessage(m));
@@ -131,7 +131,7 @@ public class TestLocalFileSink {
                 "    \"maxFileSize\": 100000000,\n" +
                 "    \"minPercentFreeDisk\": 50,\n" +
                 "    \"rotationPeriod\": \"PT5s\",\n" +
-                "    \"notify\": {\n" +
+                "    \"notice\": {\n" +
                 "        \"type\": \"queue\"\n" +
                 "    }\n" +
                 "}";
@@ -149,7 +149,7 @@ public class TestLocalFileSink {
         });
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
-        assertNull(sink.recvNotify());
+        assertNull(sink.recvNotice());
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100))) {
             sink.writeTo(new StringMessage(m));
@@ -190,7 +190,7 @@ public class TestLocalFileSink {
                 "    \"maxFileSize\": 10240,\n" +
                 "    \"minPercentFreeDisk\": 50,\n" +
                 "    \"rotationPeriod\": \"PT1m\",\n" +
-                "    \"notify\": {\n" +
+                "    \"notice\": {\n" +
                 "        \"type\": \"queue\"\n" +
                 "    }\n" +
                 "}";
@@ -225,7 +225,7 @@ public class TestLocalFileSink {
 
         assertEquals(queue.getStatus(), ServiceStatus.WARNING);
         assertEquals(messageSetProcessorManager.getStatus(), MessageSetProcessorManager.IN_ERROR);
-        assertNull(sink.recvNotify());
+        assertNull(sink.recvNotice());
 
         when(spaceChecker.hasEnoughSpace()).thenReturn(true);
 
@@ -265,7 +265,7 @@ public class TestLocalFileSink {
                 "    \"minPercentFreeDisk\": 50,\n" +
                 "    \"rotationPeriod\": \"PT10m\",\n" +
                 "    \"batchSize\": 1,\n" +
-                "    \"notify\": {\n" +
+                "    \"notice\": {\n" +
                 "        \"type\": \"queue\"\n" +
                 "    }\n" +
                 "}";
@@ -284,7 +284,7 @@ public class TestLocalFileSink {
         });
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
-        assertNull(sink.recvNotify());
+        assertNull(sink.recvNotice());
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(10000))) {
             sink.writeTo(new StringMessage(m));
@@ -328,7 +328,7 @@ public class TestLocalFileSink {
                 "    \"maxFileSize\": 100000000,\n" +
                 "    \"minPercentFreeDisk\": 50,\n" +
                 "    \"rotationPeriod\": \"PT2s\",\n" +
-                "    \"notify\": {\n" +
+                "    \"notice\": {\n" +
                 "        \"type\": \"queue\"\n" +
                 "    }\n" +
                 "}";
@@ -346,7 +346,7 @@ public class TestLocalFileSink {
         });
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
-        assertNull(sink.recvNotify());
+        assertNull(sink.recvNotice());
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100))) {
             sink.writeTo(new StringMessage(m));
@@ -422,7 +422,7 @@ public class TestLocalFileSink {
 
         Set<String> filePathSetResult = new HashSet<String>();
         for (int i = 0; i < numFiles - 1; ++i) {
-            filePathSetResult.add(sink.recvNotify());
+            filePathSetResult.add(sink.recvNotice());
         }
         assertEquals(filePathSet, filePathSetResult);
     }

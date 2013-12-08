@@ -39,7 +39,7 @@ public class SuroSink implements Sink {
     }
 
     @Override
-    public String recvNotify() {
+    public String recvNotice() {
         return "";
     }
 
