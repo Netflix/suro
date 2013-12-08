@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 
-public class TestQueueManager {
+public class TestMessageSetProcessorManager {
     @Test
     public void test() throws Exception {
         final Properties props = new Properties();
