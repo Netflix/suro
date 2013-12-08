@@ -14,23 +14,34 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.sink.notify;
+package com.netflix.suro.sink.notification;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.netflix.suro.sink.notification.Notification;
 
 /**
- * Notify interface is used to send a notify from the sink to somewhere.
- * This is a kind of pub-sub module, for example, QueueNotify is used in
- * communication between LocalFileSink and S3FileSink.
- *
- * @param <E> type of notify
+ * Do nothing on notification for debugging purpose
  *
  * @author jbae
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-public interface Notify<E> {
-    void init();
-    boolean send(E message);
-    E recv();
-    String getStat();
+public class NoNotification implements Notification<String> {
+    public static final String TYPE = "no";
+
+    @Override
+    public void init() {
+    }
+
+    @Override
+    public boolean send(String message) {
+        return true;
+    }
+
+    @Override
+    public String recv() {
+        return null;
+    }
+
+    @Override
+    public String getStat() {
+        return "No";
+    }
 }

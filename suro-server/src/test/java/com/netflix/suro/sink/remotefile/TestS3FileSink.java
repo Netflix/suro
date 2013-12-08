@@ -94,7 +94,7 @@ public class TestS3FileSink {
         File[] files = getFiles();
         assertEquals(files.length, 0);
         int count = 0;
-        while (sink.recvNotify() != null) {
+        while (sink.recvNotification() != null) {
             ++count;
         }
         assertTrue(count > 0);
@@ -144,7 +144,7 @@ public class TestS3FileSink {
         File[] files = getFiles();
         assertEquals(files.length, 0);
         int count = 0;
-        while (sink.recvNotify() != null) {
+        while (sink.recvNotification() != null) {
             ++count;
         }
         assertTrue(count > 0);
@@ -179,7 +179,7 @@ public class TestS3FileSink {
         File[] files = getFiles();
         assertEquals(files.length, 0);
         int count = 0;
-        while (sink.recvNotify() != null) {
+        while (sink.recvNotification() != null) {
             ++count;
         }
         assertEquals(count, 100);
@@ -222,7 +222,7 @@ public class TestS3FileSink {
         File[] files = getFiles();
         assertEquals(files.length, 0);
         int count = 0;
-        while (sink.recvNotify() != null) {
+        while (sink.recvNotification() != null) {
             ++count;
         }
         assertEquals(count, 100);
@@ -256,7 +256,7 @@ public class TestS3FileSink {
 
         assertTrue(files.length > 0);
         int count = 0;
-        while (sink.recvNotify() != null) {
+        while (sink.recvNotification() != null) {
             ++count;
         }
         assertEquals(count, 0);

@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.notify;
+package com.netflix.suro.notification;
 
 import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.*;
@@ -31,10 +31,10 @@ import com.google.inject.Injector;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.sink.TestSinkManager.TestSink;
-import com.netflix.suro.sink.nofify.NoNotify;
-import com.netflix.suro.sink.nofify.QueueNotify;
-import com.netflix.suro.sink.nofify.SQSNotify;
-import com.netflix.suro.sink.notify.Notify;
+import com.netflix.suro.sink.notification.NoNotification;
+import com.netflix.suro.sink.notification.QueueNotification;
+import com.netflix.suro.sink.notification.SQSNotification;
+import com.netflix.suro.sink.notification.Notification;
 import org.apache.commons.codec.binary.Base64;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -48,16 +48,16 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
-public class TestNotify {
+public class TestNotification {
     private static Injector injector = Guice.createInjector(
             new SuroPlugin() {
                 @Override
                 protected void configure() {
                     this.addSinkType("TestSink", TestSink.class);
 
-                    this.addNotifyType(NoNotify.TYPE, NoNotify.class);
-                    this.addNotifyType(QueueNotify.TYPE, QueueNotify.class);
-                    this.addNotifyType(SQSNotify.TYPE, SQSNotify.class);
+                    this.addNotificationType(NoNotification.TYPE, NoNotification.class);
+                    this.addNotificationType(QueueNotification.TYPE, QueueNotification.class);
+                    this.addNotificationType(SQSNotification.TYPE, SQSNotification.class);
                 }
             },
             new AbstractModule() {
@@ -75,11 +75,11 @@ public class TestNotify {
                 "}";
 
         ObjectMapper mapper = injector.getInstance(DefaultObjectMapper.class);
-        Notify queueNotify = mapper.readValue(desc, new TypeReference<Notify>(){});
-        queueNotify.init();
-        queueNotify.send("message");
-        assertEquals(queueNotify.recv(), "message");
-        assertNull(queueNotify.recv());
+        Notification queueNotification = mapper.readValue(desc, new TypeReference<Notification>(){});
+        queueNotification.init();
+        queueNotification.send("message");
+        assertEquals(queueNotification.recv(), "message");
+        assertNull(queueNotification.recv());
     }
 
     @Test
@@ -98,12 +98,12 @@ public class TestNotify {
 
         SqsTest sqsTest = new SqsTest(desc).invoke();
         ArgumentCaptor<SendMessageRequest> captor = sqsTest.getCaptor();
-        Notify queueNotify = sqsTest.getQueueNotify();
+        Notification queueNotification = sqsTest.getQueueNotification();
 
         assertEquals(captor.getValue().getMessageBody(), "message");
         assertEquals(captor.getValue().getQueueUrl(), "queueURL");
 
-        assertEquals(queueNotify.recv(), "receivedMessage");
+        assertEquals(queueNotification.recv(), "receivedMessage");
     }
 
     @Test
@@ -123,26 +123,26 @@ public class TestNotify {
 
         SqsTest sqsTest = new SqsTest(desc).invoke();
         ArgumentCaptor<SendMessageRequest> captor = sqsTest.getCaptor();
-        Notify queueNotify = sqsTest.getQueueNotify();
+        Notification queueNotification = sqsTest.getQueueNotification();
 
         assertEquals(captor.getValue().getMessageBody(), new String(Base64.encodeBase64("message".getBytes()),
                 Charsets.UTF_8));
         assertEquals(captor.getValue().getQueueUrl(), "queueURL");
 
-        assertEquals(queueNotify.recv(), new String(Base64.decodeBase64("receivedMessage".getBytes()), Charsets.UTF_8));
+        assertEquals(queueNotification.recv(), new String(Base64.decodeBase64("receivedMessage".getBytes()), Charsets.UTF_8));
     }
 
     private class SqsTest {
         private String desc;
-        private Notify queueNotify;
+        private Notification queueNotification;
         private ArgumentCaptor<SendMessageRequest> captor;
 
         public SqsTest(String desc) {
             this.desc = desc;
         }
 
-        public Notify getQueueNotify() {
-            return queueNotify;
+        public Notification getQueueNotification() {
+            return queueNotification;
         }
 
         public ArgumentCaptor<SendMessageRequest> getCaptor() {
@@ -171,10 +171,10 @@ public class TestNotify {
                 }
             });
 
-            queueNotify = mapper.readValue(desc, new TypeReference<Notify>() {
+            queueNotification = mapper.readValue(desc, new TypeReference<Notification>() {
             });
-            queueNotify.init();
-            queueNotify.send("message");
+            queueNotification.init();
+            queueNotification.send("message");
             captor = ArgumentCaptor.forClass(SendMessageRequest.class);
             verify(client).sendMessage(captor.capture());
             return this;

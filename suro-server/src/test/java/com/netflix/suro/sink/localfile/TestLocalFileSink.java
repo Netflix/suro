@@ -43,7 +43,7 @@ import java.io.*;
 import java.util.HashSet;
 import java.util.Set;
 
-import static junit.framework.Assert.*;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -92,7 +92,7 @@ public class TestLocalFileSink {
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
 
-        assertNull(sink.recvNotify());
+        assertNull(sink.recvNotification());
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(10000))) {
             sink.writeTo(new StringMessage(m));
@@ -149,7 +149,7 @@ public class TestLocalFileSink {
         });
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
-        assertNull(sink.recvNotify());
+        assertNull(sink.recvNotification());
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100))) {
             sink.writeTo(new StringMessage(m));
@@ -225,7 +225,7 @@ public class TestLocalFileSink {
 
         assertEquals(queue.getStatus(), ServiceStatus.WARNING);
         assertEquals(messageSetProcessorManager.getStatus(), MessageSetProcessorManager.IN_ERROR);
-        assertNull(sink.recvNotify());
+        assertNull(sink.recvNotification());
 
         when(spaceChecker.hasEnoughSpace()).thenReturn(true);
 
@@ -284,7 +284,7 @@ public class TestLocalFileSink {
         });
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
-        assertNull(sink.recvNotify());
+        assertNull(sink.recvNotification());
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(10000))) {
             sink.writeTo(new StringMessage(m));
@@ -346,7 +346,7 @@ public class TestLocalFileSink {
         });
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
-        assertNull(sink.recvNotify());
+        assertNull(sink.recvNotification());
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100))) {
             sink.writeTo(new StringMessage(m));
@@ -422,7 +422,7 @@ public class TestLocalFileSink {
 
         Set<String> filePathSetResult = new HashSet<String>();
         for (int i = 0; i < numFiles - 1; ++i) {
-            filePathSetResult.add(sink.recvNotify());
+            filePathSetResult.add(sink.recvNotification());
         }
         assertEquals(filePathSet, filePathSetResult);
     }
