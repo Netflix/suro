@@ -28,8 +28,8 @@ import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
-import com.netflix.suro.sink.notify.Notify;
-import com.netflix.suro.sink.nofify.QueueNotify;
+import com.netflix.suro.sink.notification.Notification;
+import com.netflix.suro.sink.notification.QueueNotification;
 import com.netflix.suro.queue.MessageSetProcessorManager;
 import com.netflix.suro.sink.QueuedSink;
 import com.netflix.suro.sink.Sink;
@@ -69,7 +69,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
     private final long maxFileSize;
     private final Period rotationPeriod;
     private final int minPercentFreeDisk;
-    private final Notify<String> notify;
+    private final Notification<String> notification;
 
     private MessageSetProcessorManager messageSetProcessorManager;
     private SpaceChecker spaceChecker;
@@ -90,7 +90,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
     public LocalFileSink(
             @JsonProperty("outputDir") String outputDir,
             @JsonProperty("writer") FileWriter writer,
-            @JsonProperty("notify") Notify notify,
+            @JsonProperty("notify") Notification notification,
             @JsonProperty("maxFileSize") long maxFileSize,
             @JsonProperty("rotationPeriod") String rotationPeriod,
             @JsonProperty("minPercentFreeDisk") int minPercentFreeDisk,
@@ -99,7 +99,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
             @JsonProperty("batchTimeout") int batchTimeout,
             @JacksonInject("queueManager") MessageSetProcessorManager messageSetProcessorManager,
             @JacksonInject("spaceChecker") SpaceChecker spaceChecker) {
-        if (outputDir.endsWith("/") == false) {
+        if (!outputDir.endsWith("/")) {
             outputDir += "/";
         }
         Preconditions.checkNotNull(outputDir, "outputDir is needed");
@@ -109,7 +109,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
         this.maxFileSize = maxFileSize == 0 ? 100 * 1024 * 1024 : maxFileSize;
         this.rotationPeriod = new Period(rotationPeriod == null ? "PT1m" : rotationPeriod);
         this.minPercentFreeDisk = minPercentFreeDisk == 0 ? 50 : minPercentFreeDisk;
-        this.notify = notify == null ? new QueueNotify<String>() : notify;
+        this.notification = notification == null ? new QueueNotification<String>() : notification;
         this.messageSetProcessorManager = messageSetProcessorManager;
         this.spaceChecker = spaceChecker;
 
@@ -131,7 +131,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
                 messageSetProcessorManager = new MessageSetProcessorManager();
             }
 
-            notify.init();
+            notification.init();
 
             writer.open(outputDir);
             setName(LocalFileSink.class.getSimpleName() + "-" + outputDir);
@@ -254,8 +254,8 @@ public class LocalFileSink extends QueuedSink implements Sink {
     }
 
     @Override
-    public String recvNotify() {
-        return notify.recv();
+    public String recvNotification() {
+        return notification.recv();
     }
 
     private void renameAndNotify(String filePath) throws IOException {
@@ -264,7 +264,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
                 // if we have the previous file
                 String doneFile = filePath.replace(suffix, done);
                 writer.setDone(filePath, doneFile);
-                notify.send(doneFile);
+                notification.send(doneFile);
             } else {
                 // delete it
                 deleteFile(filePath);
@@ -307,7 +307,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
                     String fileName = file.getPath().getName();
                     String fileExt = getFileExt(fileName);
                     if (fileExt != null && fileExt.equals(done)) {
-                        notify.send(dir + fileName);
+                        notification.send(dir + fileName);
                         ++count;
                     } else if (fileExt != null) {
                         long lastPeriod =
@@ -317,7 +317,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
                             log.error(dir + fileName + " is not closed properly!!!");
                             String doneFile = fileName.replace(fileExt, done);
                             writer.setDone(dir + fileName, dir + doneFile);
-                            notify.send(dir + doneFile);
+                            notification.send(dir + doneFile);
                             ++count;
                         }
                     }

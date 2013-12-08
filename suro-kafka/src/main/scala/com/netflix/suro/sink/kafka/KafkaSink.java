@@ -115,7 +115,7 @@ public class KafkaSink extends QueuedSink implements Sink {
     }
 
     @Override
-    public String recvNotify() {
+    public String recvNotification() {
         return null;
     }
 

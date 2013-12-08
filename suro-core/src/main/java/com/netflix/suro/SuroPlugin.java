@@ -4,7 +4,7 @@ import com.google.inject.AbstractModule;
 import com.google.inject.multibindings.Multibinder;
 import com.netflix.suro.routing.Filter;
 import com.netflix.suro.sink.Sink;
-import com.netflix.suro.sink.notification.Notify;
+import com.netflix.suro.sink.notification.Notification;
 import com.netflix.suro.sink.remotefile.RemotePrefixFormatter;
 import org.apache.log4j.Logger;
 
@@ -41,12 +41,12 @@ public abstract class SuroPlugin extends AbstractModule {
         bindings.addBinding().toInstance(new TypeHolder(typeName, remotePrefixFormatterClass));
     }
 
-    public <T extends Notify> void addNotifyType(String typeName, Class<T> notifyClass) {
-        LOG.info("Adding notifyType: " + typeName + "->" + notifyClass.getCanonicalName());
+    public <T extends Notification> void addNotificationType(String typeName, Class<T> notificationClass) {
+        LOG.info("Adding notificationType: " + typeName + "->" + notificationClass.getCanonicalName());
 
         Multibinder<TypeHolder> bindings
                 = Multibinder.newSetBinder(binder(), TypeHolder.class);
-        bindings.addBinding().toInstance(new TypeHolder(typeName, notifyClass));
+        bindings.addBinding().toInstance(new TypeHolder(typeName, notificationClass));
     }
 
     public <T extends Filter> void addFilterType(String typeName, Class<T> filterClass) {

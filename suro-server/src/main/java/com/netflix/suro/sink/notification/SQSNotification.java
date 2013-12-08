@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.sink.nofify;
+package com.netflix.suro.sink.notification;
 
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -30,7 +30,6 @@ import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
-import com.netflix.suro.sink.notify.Notify;
 import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,12 +39,12 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * SQS {@link Notify} implementation
+ * SQS {@link com.netflix.suro.sink.notification.Notification} implementation
  *
  * @author jbae
  */
-public class SQSNotify implements Notify<String> {
-    static Logger log = LoggerFactory.getLogger(SQSNotify.class);
+public class SQSNotification implements Notification<String> {
+    static Logger log = LoggerFactory.getLogger(SQSNotification.class);
 
     public static final String TYPE = "sqs";
 
@@ -67,16 +66,16 @@ public class SQSNotify implements Notify<String> {
     private AtomicLong recvMessageCount = new AtomicLong(0);
 
     @JsonCreator
-    public SQSNotify(
-            @JsonProperty("queues") List<String> queues,
-            @JsonProperty("region") @JacksonInject("region") String region,
-            @JsonProperty("connectionTimeout") int connectionTimeout,
-            @JsonProperty("maxConnections") int maxConnections,
-            @JsonProperty("socketTimeout") int socketTimeout,
-            @JsonProperty("maxRetries") int maxRetries,
-            @JsonProperty("enableBase64Encoding") boolean enableBase64Encoding,
-            @JacksonInject("sqsClient") AmazonSQSClient sqsClient,
-            @JacksonInject("credentials") AWSCredentialsProvider credentialsProvider) {
+    public SQSNotification(
+        @JsonProperty("queues") List<String> queues,
+        @JsonProperty("region") @JacksonInject("region") String region,
+        @JsonProperty("connectionTimeout") int connectionTimeout,
+        @JsonProperty("maxConnections") int maxConnections,
+        @JsonProperty("socketTimeout") int socketTimeout,
+        @JsonProperty("maxRetries") int maxRetries,
+        @JsonProperty("enableBase64Encoding") boolean enableBase64Encoding,
+        @JacksonInject("sqsClient") AmazonSQSClient sqsClient,
+        @JacksonInject("credentials") AWSCredentialsProvider credentialsProvider) {
         this.queues = queues;
         this.region = region;
 
@@ -118,7 +117,7 @@ public class SQSNotify implements Notify<String> {
             queueUrls.add(sqsClient.getQueueUrl(request).getQueueUrl());
         }
 
-        log.info(String.format("SQSNotify initialized with the endpoint: %s, queue: %s",
+        log.info(String.format("SQSNotification initialized with the endpoint: %s, queue: %s",
                 endpoint, queues));
     }
 
@@ -140,7 +139,7 @@ public class SQSNotify implements Notify<String> {
                     request = request.withMessageBody(message);
                 }
                 sqsClient.sendMessage(request);
-                log.info("SQSNotify: " + message + " sent to " + queueUrl);
+                log.info("SQSNotification: " + message + " sent to " + queueUrl);
                 if (sent == false) {
                     sentMessageCount.incrementAndGet();
                     sent = true;
@@ -193,7 +192,7 @@ public class SQSNotify implements Notify<String> {
 
     @Override
     public String getStat() {
-        return String.format("SQSNotify with the queues: %s, sent : %d, received: %d, dropped: %d",
+        return String.format("SQSNotification with the queues: %s, sent : %d, received: %d, dropped: %d",
                 queues, sentMessageCount.get(), recvMessageCount.get(), lostMessageCount.get());
     }
 }

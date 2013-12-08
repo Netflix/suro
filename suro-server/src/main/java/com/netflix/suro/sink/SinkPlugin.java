@@ -1,9 +1,9 @@
 package com.netflix.suro.sink;
 
 import com.netflix.suro.SuroPlugin;
-import com.netflix.suro.sink.nofify.NoNotify;
-import com.netflix.suro.sink.nofify.QueueNotify;
-import com.netflix.suro.sink.nofify.SQSNotify;
+import com.netflix.suro.sink.notification.NoNotification;
+import com.netflix.suro.sink.notification.QueueNotification;
+import com.netflix.suro.sink.notification.SQSNotification;
 import com.netflix.suro.sink.kafka.KafkaSink;
 import com.netflix.suro.sink.localfile.LocalFileSink;
 import com.netflix.suro.sink.remotefile.S3FileSink;
@@ -29,8 +29,8 @@ public class SinkPlugin extends SuroPlugin {
 
         this.addSinkType(SuroSink.TYPE, SuroSink.class);
 
-        this.addNotifyType(NoNotify.TYPE, NoNotify.class);
-        this.addNotifyType(QueueNotify.TYPE, QueueNotify.class);
-        this.addNotifyType(SQSNotify.TYPE, SQSNotify.class);
+        this.addNotificationType(NoNotification.TYPE, NoNotification.class);
+        this.addNotificationType(QueueNotification.TYPE, QueueNotification.class);
+        this.addNotificationType(SQSNotification.TYPE, SQSNotification.class);
     }
 }

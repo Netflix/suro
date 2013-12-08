@@ -25,13 +25,12 @@ import com.google.common.base.Preconditions;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.servo.monitor.Monitors;
-import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.FileNameFormatter;
 import com.netflix.suro.sink.localfile.LocalFileSink;
-import com.netflix.suro.sink.nofify.QueueNotify;
-import com.netflix.suro.sink.notify.Notify;
+import com.netflix.suro.sink.notification.QueueNotification;
+import com.netflix.suro.sink.notification.Notification;
 import com.netflix.suro.sink.remotefile.formatter.SimpleDateFormatter;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -73,7 +72,7 @@ public class S3FileSink implements Sink {
     private final String s3Endpoint;
     private final long maxPartSize;
 
-    private final Notify<String> notify;
+    private final Notification<String> notification;
     private final RemotePrefixFormatter prefixFormatter;
 
     private MultipartUtils mpUtils;
@@ -97,7 +96,7 @@ public class S3FileSink implements Sink {
             @JsonProperty("s3Endpoint") String s3Endpoint,
             @JsonProperty("maxPartSize") long maxPartSize,
             @JsonProperty("concurrentUpload") int concurrentUpload,
-            @JsonProperty("notify") Notify notify,
+            @JsonProperty("notify") Notification notification,
             @JsonProperty("prefixFormatter") RemotePrefixFormatter prefixFormatter,
             @JsonProperty("batchUpload") boolean batchUpload,
             @JsonProperty("s3Acl") String s3Acl,
@@ -108,7 +107,7 @@ public class S3FileSink implements Sink {
         this.bucket = bucket;
         this.s3Endpoint = s3Endpoint == null ? "s3.amazonaws.com" : s3Endpoint;
         this.maxPartSize = maxPartSize == 0 ? 20 * 1024 * 1024 : maxPartSize;
-        this.notify = notify == null ? new QueueNotify<String>() : notify;
+        this.notification = notification == null ? new QueueNotification<String>() : notification;
         this.prefixFormatter = prefixFormatter == null ? new SimpleDateFormatter("'P'yyyyMMdd'T'HHmmss") : prefixFormatter;
         this.batchUpload = batchUpload;
 
@@ -175,7 +174,7 @@ public class S3FileSink implements Sink {
 
         grantAcl = new GrantAcl(s3Service, s3Acl, s3AclRetries == 0 ? 5 : s3AclRetries);
 
-        notify.init();
+        notification.init();
 
         if (batchUpload == false) {
             running = true;
@@ -217,10 +216,10 @@ public class S3FileSink implements Sink {
     }
 
     private void uploadAllFromQueue() {
-        String note = localFileSink.recvNotify();
+        String note = localFileSink.recvNotification();
         while (note != null) {
             uploadFile(note);
-            note = localFileSink.recvNotify();
+            note = localFileSink.recvNotification();
         }
     }
 
@@ -243,8 +242,8 @@ public class S3FileSink implements Sink {
     }
 
     @Override
-    public String recvNotify() {
-        return notify.recv();
+    public String recvNotification() {
+        return notification.recv();
     }
 
     @Override
@@ -340,7 +339,7 @@ public class S3FileSink implements Sink {
         jsonMessage.put("size", fileSize);
         jsonMessage.put("collector", FileNameFormatter.localHostAddr);
 
-        if (notify.send(jsonMessage.toString()) == false) {
+        if (notification.send(jsonMessage.toString()) == false) {
             throw new RuntimeException("Notification failed");
         }
     }

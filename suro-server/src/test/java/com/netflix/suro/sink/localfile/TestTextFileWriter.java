@@ -36,8 +36,8 @@ import org.junit.Test;
 
 import java.io.*;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.TestCase.assertFalse;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 public class TestTextFileWriter {
     public static String dir = "/tmp/surotest/filewritertest/";
