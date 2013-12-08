@@ -28,8 +28,6 @@ import java.rmi.server.UID;
  * File name formatter used in LocalFileSink
  * File name is formated as [PyyyyMMDDtHHmmss][hostname][random UID]
  *
- * TODO: This should be configurable
- *
  * @author jbae
  */
 public class FileNameFormatter {
@@ -51,7 +49,7 @@ public class FileNameFormatter {
      */
     public static String get(String dir) {
         StringBuilder sb = new StringBuilder(dir);
-        if (dir.endsWith("/") == false) {
+        if (!dir.endsWith("/")) {
             sb.append('/');
         }
         sb.append(fmt.print(new DateTime()))
