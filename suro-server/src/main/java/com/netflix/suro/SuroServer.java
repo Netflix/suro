@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Command line driver for Suro
@@ -48,7 +49,7 @@ public class SuroServer {
     public static final String OPT_CONTROL_PORT = "controlPort";
 
     public static void main(String[] args) throws IOException {
-        LifecycleManager manager = null;
+        final AtomicReference<LifecycleManager> manager = new AtomicReference<LifecycleManager>();
 
         try {
             // Parse the command line
@@ -97,15 +98,22 @@ public class SuroServer {
                     )
                     .createInjector();
 
-            manager = injector.getInstance(LifecycleManager.class);
-            manager.start();
+            manager.set(injector.getInstance(LifecycleManager.class));
+            manager.get().start();
+
+            Runtime.getRuntime().addShutdownHook(new Thread() {
+                @Override
+                public void run() {
+                    manager.get().close();
+                }
+            });
 
             waitForShutdown(getControlPort(options));
         } catch (Exception e) {
             System.err.println("SuroServer startup failed: " + e.getMessage());
             System.exit(-1);
         } finally {
-            Closeables.close(manager, true);
+            Closeables.close(manager.get(), true);
         }
     }
 
@@ -114,7 +122,7 @@ public class SuroServer {
     }
 
     private static int getControlPort(Options options) {
-        Option opt = options.getOption("controlPort");
+        Option opt = options.getOption("c");
         String value = opt.getValue();
         if(value == null) {
             return DEFAULT_CONTROL_PORT;

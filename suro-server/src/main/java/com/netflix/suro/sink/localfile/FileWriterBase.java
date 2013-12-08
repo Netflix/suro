@@ -68,7 +68,6 @@ public class FileWriterBase {
     public void setDone(String oldName, String newName) throws IOException {
         Path oldPath = new Path(oldName);
         fs.rename(oldPath, new Path(newName));
-        fs.delete(new Path(oldPath.getParent(), "." + oldPath.getName() + ".crc"), true);
     }
 
     public FileSystem getFS() {

@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Asynchronous sink would have the internal buffer to return on
- * {@link Sink#writeTo(com.netflix.suro.message.Message)} method.
+ * {@link Sink#writeTo(com.netflix.suro.message.MessageContainer)} method.
  * Implementing asynchronous sink can be done by simply extending this class
  * and initialize itself with {@link MessageQueue4Sink}. This is extending
  * {@link Thread} and its start() method should be called.
@@ -34,7 +34,7 @@ public abstract class QueuedSink extends Thread {
 
     protected void initialize(MessageQueue4Sink queue4Sink, int batchSize, int batchTimeout) {
         this.queue4Sink = queue4Sink;
-        this.batchSize = batchSize == 0 ? 200 : batchSize;
+        this.batchSize = batchSize == 0 ? 1000 : batchSize;
         this.batchTimeout = batchTimeout == 0 ? 1000 : batchTimeout;
     }
 
