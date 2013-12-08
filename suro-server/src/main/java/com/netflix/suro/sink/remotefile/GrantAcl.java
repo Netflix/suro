@@ -11,13 +11,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * When uploading files to S3 with opening up to the certain AWS id, this can be
- * used
+ * Helper class that grants access to S3 bucket to an AWS account. We can use this when uploading files to S3 on behalf of
+ * given AWS account ID.
  *
  * @author jbae
  */
 public class GrantAcl {
-    static Logger log = LoggerFactory.getLogger(GrantAcl.class);
+    private static final Logger log = LoggerFactory.getLogger(GrantAcl.class);
 
     private final RestS3Service s3Service;
     private final String s3Acl;
@@ -30,23 +30,25 @@ public class GrantAcl {
     }
 
     public boolean grantAcl(S3Object object) throws ServiceException, InterruptedException {
-        if (Strings.isNullOrEmpty(s3Acl) == false) {
-            for (int i = 0; i < s3AclRetries; ++i) {
-                try {
-                    AccessControlList acl = s3Service.getObjectAcl(object.getBucketName(), object.getKey());
-                    for (String id : s3Acl.split(",")) {
-                        acl.grantPermission(new CanonicalGrantee(id), Permission.PERMISSION_READ);
-                    }
-                    s3Service.putObjectAcl(object.getBucketName(), object.getKey(), acl);
-                    return true;
-                } catch (Exception e) {
-                    log.error("Exception while granting ACL: " + e.getMessage());
-                    Thread.sleep(1000 * (i + 1));
-                }
-            }
-            return false;
-        } else {
+        if(Strings.isNullOrEmpty(s3Acl)){
             return true;
         }
+
+        for (int i = 0; i < s3AclRetries; ++i) {
+            try {
+                AccessControlList acl = s3Service.getObjectAcl(object.getBucketName(), object.getKey());
+                for (String id : s3Acl.split(",")) {
+                    acl.grantPermission(new CanonicalGrantee(id), Permission.PERMISSION_READ);
+                }
+                s3Service.putObjectAcl(object.getBucketName(), object.getKey(), acl);
+                return true;
+            } catch (Exception e) {
+                log.error("Exception while granting ACL: " + e.getMessage(), e);
+                Thread.sleep(1000 * (i + 1));
+            }
+        }
+
+        return false;
+
     }
 }
