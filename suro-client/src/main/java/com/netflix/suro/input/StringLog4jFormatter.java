@@ -58,7 +58,7 @@ public class StringLog4jFormatter implements Log4jFormatter {
             String key = null;
             while (it.hasNext()) {
                 key = (String) it.next();
-                sb.append(fieldDelim).append(key.toString()).append(fieldEqual).append(map.get(key));
+                sb.append(fieldDelim).append(key).append(fieldEqual).append(map.get(key));
                 if (key.equalsIgnoreCase(TagKey.ROUTING_KEY)) {
                     routingKey = (String) map.get(key);
                 }

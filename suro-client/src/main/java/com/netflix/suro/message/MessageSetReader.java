@@ -26,12 +26,13 @@ import java.io.IOException;
 import java.util.Iterator;
 
 /**
- * Implements Iterator for each message in TMessageSet
+ * This class implements an {@link Iterable} reader for {@link TMessageSet} so we can iterate
+ * over each message in a {@link TMessageSet}.
  *
  * @author jbae
  */
 public class MessageSetReader implements Iterable<Message> {
-    static Logger log = LoggerFactory.getLogger(MessageSetReader.class);
+    private static final Logger log = LoggerFactory.getLogger(MessageSetReader.class);
 
     private final TMessageSet messageSet;
 

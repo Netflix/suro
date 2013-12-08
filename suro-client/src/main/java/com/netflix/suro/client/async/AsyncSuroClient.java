@@ -42,10 +42,11 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Asynchronous suro client
+ * Asynchronous {@link ISuroClient} implementation. This client puts messages into a queue first, and has a thread send
+ * out events off the queue asynchronously.
  */
 public class AsyncSuroClient implements ISuroClient {
-    static Logger log = LoggerFactory.getLogger(AsyncSuroClient.class);
+    private static final Logger log = LoggerFactory.getLogger(AsyncSuroClient.class);
 
     private final ClientConfig config;
     private final ConnectionPool connectionPool;
@@ -126,7 +127,7 @@ public class AsyncSuroClient implements ISuroClient {
 
     @Override
     public void send(Message message) {
-        if (messageQueue.offer(message) == false) {
+        if (!messageQueue.offer(message)) {
             lostMessages.incrementAndGet();
             DynamicCounter.increment(
                     MonitorConfig.builder(TagKey.LOST_COUNT)
@@ -157,14 +158,14 @@ public class AsyncSuroClient implements ISuroClient {
         return new Runnable() {
             @Override
             public void run() {
-                while (running || messageQueue.isEmpty() == false) {
+                while (running || !messageQueue.isEmpty()) {
                     try {
                         Message msg = messageQueue.poll(
                                 Math.max(0, lastBatch + config.getAsyncTimeout() - System.currentTimeMillis()),
                                 TimeUnit.MILLISECONDS);
 
                         boolean expired = (msg == null);
-                        if (expired == false) {
+                        if (!expired) {
                             builder.withMessage(msg.getRoutingKey(), msg.getPayload());
                             builder.drainFrom(messageQueue, config.getAsyncBatchSize() - builder.size());
                         }
@@ -198,7 +199,7 @@ public class AsyncSuroClient implements ISuroClient {
             poller.awaitTermination(5000 + config.getAsyncTimeout(), TimeUnit.MILLISECONDS);
             senders.shutdown();
             senders.awaitTermination(5000 + config.getAsyncTimeout(), TimeUnit.MILLISECONDS);
-            if (senders.isTerminated() == false) {
+            if (!senders.isTerminated()) {
                 log.error("AsyncSuroClient didn't terminate gracefully within 5 seconds");
                 senders.shutdownNow();
             }

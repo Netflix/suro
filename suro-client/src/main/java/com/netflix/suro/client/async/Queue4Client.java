@@ -29,8 +29,12 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * A simple proxy of the queues used by {@link AsyncSuroClient}. It determines whether to use
+ * an in-memory queue or a file-backed queue based on user configuration.
+ */
 public class Queue4Client {
-    static Logger logger = LoggerFactory.getLogger(Queue4Client.class);
+    private static final Logger logger = LoggerFactory.getLogger(Queue4Client.class);
 
     private MessageQueue4Sink queue;
 

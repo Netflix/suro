@@ -35,7 +35,7 @@ public class SuroServer4Test implements SuroServer.Iface {
     private THsHaServer server = null;
     private TNonblockingServerSocket transport = null;
     private SuroServer.Processor processor = null;
-    private Map<String, AtomicLong> counters = new HashMap<String, AtomicLong>();;
+    private Map<String, AtomicLong> counters = new HashMap<String, AtomicLong>();
     private List<TMessageSet> messageSetList = new LinkedList<TMessageSet>();
 
     public SuroServer4Test(int port) {

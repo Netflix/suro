@@ -26,7 +26,7 @@ import org.apache.log4j.Logger;
  * @param <T>
  */
 public class JsonSerDe<T> implements SerDe<T> {
-    static Logger log = Logger.getLogger(JsonSerDe.class);
+    private static final Logger log = Logger.getLogger(JsonSerDe.class);
 
     private final ObjectMapper jsonMapper = new DefaultObjectMapper();
     private final TypeReference<T> typeReference = new TypeReference<T>(){};

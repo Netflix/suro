@@ -25,6 +25,10 @@ import com.netflix.suro.thrift.TMessageSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * The sender that actually sends out messages. It can be scheduled by an {@link java.util.concurrent.Executor}
+ * and therefore be used to send out messages asynchronously. It also retries if a message failed to be sent.
+ */
 public class AsyncSuroSender implements Runnable {
     private static final Logger log = LoggerFactory.getLogger(AsyncSuroSender.class);
 
@@ -65,7 +69,7 @@ public class AsyncSuroSender implements Runnable {
             }
         }
 
-        if (sent == true){
+        if (sent){
             client.updateSendTime(System.currentTimeMillis() - startTS);
             client.updateSentDataStats(messageSet, retried);
         } else {

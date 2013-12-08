@@ -37,12 +37,12 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Synchronous SuroClient implementation
+ * Synchronous {@link ISuroClient} implementation
  * Sends a message or TMessageSet one by one
  * @author jbae
  */
 public class SyncSuroClient implements ISuroClient {
-    static Logger log = LoggerFactory.getLogger(SyncSuroClient.class);
+    private static final Logger log = LoggerFactory.getLogger(SyncSuroClient.class);
 
     private final ClientConfig config;
     private final ConnectionPool connectionPool;

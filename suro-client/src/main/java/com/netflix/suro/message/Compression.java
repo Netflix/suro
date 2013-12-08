@@ -23,8 +23,9 @@ import java.io.IOException;
 
 /**
  * Suro message payload compression
- * compress method receives byte[] and returns compressed byte[]
- * decompress method receives compressed byte[] and returns uncompressed one
+ *
+ * The method {@link #compress(byte[])} receives byte[] and returns compressed byte[]
+ * The method {@link #decompress(byte[])} receives compressed byte[] and returns uncompressed one
  *
  * 0, NO no compression
  * 1, LZF LZF compression

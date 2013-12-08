@@ -61,6 +61,7 @@ public class JsonLog4jFormatter implements Log4jFormatter {
         Monitors.registerObject(this);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public String format(LoggingEvent event) {
         Object obj = event.getMessage();

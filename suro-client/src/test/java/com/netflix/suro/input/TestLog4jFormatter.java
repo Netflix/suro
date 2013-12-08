@@ -43,7 +43,7 @@ public class TestLog4jFormatter {
         LoggingEvent event = mock(LoggingEvent.class);
         when(event.getLevel()).thenReturn(Level.INFO);
         when(event.getLoggerName()).thenReturn("TestLogger");
-        when(event.getMessage()).thenReturn(new String("TestMessage"));
+        when(event.getMessage()).thenReturn("TestMessage");
         when(event.getThrowableStrRep()).thenReturn(new String[]{"StackTrace0", "StackTrace1"});
 
         String[] messages = formatter.format(event).split("\035");

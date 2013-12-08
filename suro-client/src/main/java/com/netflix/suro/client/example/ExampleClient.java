@@ -1,5 +1,6 @@
-package com.netflix.suro;
+package com.netflix.suro.client.example;
 
+import com.netflix.suro.ClientConfig;
 import com.netflix.suro.client.SuroClient;
 import com.netflix.suro.message.Message;
 
