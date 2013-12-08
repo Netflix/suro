@@ -41,7 +41,7 @@ public interface FileWriter {
      * Open the file under outputDir with the file name formatted by
      * {@link FileNameFormatter}
      *
-     * @param outputDir
+     * @param outputDir the directory where the file is located
      * @throws IOException
      */
     void open(String outputDir) throws IOException;
@@ -63,7 +63,7 @@ public interface FileWriter {
     /**
      * Close the current file, create and open the new file.
      *
-     * @param newPath
+     * @param newPath The path that points to the newly rotated file.
      * @throws IOException
      */
     void rotate(String newPath) throws IOException;
@@ -72,11 +72,11 @@ public interface FileWriter {
     void close() throws IOException;
 
     /**
-     * This function markes the file as done. When the file is makred as done,
+     * Marks the file as done. When the file is marked as done,
      * it can be processed further such as uploading it to S3.
      *
-     * @param oldName
-     * @param newName
+     * @param oldName The name of the file when it is not done.
+     * @param newName The new name of the file after is is marked as done.
      * @throws IOException
      */
     void setDone(String oldName, String newName) throws IOException;
