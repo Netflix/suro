@@ -22,8 +22,8 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Random;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertNotSame;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
 public class TestCompression {
