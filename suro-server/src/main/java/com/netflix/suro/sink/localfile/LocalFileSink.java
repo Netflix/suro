@@ -176,11 +176,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
 
             freeSpace = outputDir.getFreeSpace();
             long minFreeAvailable = (totalSpace * minPercentFreeDisk) / 100;
-            if (freeSpace < minFreeAvailable) {
-                return false;
-            } else {
-                return true;
-            }
+            return freeSpace >= minFreeAvailable;
         }
     }
 
@@ -194,7 +190,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
 
         nextRotation = new DateTime().plus(rotationPeriod).getMillis();
 
-        if (spaceChecker.hasEnoughSpace() == false) {
+        if (!spaceChecker.hasEnoughSpace()) {
             messageSetProcessorManager.stopTakingTraffic();
         } else {
             messageSetProcessorManager.startTakingTraffic();
@@ -293,7 +289,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
      * @return the number of files found in the directory
      */
     public int cleanUp(String dir) {
-        if (dir.endsWith("/") == false) {
+        if (!dir.endsWith("/")) {
             dir += "/";
         }
 
