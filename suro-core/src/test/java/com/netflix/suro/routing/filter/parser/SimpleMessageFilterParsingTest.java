@@ -198,7 +198,7 @@ public class SimpleMessageFilterParsingTest {
             			nHoursAway(3)
             		}, 
             		{35, isNull, "//a/b/c", null, null, null, "not null value"}, 
-            		{36, regex, "//a/b/c", null, "[0-9]+", "1234234", "ab13423a"}, 
+            		{36, regex, "//a/b/c", null, "[0-9]+", "1234234", "aaaaaaaaaa"},
             		{37, existsRight, "//a/b/c", "some value", null, "value", "whaever"},
             		{38, existsLeft, "//a/b/c", "some value", null, "value", "whaever"},
             		{39, trueValue, "//a/b/c", null, null, null, null},
