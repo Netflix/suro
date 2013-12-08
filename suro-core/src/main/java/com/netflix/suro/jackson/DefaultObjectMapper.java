@@ -37,10 +37,11 @@ import java.nio.ByteOrder;
 import java.util.Set;
 
 /**
+ * The default {@link ObjectMapper} used for serializing and de-serializing JSON objects.
  */
 @Singleton
 public class DefaultObjectMapper extends ObjectMapper {
-    static final Logger LOG = LoggerFactory.getLogger(DefaultObjectMapper.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultObjectMapper.class);
 
     public DefaultObjectMapper() {
         this(null, null);

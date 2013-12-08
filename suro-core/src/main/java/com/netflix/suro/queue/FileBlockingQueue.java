@@ -55,7 +55,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author jbae
  */
 public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQueue<E> {
-    static Logger log = LoggerFactory.getLogger(FileBlockingQueue.class);
+    private static final Logger log = LoggerFactory.getLogger(FileBlockingQueue.class);
 
     private final Lock lock = new ReentrantLock();
     private final Condition notEmpty = lock.newCondition();
@@ -139,7 +139,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
     }
 
     private void commitInternal(boolean doCommit) throws IOException {
-        if (doCommit == false) return;
+        if (!doCommit) return;
 
         this.queueFrontIndex.set(consumedIndex);
         // persist the queue front
@@ -171,9 +171,9 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
         E x = null;
         lock.lock();
         try {
-            if (isEmpty() == false) {
+            if (!isEmpty()) {
                 x = consumeElement();
-                if (isEmpty() == false) {
+                if (!isEmpty()) {
                     notEmpty.signal();
                 }
             }
@@ -319,7 +319,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
 
             @Override
             public boolean hasNext() {
-                return isEmpty() == false;
+                return !isEmpty();
             }
 
             @Override

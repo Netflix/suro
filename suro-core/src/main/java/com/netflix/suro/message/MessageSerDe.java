@@ -31,7 +31,7 @@ import java.io.IOException;
  * @author jbae
  */
 public class MessageSerDe implements SerDe<Message> {
-    static Logger log = LoggerFactory.getLogger(MessageSerDe.class);
+    private final static Logger log = LoggerFactory.getLogger(MessageSerDe.class);
 
     private ThreadLocal<ByteArrayOutputStream> outputStream =
             new ThreadLocal<ByteArrayOutputStream>() {
