@@ -18,6 +18,9 @@ package com.netflix.suro;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.Closeables;
 import com.google.inject.Injector;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
@@ -39,19 +42,22 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
+import static org.junit.Assert.assertTrue;
 
 public class TestSuroServer {
     private static final Properties properties = new Properties();
     private static final String sinkDesc = "{\n" +
             "    \"default\": {\n" +
             "        \"type\": \"TestSink\",\n" +
-            "        \"message\": \"defaultTestSink\"\n" +
+            "        \"message\": \"default\"\n" +
             "    },\n" +
-            "    \"topic1\": {\n" +
+            "    \"sink1\": {\n" +
             "        \"type\": \"TestSink\",\n" +
-            "        \"message\": \"topic1TestSink\"\n" +
+            "        \"message\": \"sink1\"\n" +
             "    }\n" +
             "}";
     private final String mapDesc = "{\n" +
@@ -65,6 +71,18 @@ public class TestSuroServer {
             "        \"where\": [\n" +
             "            {\"sink\" : \"sink1\"}\n" +
             "        ]\n" +
+            "    },\n" +
+            "    \"topic4\": {\n" +
+            "        \"where\": [{\n" +
+            "             \"sink\" : \"sink1\",\n" +
+            "             \"filter\" : {\n" +
+            "                 \"type\" : \"xpath\",\n" +
+            "                 \"filter\" : \"xpath(\\\"//foo/bar\\\") =~ \\\"^value[02468]$\\\"\",\n" +
+            "                 \"converter\" : {\n" +
+            "                      \"type\" : \"jsonmap\"\n" +
+            "                   }\n" +
+            "             }\n" +
+            "       }]\n" +
             "    }\n" +
             "}";
 
@@ -100,7 +118,7 @@ public class TestSuroServer {
                         new SuroPlugin() {
                             @Override
                             protected void configure() {
-                                this.addSinkType("TestSink", TestSinkManager.TestSink.class);
+                                this.addSinkType("TestSink", TestMessageRouter.TestSink.class);
                             }
                         },
                         StatusServer.createJerseyServletModule()
@@ -135,12 +153,18 @@ public class TestSuroServer {
                 client.send(new Message("topic3", Integer.toString(i).getBytes()));
             }
 
+            for(int i = 0; i < 30; ++i) {
+                Map<String, Object> message = makeMessage("foo/bar", "value"+i);
+                client.send(new Message("topic4", mapper.writeValueAsBytes(message)));
+            }
+
             int count = 10;
-            while (answer() == false && count > 0) {
+            while (!answer() && count > 0) {
                 Thread.sleep(1000);
                 --count;
             }
 
+            assertTrue(answer());
             client.shutdown();
             
         } catch (Exception e) {
@@ -154,10 +178,24 @@ public class TestSuroServer {
     private boolean answer() {
         Integer sink1 = TestMessageRouter.messageCount.get("sink1");
         Integer defaultV = TestMessageRouter.messageCount.get("default");
-        if (sink1 != null && sink1 == 15 && defaultV != null && defaultV == 30) {
-            return true;
-        } else {
-            return false;
+        System.out.println(sink1);
+        return sink1 != null && sink1 == 20 && defaultV != null && defaultV == 30;
+    }
+
+    private Map<String, Object> makeMessage(String path, Object value) {
+        Splitter splitter = Splitter.on("/").omitEmptyStrings().trimResults();
+
+        List<String> keys = Lists.newArrayList(splitter.split(path));
+        Map<String, Object> result = Maps.newHashMap();
+        Map<String, Object> current = result;
+        for(int i = 0; i < keys.size() - 1; ++i) {
+            Map<String, Object> map = Maps.newHashMap();
+            current.put(keys.get(i), map);
+            current = map;
         }
+
+        current.put(keys.get(keys.size() - 1), value);
+
+        return result;
     }
 }

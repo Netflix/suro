@@ -16,13 +16,21 @@
 
 package com.netflix.suro.routing;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.netflix.suro.message.MessageContainer;
+import com.netflix.suro.queue.FileQueue4Sink;
+import com.netflix.suro.queue.MemoryQueue4Sink;
 
 /**
  * Interface for message filter
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = RegexFilter.TYPE, value = RegexFilter.class),
+    @JsonSubTypes.Type(name = XPathFilter.TYPE, value = XPathFilter.class),
+    @JsonSubTypes.Type(name = RoutingKeyFilter.TYPE, value = RoutingKeyFilter.class)
+})
 public interface Filter {
     public boolean doFilter(MessageContainer message) throws Exception;
 }

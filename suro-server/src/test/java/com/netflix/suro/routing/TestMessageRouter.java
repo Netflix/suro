@@ -37,7 +37,6 @@ import com.netflix.suro.routing.RoutingMap.RoutingInfo;
 import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
-
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -107,15 +106,17 @@ public class TestMessageRouter {
     }
 
     private static Map<String, Sink> getSinkMap(ObjectMapper jsonMapper, String desc) throws Exception {
-        return jsonMapper.<Map<String, Sink>>readValue(
-                desc,
-                new TypeReference<Map<String, Sink>>() {});
+        return jsonMapper.readValue(
+            desc,
+            new TypeReference<Map<String, Sink>>() {
+            });
     }
     
     private static Map<String, RoutingInfo> getRoutingMap(ObjectMapper jsonMapper, String desc) throws Exception {
-        return jsonMapper.<Map<String, RoutingInfo>>readValue(
-                desc,
-                new TypeReference<Map<String, RoutingInfo>>() {});
+        return jsonMapper.readValue(
+            desc,
+            new TypeReference<Map<String, RoutingInfo>>() {
+            });
     }
 
     @Test
@@ -172,7 +173,7 @@ public class TestMessageRouter {
 
         // total sink1: 15, default: 30
         int count = 10;
-        while (answer() == false && count > 0) {
+        while (!answer() && count > 0) {
             Thread.sleep(1000);
             --count;
         }
@@ -206,8 +207,7 @@ public class TestMessageRouter {
         RoutingMap routingMap = injector.getInstance(RoutingMap.class);
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         routingMap.set(getRoutingMap(mapper, mapDesc));
-        MessageRouter router = injector.getInstance(MessageRouter.class);
-        return router;
+        return injector.getInstance(MessageRouter.class);
     }
 
     public static SinkManager startSinkMakager(Injector injector) throws Exception {
@@ -236,10 +236,6 @@ public class TestMessageRouter {
         Integer sink1 = messageCount.get("sink1");
         Integer sink2 = messageCount.get("sink2");
         Integer defaultV = messageCount.get("default");
-        if (sink1 != null && sink1 == 15 && defaultV != null && defaultV == 30 && sink2 == 1) {
-            return true;
-        } else {
-            return false;
-        }
+        return sink1 != null && sink1 == 15 && defaultV != null && defaultV == 30 && sink2 == 1;
     }
 }

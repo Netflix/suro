@@ -32,7 +32,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
- * This class is used at both {@link SequenceFileWriter} and {@link TextFileWriter}.
+ * The base class for both {@link SequenceFileWriter} and {@link TextFileWriter}.
  *
  * @author jbae
  */
@@ -76,7 +76,7 @@ public class FileWriterBase {
 
     public void createOutputDir(String outputDir) throws IOException {
         Path pLocalOutputDir = new Path(outputDir);
-        if (fs.exists(pLocalOutputDir) == false) {
+        if (!fs.exists(pLocalOutputDir)) {
             boolean exist = fs.mkdirs(pLocalOutputDir);
             if (!exist) {
                 throw new RuntimeException("Cannot create local dataSink dir: " + outputDir);

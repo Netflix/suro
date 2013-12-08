@@ -55,7 +55,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Sink for S3. Ths is embedding local file sink. When local file sink rotates
+ * Sink for S3. Ths embeds local file sink. When local file sink rotates
  * the file, the file is uploaded to S3.
  *
  * @author jbae
@@ -126,7 +126,7 @@ public class S3FileSink implements Sink {
         Preconditions.checkNotNull(localFileSink, "localFileSink is needed");
         Preconditions.checkNotNull(bucket, "bucket is needed");
 
-        if (batchUpload == false) {
+        if (!batchUpload) {
             localFileSink.cleanUp();
         }
 
@@ -176,7 +176,7 @@ public class S3FileSink implements Sink {
 
         notice.init();
 
-        if (batchUpload == false) {
+        if (!batchUpload) {
             running = true;
 
             localFilePoller.submit(new Runnable() {
@@ -226,7 +226,7 @@ public class S3FileSink implements Sink {
     @Override
     public void close() {
         try {
-            if (batchUpload == false) {
+            if (!batchUpload) {
                 localFileSink.close();
                 running = false;
                 localFilePoller.shutdown();
@@ -254,15 +254,27 @@ public class S3FileSink implements Sink {
         return sb.toString();
     }
 
-    @Monitor(name = "lastFileSize", type = DataSourceType.GAUGE)
-    private long lastFileSize;
+    @Monitor(name = "uploadedFileSize", type = DataSourceType.COUNTER)
+    public long getUploadedFileSize() {
+        return uploadedFileSize.get();
+    }
+
     @Monitor(name = "uploadDuration", type = DataSourceType.GAUGE)
     private long uploadDuration;
+
     @Monitor(name = "uploadedFileCount", type = DataSourceType.COUNTER)
     public int getUploadedFileCount() {
         return uploadedFileCount.get();
     }
+
+    @Monitor(name = "uploadFailureCount", type=DataSourceType.COUNTER)
+    public int getUploadFailureCount() {
+        return uploadFailureCount.get();
+    }
+
+    private AtomicLong uploadedFileSize = new AtomicLong(0);
     private AtomicInteger uploadedFileCount = new AtomicInteger(0);
+    private AtomicInteger uploadFailureCount = new AtomicInteger(0);
 
     @Monitor(name="fail_grantAcl", type=DataSourceType.COUNTER)
     private AtomicLong fail_grantAcl = new AtomicLong(0);
@@ -300,7 +312,7 @@ public class S3FileSink implements Sink {
                     objectsToUploadAsMultipart.add(file);
                     mpUtils.uploadObjects(bucket, s3Service, objectsToUploadAsMultipart, null);
 
-                    if (grantAcl.grantAcl(file) == false) {
+                    if (!grantAcl.grantAcl(file)) {
                         throw new RuntimeException("Failed to set Acl");
                     }
 
@@ -308,7 +320,8 @@ public class S3FileSink implements Sink {
 
                     log.info("upload duration: " + (t2 - t1) + " ms " +
                             "for " + filePath + " Len: " + localFile.length() + " bytes");
-                    lastFileSize = localFile.length();
+
+                    uploadedFileSize.addAndGet(localFile.length());
                     uploadedFileCount.incrementAndGet();
                     uploadDuration = t2 - t1;
 
@@ -316,8 +329,9 @@ public class S3FileSink implements Sink {
                     localFileSink.deleteFile(filePath);
 
                     log.info("upload done deleting from local: " + filePath);
-                } catch (Throwable e) {
-                    log.error("Exception while uploading: " + e.getMessage());
+                } catch (Exception e) {
+                    uploadFailureCount.incrementAndGet();
+                    log.error("Exception while uploading: " + e.getMessage(), e);
                 } finally {
                     // check the file was deleted or not
                     if (new File(filePath).exists()) {
@@ -339,7 +353,7 @@ public class S3FileSink implements Sink {
         jsonMessage.put("size", fileSize);
         jsonMessage.put("collector", FileNameFormatter.localHostAddr);
 
-        if (notice.send(jsonMessage.toString()) == false) {
+        if (!notice.send(jsonMessage.toString())) {
             throw new RuntimeException("Notice failed");
         }
     }

@@ -20,7 +20,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
  * Notice interface is used to send a notice from the sink to somewhere.
- * This is a kind of pub-sub module, for example, QueueNotice is used in
+ * This is a kind of pub-sub module, for example, {@link com.netflix.suro.sink.notice.QueueNotice} is used in
  * communication between LocalFileSink and S3FileSink.
  *
  * @param <E> type of notice
