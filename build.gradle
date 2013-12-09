@@ -29,7 +29,6 @@ apply from: file('gradle/license.gradle')
 apply from: file('gradle/release.gradle')
 
 subprojects {
-    apply plugin: 'scala'
     apply plugin: 'idea'
     apply plugin: 'project-report'
 
@@ -124,6 +123,7 @@ project(':suro-integration-test') {
 }
 
 project(':suro-kafka') {
+  apply plugin: 'scala'
   dependencies {
     compile project(':suro-core')
 
