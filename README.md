@@ -17,3 +17,8 @@ Build
 NetflixGraph is built via Gradle (www.gradle.org). To build from the command line:
 
     ./gradlew build
+
+Support
+-----
+
+We will use the Google Group, Suro Users, to discuss issues: https://groups.google.com/forum/#!forum/suro-users
