@@ -37,7 +37,7 @@ import java.util.zip.CRC32;
  * @author jbae
  */
 public class MessageSetBuilder {
-    static Logger log = LoggerFactory.getLogger(MessageSetBuilder.class);
+    private static final Logger log = LoggerFactory.getLogger(MessageSetBuilder.class);
 
     private final ClientConfig config;
     private List<Message> messageList;
