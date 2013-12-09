@@ -81,7 +81,7 @@ subprojects {
 
 project(':suro-core') {
     dependencies {
-        compile 'org.antlr:antlr-runtime:3.5.1'
+        compile 'org.antlr:antlr-runtime:3.4'
         compile 'commons-jxpath:commons-jxpath:1.3'
     }
 }
