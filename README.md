@@ -11,3 +11,9 @@ Suro is a data pipeline service for collecting, aggregating, and dispatching lar
 
 Learn more about Suro on the <a href="https://github.com/Netflix/suro/wiki">Suro Wiki</a> and the <a href="http://techblog.netflix.com/2013/12/announcing-suro-backbone-of-netflixs.html">Netflix TechBlog post</a> where Suro was introduced.
 
+Build
+-----
+
+NetflixGraph is built via Gradle (www.gradle.org). To build from the command line:
+
+    ./gradlew build
