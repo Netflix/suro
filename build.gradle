@@ -118,7 +118,22 @@ project(':suro-server') {
     classpath = sourceSets.main.runtimeClasspath
     classpath += sourceSets.main.compileClasspath
     args = ['-m', 'conf/routingmap.json', '-s', 'conf/sink.json']
-  }  
+  }
+  installApp {
+    into('build/install/'+applicationName){
+      from ('conf').into '/conf'
+    }
+  }
+  distZip {
+    into(applicationName){
+      from ('conf').into applicationName+'/conf'
+    }	
+  }
+  distTar {
+    into(applicationName){
+      from ('conf').into applicationName+'/conf'
+    }	
+  }
 }
 
 project(':suro-integration-test') {
