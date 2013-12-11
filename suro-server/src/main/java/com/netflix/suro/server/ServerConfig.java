@@ -55,14 +55,14 @@ public class ServerConfig {
         return thriftMaxReadBufferBytes;
     }
 
-    public static final String SOCKET_SEND_BUFFER_BYTES = "SuroServr.socketSendBufferBytes";
+    public static final String SOCKET_SEND_BUFFER_BYTES = "SuroServer.socketSendBufferBytes";
     @Configuration(SOCKET_SEND_BUFFER_BYTES)
     private int socketSendBufferBytes = 1024 * 1024 * 2;
     public int getSocketSendBufferBytes() {
         return socketSendBufferBytes;
     }
 
-    public static final String SOCKET_RECV_BUFFER_BYTES = "SuroServr.socketRecvBufferBytes";
+    public static final String SOCKET_RECV_BUFFER_BYTES = "SuroServer.socketRecvBufferBytes";
     @Configuration(SOCKET_RECV_BUFFER_BYTES)
     private int socketRecvBufferBytes = 1024 * 1024 * 2;
     public int getSocketRecvBufferBytes() {
