@@ -94,6 +94,8 @@ project(':suro-client') {
 }
 
 project(':suro-server') {
+  apply plugin: 'application'
+	
   dependencies {
     compile project(':suro-core')
     compile project(':suro-client')
@@ -109,6 +111,28 @@ project(':suro-server') {
     compile 'commons-cli:commons-cli:1.2'
     
     testCompile project(':suro-client').sourceSets.test.output
+  }
+  mainClassName = "com.netflix.suro.SuroServer"
+  task (runServer, type: JavaExec, dependsOn: jar) {
+    main = "com.netflix.suro.SuroServer"
+    classpath = sourceSets.main.runtimeClasspath
+    classpath += sourceSets.main.compileClasspath
+    args = ['-m', 'conf/routingmap.json', '-s', 'conf/sink.json']
+  }
+  installApp {
+    into('build/install/'+applicationName){
+      from ('conf').into '/conf'
+    }
+  }
+  distZip {
+    into(applicationName){
+      from ('conf').into applicationName+'/conf'
+    }	
+  }
+  distTar {
+    into(applicationName){
+      from ('conf').into applicationName+'/conf'
+    }	
   }
 }
 
