@@ -326,7 +326,6 @@ public class SuroService {
 
       @Override
       protected boolean isOneway() {
-        // TODO Auto-generated method stub
         return false;
       }
     }
@@ -348,7 +347,6 @@ public class SuroService {
 
       @Override
       protected boolean isOneway() {
-        // TODO Auto-generated method stub
         return false;
       }
     }
@@ -370,7 +368,6 @@ public class SuroService {
 
       @Override
       protected boolean isOneway() {
-        // TODO Auto-generated method stub
         return false;
       }
     }
@@ -392,7 +389,6 @@ public class SuroService {
 
       @Override
       protected boolean isOneway() {
-        // TODO Auto-generated method stub
         return false;
       }
     }
