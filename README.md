@@ -11,6 +11,14 @@ Suro is a data pipeline service for collecting, aggregating, and dispatching lar
 
 Learn more about Suro on the <a href="https://github.com/Netflix/suro/wiki">Suro Wiki</a> and the <a href="http://techblog.netflix.com/2013/12/announcing-suro-backbone-of-netflixs.html">Netflix TechBlog post</a> where Suro was introduced.
 
+## Master Build Status
+
+<a href='https://netflixoss.ci.cloudbees.com/job/suro-master/'><img src='https://netflixoss.ci.cloudbees.com/job/suro-master/badge/icon'></a>
+
+## Pull Request Build Status
+
+<a href='https://netflixoss.ci.cloudbees.com/job/suro-pull-requests/'><img src='https://netflixoss.ci.cloudbees.com/job/suro-pull-requests/badge/icon'></a></img></a></img></a>
+
 Build
 -----
 
