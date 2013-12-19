@@ -110,6 +110,25 @@ project(':suro-server') {
     
     testCompile project(':suro-client').sourceSets.test.output
   }
+
+  task dist(type: Zip) {
+    from(jar.outputs.files) {
+      into 'lib'
+    }
+    from(configurations.runtime) {
+      into 'lib'
+    }
+    from('lib') {
+      into 'lib'
+    }
+    from('bin') {
+      into 'bin'
+      fileMode = 0755
+    }
+    from('conf') {
+      into 'conf'
+    }
+  }
 }
 
 project(':suro-integration-test') {
