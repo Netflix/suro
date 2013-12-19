@@ -24,7 +24,7 @@ import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
-import com.netflix.suro.SuroFastPropertyModule;
+import com.netflix.suro.SuroDynamicPropertyModule;
 import com.netflix.suro.SuroModule;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.routing.RoutingMap;
@@ -74,7 +74,7 @@ public class TestStatusServer {
                 )
                 .withModules(
                         new SuroModule(),
-                        new SuroFastPropertyModule(),
+                        new SuroDynamicPropertyModule(),
                         new SuroPlugin() {
                             @Override
                             protected void configure() {
