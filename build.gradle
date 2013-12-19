@@ -48,7 +48,7 @@ subprojects {
       compile 'com.netflix.ribbon:ribbon-eureka:0.2.1'
       compile 'log4j:log4j:1.2.17'
 
-      compile 'org.apache.thrift:libthrift:0.7.0'
+      compile 'org.apache.thrift:libthrift:0.9.1'
       compile 'org.slf4j:slf4j-api:1.6.4'
       compile 'com.google.guava:guava:11.0.2'
       compile 'joda-time:joda-time:2.1'
@@ -94,6 +94,8 @@ project(':suro-client') {
 }
 
 project(':suro-server') {
+  apply plugin: 'application'
+	
   dependencies {
     compile project(':suro-core')
     compile project(':suro-client')
@@ -111,23 +113,27 @@ project(':suro-server') {
     testCompile project(':suro-client').sourceSets.test.output
   }
 
-  task dist(type: Zip) {
-    from(jar.outputs.files) {
-      into 'lib'
+  mainClassName = "com.netflix.suro.SuroServer"
+  task (runServer, type: JavaExec, dependsOn: jar) {
+    main = "com.netflix.suro.SuroServer"
+    classpath = sourceSets.main.runtimeClasspath
+    classpath += sourceSets.main.compileClasspath
+    args = ['-m', 'conf/routingmap.json', '-s', 'conf/sink.json']
+  }
+  installApp {
+    into('build/install/'+applicationName){
+      from ('conf').into '/conf'
     }
-    from(configurations.runtime) {
-      into 'lib'
-    }
-    from('lib') {
-      into 'lib'
-    }
-    from('bin') {
-      into 'bin'
-      fileMode = 0755
-    }
-    from('conf') {
-      into 'conf'
-    }
+  }
+  distZip {
+    into(applicationName){
+      from ('conf').into applicationName+'/conf'
+    }	
+  }
+  distTar {
+    into(applicationName){
+      from ('conf').into applicationName+'/conf'
+    }	
   }
 }
 
