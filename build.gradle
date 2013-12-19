@@ -112,6 +112,7 @@ project(':suro-server') {
     
     testCompile project(':suro-client').sourceSets.test.output
   }
+
   mainClassName = "com.netflix.suro.SuroServer"
   task (runServer, type: JavaExec, dependsOn: jar) {
     main = "com.netflix.suro.SuroServer"
