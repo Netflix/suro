@@ -64,7 +64,20 @@ public class TestSuroControl {
             }
         }).start();
 
-        Socket client = new Socket("127.0.0.1", port);
+        Socket client = null;
+        int testRetry = 100;
+        for (int i = 0; i < testRetry; ++i) {
+            try {
+                client = new Socket("127.0.0.1", port);
+                break;
+            } catch (Exception e) {
+                Thread.sleep(50);
+                if (i == testRetry - 1) {
+                    throw new RuntimeException("we tried to create client socket but it fails: " + e.getMessage(), e);
+                }
+            }
+        }
+
         PrintWriter out = new PrintWriter(client.getOutputStream(), true);
         BufferedReader reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
 

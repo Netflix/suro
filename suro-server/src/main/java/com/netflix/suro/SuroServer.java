@@ -92,7 +92,7 @@ public class SuroServer {
                     .withModules(
                             new RoutingPlugin(),
                             new SinkPlugin(),
-                            new SuroFastPropertyModule(),
+                            new SuroDynamicPropertyModule(),
                             new SuroModule(),
                             StatusServer.createJerseyServletModule()
                     )
