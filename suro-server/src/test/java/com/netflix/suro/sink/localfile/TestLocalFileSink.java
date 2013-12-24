@@ -31,8 +31,8 @@ import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.message.StringMessage;
 import com.netflix.suro.queue.MessageSetProcessor;
 import com.netflix.suro.queue.MessageSetProcessorManager;
+import com.netflix.suro.sink.ServerSinkPlugin;
 import com.netflix.suro.sink.Sink;
-import com.netflix.suro.sink.SinkPlugin;
 import com.netflix.suro.thrift.ServiceStatus;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
@@ -51,7 +51,7 @@ public class TestLocalFileSink {
     private static final String testdir = "/tmp/surotest/testlocalfilesink";
 
     private static Injector injector = Guice.createInjector(
-            new SinkPlugin(),
+            new ServerSinkPlugin(),
             new AbstractModule() {
                 @Override
                 protected void configure() {

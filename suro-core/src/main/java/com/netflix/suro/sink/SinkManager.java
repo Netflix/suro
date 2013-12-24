@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentMap;
  */
 @Singleton
 public class SinkManager {
-    static Logger log = Logger.getLogger(SinkManager.class);
+    private static final Logger log = Logger.getLogger(SinkManager.class);
 
     private final ConcurrentMap<String, Sink> sinkMap = Maps.newConcurrentMap();
 
