@@ -1,11 +1,11 @@
 package com.netflix.suro.sink;
 
 import com.netflix.suro.SuroPlugin;
+import com.netflix.suro.sink.kafka.KafkaSink;
+import com.netflix.suro.sink.localfile.LocalFileSink;
 import com.netflix.suro.sink.notice.NoNotice;
 import com.netflix.suro.sink.notice.QueueNotice;
 import com.netflix.suro.sink.notice.SQSNotice;
-import com.netflix.suro.sink.kafka.KafkaSink;
-import com.netflix.suro.sink.localfile.LocalFileSink;
 import com.netflix.suro.sink.remotefile.S3FileSink;
 import com.netflix.suro.sink.remotefile.formatter.DateRegionStackFormatter;
 import com.netflix.suro.sink.remotefile.formatter.SimpleDateFormatter;
@@ -15,7 +15,7 @@ import com.netflix.suro.sink.remotefile.formatter.StaticPrefixFormatter;
  *
  * @author jbae
  */
-public class SinkPlugin extends SuroPlugin {
+public class ServerSinkPlugin extends SuroPlugin {
     @Override
     protected void configure() {
         this.addSinkType(LocalFileSink.TYPE, LocalFileSink.class);

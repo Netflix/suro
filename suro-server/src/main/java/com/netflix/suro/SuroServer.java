@@ -27,7 +27,7 @@ import com.netflix.suro.routing.DynamicPropertyRoutingMapConfigurator;
 import com.netflix.suro.routing.RoutingPlugin;
 import com.netflix.suro.server.StatusServer;
 import com.netflix.suro.sink.DynamicPropertySinkConfigurator;
-import com.netflix.suro.sink.SinkPlugin;
+import com.netflix.suro.sink.ServerSinkPlugin;
 import org.apache.commons.cli.*;
 import org.apache.commons.io.FileUtils;
 
@@ -91,7 +91,7 @@ public class SuroServer {
                     )
                     .withModules(
                             new RoutingPlugin(),
-                            new SinkPlugin(),
+                            new ServerSinkPlugin(),
                             new SuroFastPropertyModule(),
                             new SuroModule(),
                             StatusServer.createJerseyServletModule()
