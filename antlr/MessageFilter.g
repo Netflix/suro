@@ -101,26 +101,22 @@ package com.netflix.suro.routing.filter.lang;
 	}
 }
 
-select
-	: SELECT STRING WHERE where_clause EOF -> ^(SELECT<SelectTreeNode> STRING<StringTreeNode> where_clause) EOF	
-	;
-	
-where_clause
-	:	(a=boolean_expr->$a) (OR b=boolean_expr -> ^(OR<OrTreeNode> $where_clause $b) )* EOF?
+filter
+	:	(a=boolean_expr->$a) (OR b=boolean_expr -> ^(OR<OrTreeNode> $filter $b) )* EOF?
 	;
 	
 boolean_expr
-	:	(a=boolean_factor->$a) (AND b=boolean_factor -> ^(AND<AndTreeNode> $boolean_expr $b) )* 
+	:	(a=boolean_factor->$a) (AND b=boolean_factor -> ^(AND<AndTreeNode> $boolean_expr $b) )* EOF?
 		
 	;
 
 boolean_factor
 	:	predicate |
-	    NOT predicate -> ^(NOT<NotTreeNode> predicate)
+	    NOT predicate -> ^(NOT<NotTreeNode> predicate) 
 	;	
 
 predicate
-	:	'(' where_clause ')' -> where_clause | 
+	:	'(' filter ')' -> filter | 
 		comparison_function |
 		between_predicate |
 		in_predicate |
@@ -128,7 +124,7 @@ predicate
 		regex_predicate |
 		exists_predicate |
 		TRUE -> TRUE<TrueValueTreeNode>|
-		FALSE -> FALSE<FalseValueTreeNode>
+		FALSE -> FALSE<FalseValueTreeNode> 
 	;
 
 comparison_function

@@ -19,10 +19,7 @@ package com.netflix.suro.routing;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.collect.Collections2;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.google.common.collect.*;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -31,6 +28,7 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.routing.RoutingMap.Route;
 import com.netflix.suro.routing.RoutingMap.RoutingInfo;
+import com.netflix.suro.routing.filter.MessageFilterCompiler;
 import com.netflix.suro.sink.TestSinkManager.TestSink;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -68,6 +66,25 @@ public class TestRoutingMap {
                 new TypeReference<Map<String, RoutingInfo>>() {});
     }
 
+    @Test
+    public void generateRoutingInfo() throws Exception {
+        RoutingInfo route1 = new RoutingInfo(
+            ImmutableList.<Route>of(
+                new Route(
+                    "sink2",
+                    new XPathFilter("xpath(\"//customerInfo/country\") =~ \"(?i)^US\"", new JsonMapConverter())
+                ),
+
+                new Route(
+                    "sink3",
+                    new XPathFilter("xpath(\"//responseInfo/status\") >= 400", new JsonMapConverter())
+                )
+            ),
+            null
+        );
+
+        System.out.println(new DefaultObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(route1));
+    }
     @Test
     public void testRoutingMapWithXPathFilter () throws Exception {
         String mapDesc = "{\n" +
