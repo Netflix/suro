@@ -30,8 +30,8 @@ import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.message.StringMessage;
 import com.netflix.suro.queue.MessageSetProcessorManager;
+import com.netflix.suro.sink.ServerSinkPlugin;
 import com.netflix.suro.sink.Sink;
-import com.netflix.suro.sink.SinkPlugin;
 import com.netflix.suro.sink.localfile.LocalFileSink;
 import com.netflix.suro.sink.localfile.LocalFileSink.SpaceChecker;
 import org.apache.commons.io.FileUtils;
@@ -279,7 +279,7 @@ public class TestS3FileSink {
 
     private Injector getInjector() {
         return Guice.createInjector(
-                new SinkPlugin(),
+                new ServerSinkPlugin(),
                 new AbstractModule() {
                     @Override
                     protected void configure() {

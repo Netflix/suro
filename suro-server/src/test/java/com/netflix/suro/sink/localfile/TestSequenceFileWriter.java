@@ -24,7 +24,7 @@ import com.google.inject.Injector;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.StringSerDe;
-import com.netflix.suro.sink.SinkPlugin;
+import com.netflix.suro.sink.ServerSinkPlugin;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -45,7 +45,7 @@ public class TestSequenceFileWriter {
     public static String dir = System.getProperty("java.io.tmpdir") + "/filewritertest/";
 
     private static Injector injector = Guice.createInjector(
-            new SinkPlugin(),
+            new ServerSinkPlugin(),
             new AbstractModule() {
                 @Override
                 protected void configure() {
