@@ -9,9 +9,7 @@ import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.SuroServer4Test;
 import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.message.Message;
 import com.netflix.suro.message.StringMessage;
-import com.netflix.suro.sink.TestSinkManager.TestSink;
 
 import org.junit.After;
 import org.junit.Before;
@@ -22,7 +20,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-public class TestSuroSink {
+public class TestClientSuroSink {
     private List<SuroServer4Test> servers;
 
     @Before
@@ -47,13 +45,7 @@ public class TestSuroSink {
                 "}";
 
         Injector injector = Guice.createInjector(
-                new SuroPlugin() {
-                    @Override
-                    protected void configure() {
-                        this.addSinkType("TestSink", TestSink.class);
-                    }
-                },
-                new SinkPlugin(),
+                new ClientSinkPlugin(),
                 new AbstractModule() {
                     @Override
                     protected void configure() {
