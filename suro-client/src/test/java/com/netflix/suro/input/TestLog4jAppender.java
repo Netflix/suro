@@ -34,6 +34,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class TestLog4jAppender {
+    public static final int DEFAULT_WAIT_INTERVAL = 20;
     private Log4jAppender appender = new Log4jAppender();
     private List<SuroServer4Test> collectors;
 
@@ -45,6 +46,41 @@ public class TestLog4jAppender {
     @After
     public void clean() {
         TestConnectionPool.shutdownServers(collectors);
+    }
+
+    private void sleepThrough(long millis) {
+        long remaining = millis;
+        while( remaining > 0 ) {
+            long start = System.currentTimeMillis();
+            try{
+                Thread.sleep(remaining);
+            } catch (InterruptedException e){ }
+
+            remaining -= (System.currentTimeMillis() - start);
+        }
+    }
+
+    private void waitAndVerify(long millis, Runnable assertion, long waitInterval) {
+        long remaining = millis;
+        while(remaining > 0) {
+            try{
+                assertion.run();
+
+                // Assertion is successful, so we don't need to wait any more
+                return;
+            } catch(Throwable t) {
+                sleepThrough(waitInterval);
+                remaining -= waitInterval;
+            }
+        }
+
+        // Last attempt after timeout, so we will get assertion failure if
+        // there is one.
+        assertion.run();
+    }
+
+    private void waitAndVerify(long millis, Runnable assertion) {
+        waitAndVerify(millis, assertion, DEFAULT_WAIT_INTERVAL);
     }
 
     @Test
@@ -62,9 +98,14 @@ public class TestLog4jAppender {
         appender.append(event);
 
         // Make sure client has enough time to drain the intermediary message queue
-        Thread.sleep(5000);
+        waitAndVerify(5000, new Runnable(){
 
-        assertEquals(appender.getSentMessageCount(), 1); // it should be successful
+            @Override
+            public void run() {
+                assertEquals(appender.getSentMessageCount(), 1); // it should be successful
+            }
+        });
+
 
 
         appender.close();
@@ -87,12 +128,12 @@ public class TestLog4jAppender {
         appender.append(event);
 
         // Make sure client has enough time to drain the intermediary message queue
-        Thread.sleep(5000);
+        waitAndVerify(15000, new Runnable() {
+            public void run() {
+                assertEquals(appender.getSentMessageCount(), 1);
+            }
+        });
 
-        for (int i = 0; i < 10 && appender.getSentMessageCount() == 0; ++i) {
-            Thread.sleep(1000);
-        }
-        assertEquals(appender.getSentMessageCount(), 1);
 
         appender.close();
     }
