@@ -26,6 +26,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,8 +50,17 @@ public class TestLog4JAppenderWithLog4JConfig {
     public void setup() throws Exception {
         collectors = TestConnectionPool.startServers(1, SURO_PORT);
 
-        // Note the log4j properties file can't be log4j.properties, or log4j will load it before Server4Test is started.
-        PropertyConfigurator.configure(Thread.currentThread().getContextClassLoader().getResource("log4j-test.properties"));
+        String log4jConfig = "log4j.logger.com.netflix.suro.input=WARN,SURO\n" +
+            "log4j.appender.stdout.layout.ConversionPattern=%5p [%t] (%F:%L) - %m%n\n" +
+            "log4j.appender.SURO=com.netflix.suro.input.Log4jAppender\n" +
+            "log4j.appender.SURO.app=ajjainApp\n" +
+            "log4j.appender.SURO.routingKey=ajjainroutingkey\n" +
+            "log4j.appender.SURO.loadBalancerType=static\n" +
+            "log4j.appender.SURO.loadBalancerServer=localhost:8500\n" +
+            "log4j.appender.SURO.compression=0\n" +
+            "log4j.appender.SURO.clientType=sync";
+
+        PropertyConfigurator.configure(new ByteArrayInputStream(log4jConfig.getBytes()));
     }
 
     @After
