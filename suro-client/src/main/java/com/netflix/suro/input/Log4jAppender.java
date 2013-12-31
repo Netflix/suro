@@ -38,7 +38,7 @@ public class Log4jAppender extends AppenderSkeleton {
         }
     }
 
-    private String formatterClass = JsonLog4jFormatter.class.toString();
+    private String formatterClass = JsonLog4jFormatter.class.getName();
     public void setFormatterClass(String formatterClass) {
         this.formatterClass = formatterClass;
     }
