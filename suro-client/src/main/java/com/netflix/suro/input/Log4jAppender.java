@@ -62,11 +62,12 @@ public class Log4jAppender extends AppenderSkeleton {
         return app;
     }
 
-    private byte compression = 1;
-    public void setCompression(byte compression) {
+    private String compression = "1";
+    public void setCompression(String compression) {
         this.compression = compression;
     }
-    public byte getCompression() {
+
+    public String getCompression() {
         return compression;
     }
 
@@ -94,11 +95,11 @@ public class Log4jAppender extends AppenderSkeleton {
         return asyncQueueType;
     }
 
-    private int asyncMemoryQueueCapacity = 10000;
-    public void setAsyncMemoryQueueCapacity(int memoryQueueCapacity) {
+    private String asyncMemoryQueueCapacity = "10000";
+    public void setAsyncMemoryQueueCapacity(String memoryQueueCapacity) {
         this.asyncMemoryQueueCapacity = memoryQueueCapacity;
     }
-    public int getAsyncMemoryQueueCapacity() {
+    public String getAsyncMemoryQueueCapacity() {
         return asyncMemoryQueueCapacity;
     }
 
@@ -137,10 +138,10 @@ public class Log4jAppender extends AppenderSkeleton {
         properties.setProperty(ClientConfig.LOG4J_FORMATTER, formatterClass);
         properties.setProperty(ClientConfig.LOG4J_DATETIMEFORMAT, datetimeFormat);
         properties.setProperty(ClientConfig.APP, app);
-        properties.setProperty(ClientConfig.COMPRESSION, Byte.toString(compression));
+        properties.setProperty(ClientConfig.COMPRESSION, compression);
         properties.setProperty(ClientConfig.LB_TYPE, loadBalancerType);
         properties.setProperty(ClientConfig.LB_SERVER, loadBalancerServer);
-        properties.setProperty(ClientConfig.ASYNC_MEMORYQUEUE_CAPACITY, Integer.toString(asyncMemoryQueueCapacity));
+        properties.setProperty(ClientConfig.ASYNC_MEMORYQUEUE_CAPACITY, asyncMemoryQueueCapacity);
         properties.setProperty(ClientConfig.ASYNC_QUEUE_TYPE, asyncQueueType);
         properties.setProperty(ClientConfig.ASYNC_FILEQUEUE_PATH, asyncFileQueuePath);
         properties.setProperty(ClientConfig.CLIENT_TYPE, clientType);
