@@ -59,7 +59,7 @@ public class TestLog4JAppenderWithLog4JConfig {
     }
 
     @Test
-    public void test() {
+    public void testAllMessagesWillBeDeliveredInSeparatedMessageSet() {
         Logger root = Logger.getRootLogger();
         if (!root.getAllAppenders().hasMoreElements()) {
             fail("No log4j appender is instantiated!");
