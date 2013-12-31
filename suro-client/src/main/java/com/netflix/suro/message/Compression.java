@@ -33,7 +33,7 @@ import java.io.IOException;
  * @author jbae
  */
 public enum Compression {
-    NO((byte)0) {
+    NO(0) {
         byte[] compress(byte[] buffer) {
             return buffer;
         }
@@ -41,7 +41,7 @@ public enum Compression {
             return buffer;
         }
     },
-    LZF((byte)1) {
+    LZF(1) {
         byte[] compress(byte[] buffer) {
             try {
                 return LZFEncoder.encode(buffer);
@@ -57,12 +57,12 @@ public enum Compression {
             }
         }
     };
-    private final byte id;
-    Compression(byte id) { this.id = id; }
+    private final int id;
+    Compression(int id) { this.id = id; }
 
-    public byte getId() { return id; }
+    public int getId() { return id; }
 
-    public static Compression create(byte id) {
+    public static Compression create(int id) {
         for (Compression compression : values()) {
             if (id == compression.getId()) {
                 return compression;
