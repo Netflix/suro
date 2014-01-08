@@ -70,7 +70,7 @@ public class MessageSetBuilder {
             return new TMessageSet(
                     config.getApp(),
                     messageList.size(),
-                    compression.getId(),
+                    (byte) compression.getId(),
                     crc,
                     ByteBuffer.wrap(buffer));
         } catch (IOException e) {
