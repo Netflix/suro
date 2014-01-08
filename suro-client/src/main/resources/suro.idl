@@ -1,4 +1,5 @@
 namespace java com.netflix.suro.thrift
+namespace csharp Suro.Net.Client.Thrift
 
 enum ServiceStatus {
   DEAD = 0,
