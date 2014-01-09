@@ -360,11 +360,15 @@ public class LocalFileSink extends QueuedSink implements Sink {
      */
     public void deleteFile(String filePath) {
         int retryCount = 1;
-        while (new File(filePath).exists() && retryCount <= deleteFileRetryCount) {
+        while (retryCount <= deleteFileRetryCount) {
             try {
-                Thread.sleep(1000 * retryCount);
-                writer.getFS().delete(new Path(filePath), false);
-                ++retryCount;
+                if (writer.getFS().exists(new Path(filePath))) {
+                    Thread.sleep(1000 * retryCount);
+                    writer.getFS().delete(new Path(filePath), false);
+                    ++retryCount;
+                } else {
+                    break;
+                }
             } catch (Exception e) {
                 log.warn("Exception while deleting the file: " + e.getMessage(), e);
             }
