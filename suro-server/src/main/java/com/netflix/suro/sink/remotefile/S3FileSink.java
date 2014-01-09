@@ -21,6 +21,7 @@ import com.amazonaws.auth.AWSSessionCredentials;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
@@ -60,34 +61,27 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * @author jbae
  */
-public class S3FileSink implements Sink {
+public class S3FileSink extends RemoteFileSink {
     public static final String TYPE = "s3";
 
-    static Logger log = LoggerFactory.getLogger(S3FileSink.class);
-
-    private final LocalFileSink localFileSink;
-    private final boolean batchUpload;
+    private static Logger log = LoggerFactory.getLogger(S3FileSink.class);
 
     private final String bucket;
     private final String s3Endpoint;
     private final long maxPartSize;
 
     private final Notice<String> notice;
-    private final RemotePrefixFormatter prefixFormatter;
 
     private MultipartUtils mpUtils;
 
     private AWSCredentialsProvider credentialsProvider;
 
     private RestS3Service s3Service;
-    private GrantAcl grantAcl;
-    private final ExecutorService uploader;
-    private final ExecutorService localFilePoller;
+    @VisibleForTesting
+    protected GrantAcl grantAcl;
 
     private final String s3Acl;
     private final int s3AclRetries;
-
-    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     @JsonCreator
     public S3FileSink(
@@ -103,54 +97,23 @@ public class S3FileSink implements Sink {
             @JsonProperty("s3AclRetries") int s3AclRetries,
             @JacksonInject("multipartUtils") MultipartUtils mpUtils,
             @JacksonInject("credentials") AWSCredentialsProvider credentialProvider) {
-        this.localFileSink = localFileSink;
+        super(localFileSink, prefixFormatter, concurrentUpload, batchUpload);
+
         this.bucket = bucket;
         this.s3Endpoint = s3Endpoint == null ? "s3.amazonaws.com" : s3Endpoint;
         this.maxPartSize = maxPartSize == 0 ? 20 * 1024 * 1024 : maxPartSize;
         this.notice = notice == null ? new QueueNotice<String>() : notice;
-        this.prefixFormatter = prefixFormatter == null ? new SimpleDateFormatter("'P'yyyyMMdd'T'HHmmss") : prefixFormatter;
-        this.batchUpload = batchUpload;
 
         this.mpUtils = mpUtils;
         this.credentialsProvider = credentialProvider;
 
-        if (concurrentUpload == 0) {
-            concurrentUpload = 5;
-        }
-        uploader = Executors.newFixedThreadPool(concurrentUpload);
-        localFilePoller = Executors.newSingleThreadExecutor();
-
         this.s3Acl = s3Acl;
         this.s3AclRetries = s3AclRetries > 0 ? s3AclRetries : 5;
 
-        Preconditions.checkNotNull(localFileSink, "localFileSink is needed");
         Preconditions.checkNotNull(bucket, "bucket is needed");
-
-        if (!batchUpload) {
-            localFileSink.cleanUp();
-        }
-
-        Monitors.registerObject(
-                S3FileSink.class.getSimpleName() + '-' + localFileSink.getOutputDir().replace('/', '_'),
-                this);
     }
 
-    // testing purpose only
-    public void setGrantAcl(GrantAcl grantAcl) {
-        this.grantAcl = grantAcl;
-    }
-
-    @Override
-    public void writeTo(MessageContainer message) {
-        localFileSink.writeTo(message);
-    }
-
-    private boolean running = false;
-    private static final int processingFileQueueThreshold = 1000;
-    private static final String processingFileQueueCleanupInterval = "PT60s";
-
-    @Override
-    public void open() {
+    protected void initialize() {
         if (mpUtils == null) { // not injected
             mpUtils = new MultipartUtils(maxPartSize);
         }
@@ -175,70 +138,6 @@ public class S3FileSink implements Sink {
         grantAcl = new GrantAcl(s3Service, s3Acl, s3AclRetries == 0 ? 5 : s3AclRetries);
 
         notice.init();
-
-        if (!batchUpload) {
-            running = true;
-
-            localFilePoller.submit(new Runnable() {
-                @Override
-                public void run() {
-                    while (running) {
-                        uploadAllFromQueue();
-                        localFileSink.cleanUp();
-                    }
-                    uploadAllFromQueue();
-                }
-            });
-            localFileSink.open();
-
-            int schedulingSecond = new Period(processingFileQueueCleanupInterval).toStandardSeconds().getSeconds();
-            scheduler.scheduleAtFixedRate(new Runnable() {
-                @Override
-                public void run() {
-                    if (processingFileSet.size() > processingFileQueueThreshold) {
-                        String file = null;
-                        int count = 0;
-                        while (processingFileSet.size() > processingFileQueueThreshold &&
-                                (file = processedFileQueue.poll()) != null) {
-                            processingFileSet.remove(file);
-                            ++count;
-                        }
-                        log.info(count + " files are removed from processingFileSet");
-                    }
-                }
-            }, schedulingSecond, schedulingSecond, TimeUnit.SECONDS);
-        }
-    }
-
-    private void clearFileHistory() {
-        processedFileQueue.clear();
-        processingFileSet.clear();
-    }
-
-    private void uploadAllFromQueue() {
-        String note = localFileSink.recvNotice();
-        while (note != null) {
-            uploadFile(note);
-            note = localFileSink.recvNotice();
-        }
-    }
-
-    @Override
-    public void close() {
-        try {
-            if (!batchUpload) {
-                localFileSink.close();
-                running = false;
-                localFilePoller.shutdown();
-
-                localFilePoller.awaitTermination(60000, TimeUnit.MILLISECONDS);
-            }
-            uploader.shutdown();
-            uploader.awaitTermination(60000, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            // ignore exceptions while closing
-            log.error("Exception while closing: " + e.getMessage(), e);
-        }
     }
 
     @Override
@@ -246,107 +145,12 @@ public class S3FileSink implements Sink {
         return notice.recv();
     }
 
-    @Override
-    public String getStat() {
-        StringBuilder sb = new StringBuilder(localFileSink.getStat());
-        sb.append('\n').append(String.format("%d files uploaded so far", uploadedFileCount.get()));
-
-        return sb.toString();
-    }
-
-    @Monitor(name = "uploadedFileSize", type = DataSourceType.COUNTER)
-    public long getUploadedFileSize() {
-        return uploadedFileSize.get();
-    }
-
-    @Monitor(name = "uploadDuration", type = DataSourceType.GAUGE)
-    private long uploadDuration;
-
-    @Monitor(name = "uploadedFileCount", type = DataSourceType.COUNTER)
-    public int getUploadedFileCount() {
-        return uploadedFileCount.get();
-    }
-
-    @Monitor(name = "uploadFailureCount", type=DataSourceType.COUNTER)
-    public int getUploadFailureCount() {
-        return uploadFailureCount.get();
-    }
-
-    private AtomicLong uploadedFileSize = new AtomicLong(0);
-    private AtomicInteger uploadedFileCount = new AtomicInteger(0);
-    private AtomicInteger uploadFailureCount = new AtomicInteger(0);
-
     @Monitor(name="fail_grantAcl", type=DataSourceType.COUNTER)
     private AtomicLong fail_grantAcl = new AtomicLong(0);
     public long getFail_grantAcl() { return fail_grantAcl.get(); }
 
-    private Set<String> processingFileSet = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
-    private BlockingQueue<String> processedFileQueue = new LinkedBlockingQueue<String>();
-
-    private void uploadFile(final String filePath) {
-        // to prevent multiple uploading in any situations
-        final String key = filePath.substring(filePath.lastIndexOf("/"));
-        if (processingFileSet.contains(key)) {
-            return;
-        }
-        processingFileSet.add(key);
-
-        uploader.submit(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    File localFile = new File(filePath);
-                    if (localFile.length() == 0) {
-                        log.warn("empty file: " + filePath + " is abandoned");
-                        localFileSink.deleteFile(filePath);
-                        return;
-                    }
-                    String remoteFilePath = makeUploadPath(localFile);
-
-                    long t1 = System.currentTimeMillis();
-                    S3Object file = new S3Object(new File(filePath));
-                    file.setBucketName(bucket);
-                    file.setKey(remoteFilePath);
-                    file.setAcl(GSAccessControlList.REST_CANNED_BUCKET_OWNER_FULL_CONTROL);
-                    List objectsToUploadAsMultipart = new ArrayList();
-                    objectsToUploadAsMultipart.add(file);
-                    mpUtils.uploadObjects(bucket, s3Service, objectsToUploadAsMultipart, null);
-
-                    if (!grantAcl.grantAcl(file)) {
-                        throw new RuntimeException("Failed to set Acl");
-                    }
-
-                    long t2 = System.currentTimeMillis();
-
-                    log.info("upload duration: " + (t2 - t1) + " ms " +
-                            "for " + filePath + " Len: " + localFile.length() + " bytes");
-
-                    uploadedFileSize.addAndGet(localFile.length());
-                    uploadedFileCount.incrementAndGet();
-                    uploadDuration = t2 - t1;
-
-                    S3FileSink.this.notify(remoteFilePath, localFile.length());
-                    localFileSink.deleteFile(filePath);
-
-                    log.info("upload done deleting from local: " + filePath);
-                } catch (Exception e) {
-                    uploadFailureCount.incrementAndGet();
-                    log.error("Exception while uploading: " + e.getMessage(), e);
-                } finally {
-                    // check the file was deleted or not
-                    if (new File(filePath).exists()) {
-                        // something error happened
-                        // it should be done again
-                        processingFileSet.remove(key);
-                    } else {
-                        processedFileQueue.add(key);
-                    }
-                }
-            }
-        });
-    }
-
-    private void notify(String filePath, long fileSize) throws JSONException {
+    @Override
+    protected void notify(String filePath, long fileSize) throws Exception {
         JSONObject jsonMessage = new JSONObject();
         jsonMessage.put("bucket", bucket);
         jsonMessage.put("filePath", filePath);
@@ -358,20 +162,18 @@ public class S3FileSink implements Sink {
         }
     }
 
-    private String makeUploadPath(File file) {
-        return prefixFormatter.get() + file.getName();
-    }
+    @Override
+    protected void upload(String localFilePath, String remoteFilePath) throws Exception {
+        S3Object file = new S3Object(new File(localFilePath));
+        file.setBucketName(bucket);
+        file.setKey(remoteFilePath);
+        file.setAcl(GSAccessControlList.REST_CANNED_BUCKET_OWNER_FULL_CONTROL);
+        List objectsToUploadAsMultipart = new ArrayList();
+        objectsToUploadAsMultipart.add(file);
+        mpUtils.uploadObjects(bucket, s3Service, objectsToUploadAsMultipart, null);
 
-    public void uploadAll(String dir) {
-        clearFileHistory();
-
-        while (localFileSink.cleanUp(dir) > 0) {
-            uploadAllFromQueue();
+        if (!grantAcl.grantAcl(file)) {
+            throw new RuntimeException("Failed to set Acl");
         }
     }
-
-    public boolean isBatchUpload() {
-        return batchUpload;
-    }
-
 }
