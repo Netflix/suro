@@ -246,7 +246,7 @@ public class TestS3FileSink {
         GrantAcl grantAcl = mock(GrantAcl.class);
         when(grantAcl.grantAcl(any(S3Object.class))).thenReturn(false);
         sink.open();
-        sink.setGrantAcl(grantAcl);
+        sink.grantAcl = grantAcl;
 
         for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(100000))) {
             sink.writeTo(new StringMessage(m));

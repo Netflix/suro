@@ -27,15 +27,25 @@ import java.util.Map;
 import java.util.Properties;
 
 public class SuroClient4Test {
-    public static void main(String[] args) throws JsonProcessingException {
+    public static void main(String[] args) throws JsonProcessingException, InterruptedException {
+        // ip num_of_messages message_size sleep num_of_iterations
+        String ip = args[0];
+        int numMessages = Integer.parseInt(args[1]);
+        int messageSize = Integer.parseInt(args[2]);
+        int sleep = Integer.parseInt(args[3]);
+        int numIterations = Integer.parseInt(args[4]);
+
         Properties props = new Properties();
         props.setProperty(ClientConfig.LB_TYPE, "static");
-        props.setProperty(ClientConfig.LB_SERVER, args[0]);
+        props.setProperty(ClientConfig.LB_SERVER, ip);
 
         SuroClient client = new SuroClient(props);
-        byte[] payload = createMessagePayload(Integer.parseInt(args[2]));
-        for (int i = 0; i < Integer.parseInt(args[1]); ++i) {
-            client.send(new Message(i % 2 == 0 ? "request_trace" : "nf_errors_log", payload));
+        byte[] payload = createMessagePayload(messageSize);
+        for (int n = 0; n < numIterations; ++n) {
+            for (int i = 0; i < numMessages; ++i) {
+                client.send(new Message(i % 2 == 0 ? "request_trace" : "nf_errors_log", payload));
+            }
+            Thread.sleep(sleep);
         }
         client.shutdown();
     }
