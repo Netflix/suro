@@ -25,8 +25,8 @@ public abstract class QueuedSink extends Thread {
     static Logger log = LoggerFactory.getLogger(QueuedSink.class);
 
     private long lastBatch = System.currentTimeMillis();
-    protected boolean isRunning = false;
-    private boolean isStopped = false;
+    protected volatile boolean isRunning = false;
+    private volatile boolean isStopped = false;
 
     protected MessageQueue4Sink queue4Sink;
     private int batchSize;
@@ -89,10 +89,11 @@ public abstract class QueuedSink extends Thread {
 
     public void close() {
         isRunning = false;
-        log.info("Starting to close");
+        log.info("Starting to close and set isRunning to false");
         do {
             try {
                 Thread.sleep(500);
+                isRunning = false;
             } catch (Exception ignored) {
                 log.error("ignoring an exception on close");
             }
