@@ -57,21 +57,21 @@ public class Message implements Writable {
 
     @Override
     public boolean equals(Object o) {
-        if (o == null || !(o instanceof Message)) {
-            return false;
-        }
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
 
-        Message m = (Message) o;
-        return routingKey.equals(m.routingKey) &&
-               Arrays.equals(payload, m.payload);
+        Message message = (Message) o;
+
+        if (!Arrays.equals(payload, message.payload)) return false;
+        return !(routingKey != null ? !routingKey.equals(message.routingKey) : message.routingKey != null);
+
     }
 
     @Override
     public int hashCode() {
-        int routingKeyHash = routingKey.hashCode();
-        int messageHash = payload.hashCode();
-
-        return routingKeyHash + messageHash;
+        int result = routingKey != null ? routingKey.hashCode() : 0;
+        result = 31 * result + (payload != null ? Arrays.hashCode(payload) : 0);
+        return result;
     }
 
     @Override
