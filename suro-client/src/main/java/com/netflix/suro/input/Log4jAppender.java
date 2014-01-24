@@ -16,6 +16,7 @@
 
 package com.netflix.suro.input;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.client.SuroClient;
 import com.netflix.suro.message.Message;
@@ -53,6 +54,12 @@ public class Log4jAppender extends AppenderSkeleton {
     public String getDatetimeFormat() {
         return datetimeFormat;
     }
+
+    private String routingKey = "";
+    public void setRoutingKey(String routingKey) {
+        this.routingKey = routingKey;
+    }
+    public String getRoutingKey() { return routingKey; }
 
     private String app = "defaultApp";
     public void setApp(String app) {
@@ -120,14 +127,17 @@ public class Log4jAppender extends AppenderSkeleton {
     }
 
     private Log4jFormatter formatter;
-    private SuroClient client;
+    @VisibleForTesting
+    protected SuroClient client;
 
     @Override
     public void activateOptions() {
         client = new SuroClient(createProperties());
 
         try {
-            formatter = (Log4jFormatter) Class.forName(formatterClass).newInstance();
+            formatter = (Log4jFormatter)
+                    Class.forName(formatterClass).getDeclaredConstructor(ClientConfig.class)
+                            .newInstance(client.getConfig());
         } catch (Exception e) {
             formatter = new JsonLog4jFormatter(client.getConfig());
         }
@@ -137,6 +147,7 @@ public class Log4jAppender extends AppenderSkeleton {
         Properties properties = new Properties();
         properties.setProperty(ClientConfig.LOG4J_FORMATTER, formatterClass);
         properties.setProperty(ClientConfig.LOG4J_DATETIMEFORMAT, datetimeFormat);
+        properties.setProperty(ClientConfig.LOG4J_ROUTING_KEY, routingKey);
         properties.setProperty(ClientConfig.APP, app);
         properties.setProperty(ClientConfig.COMPRESSION, compression);
         properties.setProperty(ClientConfig.LB_TYPE, loadBalancerType);

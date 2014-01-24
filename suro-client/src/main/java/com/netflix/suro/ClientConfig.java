@@ -51,6 +51,13 @@ public class ClientConfig {
         return log4jDateTimeFormat;
     }
 
+    public static final String LOG4J_ROUTING_KEY = "SuroClient.log4jRoutingKey";
+    @Configuration(LOG4J_ROUTING_KEY)
+    private String log4jRoutingKey = "";
+    public String getLog4jRoutingKey() {
+        return log4jRoutingKey;
+    }
+
     public static final String APP = "SuroClient.app";
     @Configuration(APP)
     private String app = "defaultApp";
@@ -74,8 +81,8 @@ public class ClientConfig {
 
     public static final String COMPRESSION = "SuroClient.compression";
     @Configuration(COMPRESSION)
-    private byte compression = 1;
-    public byte getCompression() {
+    private int compression = 1;
+    public int getCompression() {
         return compression;
     }
 

@@ -16,22 +16,26 @@
 
 package com.netflix.suro.input;
 
+import com.netflix.suro.ClientConfig;
 import com.netflix.suro.SuroServer4Test;
+import com.netflix.suro.client.SuroClient;
 import com.netflix.suro.connection.TestConnectionPool;
+import com.netflix.suro.message.Message;
 import com.netflix.suro.queue.TestFileBlockingQueue;
 import org.apache.log4j.Level;
 import org.apache.log4j.spi.LoggingEvent;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.*;
 
 public class TestLog4jAppender {
     public static final int DEFAULT_WAIT_INTERVAL = 20;
@@ -136,6 +140,43 @@ public class TestLog4jAppender {
 
 
         appender.close();
+    }
+
+    @Test
+    public void testLog4jFormatter() {
+        TestFileBlockingQueue.clean();
+
+        appender.setFormatterClass("com.netflix.suro.input.StaticLog4jFormatter");
+
+        appender.setLoadBalancerType("static");
+        appender.setLoadBalancerServer("localhost:8500");
+        appender.setClientType("sync");
+        appender.setRoutingKey("testRoutingKey");
+        appender.activateOptions();
+
+        appender.client = mock(SuroClient.class);
+        doNothing().when(appender.client).send(any(Message.class));
+
+        LoggingEvent event = mock(LoggingEvent.class);
+        when(event.getMessage()).thenReturn("string log");
+        when(event.getLevel()).thenReturn(Level.INFO);
+        appender.append(event);
+
+        ArgumentCaptor<Message> argument = ArgumentCaptor.forClass(Message.class);
+        verify(appender.client).send(argument.capture());
+        assertEquals(argument.getValue().getRoutingKey(), "testRoutingKey");
+        String[] v0 = new String(argument.getValue().getPayload()).split("\t");
+        String[] v1 = new StaticLog4jFormatter(new ClientConfig()).format(event).split("\t");
+
+        assertEquals(v0.length, v1.length);
+
+        for (int i = 0; i < v0.length; ++i) {
+            if (i == 0) {
+                assertEquals(v0[0].split(":")[0], v1[0].split(":")[0]);
+            } else {
+                assertEquals(v0[i], v1[i]);
+            }
+        }
     }
 
     private Map<String, String> createEventMap() {
