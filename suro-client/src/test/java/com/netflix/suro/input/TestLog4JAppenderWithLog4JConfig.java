@@ -19,11 +19,9 @@ import com.netflix.suro.SuroServer4Test;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.connection.TestConnectionPool;
 import org.apache.log4j.Logger;
-import org.apache.log4j.Priority;
 import org.apache.log4j.PropertyConfigurator;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -50,7 +48,7 @@ public class TestLog4JAppenderWithLog4JConfig {
         collectors = TestConnectionPool.startServers(1, SURO_PORT);
 
         // Note the log4j properties file can't be log4j.properties, or log4j will load it before Server4Test is started.
-        PropertyConfigurator.configure(Thread.currentThread().getContextClassLoader().getResource("log4j-test.properties"));
+        PropertyConfigurator.configure(this.getClass().getResource("/log4j-test.properties"));
     }
 
     @After
