@@ -46,7 +46,6 @@ public class StaticLoadBalancer extends BaseLoadBalancer {
      */
     @Inject
     public StaticLoadBalancer(ClientConfig config) {
-        logger.info("creating static load balancer...");
         List<Server> serverList = new ArrayList<Server>();
         for (String s : config.getLoadBalancerServer().split(",")) {
             String[] host_port = s.split(":");
