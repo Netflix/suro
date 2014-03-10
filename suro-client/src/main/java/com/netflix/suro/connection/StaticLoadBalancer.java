@@ -28,9 +28,6 @@ import com.netflix.suro.ClientConfig;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * A load balancer that works on a static list of servers as defined in client configuration.
  *
@@ -38,8 +35,7 @@ import org.slf4j.LoggerFactory;
  */
 @LazySingleton
 public class StaticLoadBalancer extends BaseLoadBalancer {
-	private static Logger logger = LoggerFactory
-            .getLogger(StaticLoadBalancer.class);
+
     /**
      * @param config contains the server list, comma separated with the format
      *               hostname:port
