@@ -18,6 +18,7 @@ package com.netflix.suro.connection;
 
 import com.google.inject.Inject;
 import com.netflix.client.config.DefaultClientConfigImpl;
+import com.netflix.client.config.CommonClientConfigKey;
 import com.netflix.client.config.IClientConfig;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.loadbalancer.BaseLoadBalancer;
@@ -27,6 +28,9 @@ import com.netflix.suro.ClientConfig;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * A load balancer that works on a static list of servers as defined in client configuration.
  *
@@ -34,13 +38,15 @@ import java.util.List;
  */
 @LazySingleton
 public class StaticLoadBalancer extends BaseLoadBalancer {
-
+	private static Logger logger = LoggerFactory
+            .getLogger(StaticLoadBalancer.class);
     /**
      * @param config contains the server list, comma separated with the format
      *               hostname:port
      */
     @Inject
     public StaticLoadBalancer(ClientConfig config) {
+        logger.info("creating static load balancer...");
         List<Server> serverList = new ArrayList<Server>();
         for (String s : config.getLoadBalancerServer().split(",")) {
             String[] host_port = s.split(":");
@@ -52,6 +58,7 @@ public class StaticLoadBalancer extends BaseLoadBalancer {
 
         IClientConfig loadBalancerConfig = new DefaultClientConfigImpl();
         loadBalancerConfig.loadProperties("suroClient");
+		loadBalancerConfig.setProperty(CommonClientConfigKey.NFLoadBalancerPingClassName, "com.netflix.suro.connection.SuroPing");
         super.initWithNiwsConfig(loadBalancerConfig);
         addServers(serverList);
     }
