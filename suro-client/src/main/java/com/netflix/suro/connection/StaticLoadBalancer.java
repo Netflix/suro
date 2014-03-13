@@ -18,6 +18,7 @@ package com.netflix.suro.connection;
 
 import com.google.inject.Inject;
 import com.netflix.client.config.DefaultClientConfigImpl;
+import com.netflix.client.config.CommonClientConfigKey;
 import com.netflix.client.config.IClientConfig;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.loadbalancer.BaseLoadBalancer;
@@ -52,6 +53,7 @@ public class StaticLoadBalancer extends BaseLoadBalancer {
 
         IClientConfig loadBalancerConfig = new DefaultClientConfigImpl();
         loadBalancerConfig.loadProperties("suroClient");
+		loadBalancerConfig.setProperty(CommonClientConfigKey.NFLoadBalancerPingClassName, "com.netflix.suro.connection.SuroPing");
         super.initWithNiwsConfig(loadBalancerConfig);
         addServers(serverList);
     }
