@@ -28,7 +28,6 @@ public class SuroPing extends AbstractLoadBalancerPing {
         TFramedTransport transport = new TFramedTransport(socket);
 
         try {
-                        logger.info("checking if server is alive...");
 			transport.open();
 			return true;
 		} catch (TTransportException e) {
