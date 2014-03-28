@@ -111,7 +111,7 @@ project(':suro-server') {
 
     compile 'commons-cli:commons-cli:1.2'
     
-    testCompile project(':suro-client').sourceSets.test.output
+//    testCompile project(':suro-client').sourceSets.test.output
   }
 
   mainClassName = "com.netflix.suro.SuroServer"
@@ -160,7 +160,7 @@ project(':suro-kafka') {
     }
 
     testCompile 'org.scalatest:scalatest_2.8.2:1.8'
-    testCompile project(':suro-client')
+//    testCompile project(':suro-client')
   }
 }
 
