@@ -45,7 +45,9 @@ public class EurekaLoadBalancer extends DynamicServerListLoadBalancer {
     public EurekaLoadBalancer(ClientConfig config) {
         String[] vipAddress_port = config.getLoadBalancerServer().split(":");
         if (vipAddress_port.length != 2) {
-            throw new IllegalArgumentException("EurekaLoadBalancer server should be formatted vipAddress:port");
+            throw new IllegalArgumentException(String.format(
+                    "EurekaLoadBalancer server should be formatted vipAddress:port ('%s')", 
+                    config.getLoadBalancerServer()));
         }
 
         this.port = Integer.parseInt(vipAddress_port[1]);
