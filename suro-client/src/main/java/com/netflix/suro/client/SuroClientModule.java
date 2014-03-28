@@ -2,7 +2,7 @@ package com.netflix.suro.client;
 
 import javax.inject.Singleton;
 
-import com.google.inject.AbstractModule;
+import com.google.inject.PrivateModule;
 import com.google.inject.multibindings.MapBinder;
 import com.netflix.governator.guice.lazy.LazySingletonScope;
 import com.netflix.loadbalancer.ILoadBalancer;
@@ -11,7 +11,7 @@ import com.netflix.suro.connection.EurekaLoadBalancer;
 import com.netflix.suro.connection.StaticLoadBalancer;
 
 @Singleton
-public class SuroClientModule extends AbstractModule {
+public class SuroClientModule extends PrivateModule {
     @Override
     protected void configure() {
         MapBinder<String, ILoadBalancer> loadBalancers = MapBinder.newMapBinder(binder(), String.class, ILoadBalancer.class);
@@ -24,6 +24,8 @@ public class SuroClientModule extends AbstractModule {
         
         bind(ISuroClient.class).toProvider(ConfigBasedSuroClientProvider.class);
         bind(ILoadBalancer.class).toProvider(ConfigBasedLoadBalancerProvider.class);
+        
+        expose(ISuroClient.class);
     }
 
 }
