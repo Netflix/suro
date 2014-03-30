@@ -16,6 +16,8 @@
 
 package com.netflix.suro.connection;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Injector;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
@@ -26,6 +28,7 @@ import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.loadbalancer.Server;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.SuroServer4Test;
+import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Compression;
 import com.netflix.suro.message.MessageSetBuilder;
 import com.netflix.suro.thrift.TMessageSet;
@@ -34,9 +37,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -101,10 +102,21 @@ public class TestConnectionPool {
         MessageSetBuilder builder = new MessageSetBuilder(new ClientConfig())
                 .withCompression(Compression.LZF);
 
+        Map<String, Object> message = new HashMap<String, Object>();
+        ObjectMapper jsonMapper = new DefaultObjectMapper();
+
         for(int i = 0; i < messageCount; ++i) {
-            builder.withMessage(
-                    "routingKey",
-                    ("testMessage" +i).getBytes());
+            message.put("testMessage", i);
+            message.put("app", "testapp");
+            message.put("hostname", "testhost");
+            message.put("ts", System.currentTimeMillis());
+            try {
+                builder.withMessage(
+                        "routingKey",
+                        jsonMapper.writeValueAsString(message).getBytes());
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
         }
 
         return builder.build();

@@ -16,6 +16,7 @@
 
 package com.netflix.suro.sink.localfile;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.BeanProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -432,5 +433,44 @@ public class TestLocalFileSink {
         assertEquals(LocalFileSink.getFileExt("abc.done"), ".done");
         assertNull(LocalFileSink.getFileExt("abcdone"));
         assertNull(LocalFileSink.getFileExt("abcdone."));
+    }
+
+    @Test
+    public void writeSequenceFile() throws IOException {
+        final String localFileSinkSpec = "{\n" +
+                "    \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
+                "    \"outputDir\": \"" + testdir + "\",\n" +
+                "    \"writer\": {\n" +
+                "        \"type\": \"sequence\"\n" +
+                "    },\n" +
+                "    \"minPercentFreeDisk\": 50,\n" +
+                "    \"rotationPeriod\": \"PT10m\",\n" +
+                "    \"batchSize\": 1,\n" +
+                "    \"notice\": {\n" +
+                "        \"type\": \"queue\"\n" +
+                "    }\n" +
+                "}";
+
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
+        mapper.setInjectableValues(new InjectableValues() {
+            @Override
+            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
+                if (valueId.equals("queueManager")) {
+                    return new MessageSetProcessorManager();
+                } else {
+                    return null;
+                }
+
+            }
+        });
+        Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
+        sink.open();
+        assertNull(sink.recvNotice());
+
+        for (Message m : new MessageSetReader(TestConnectionPool.createMessageSet(10000))) {
+            sink.writeTo(new StringMessage(m));
+        }
+
+        sink.close();
     }
 }

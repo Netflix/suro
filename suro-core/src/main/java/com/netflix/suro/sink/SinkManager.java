@@ -17,7 +17,7 @@
 package com.netflix.suro.sink;
 
 import com.google.common.collect.Maps;
-import com.netflix.governator.guice.lazy.LazySingleton;
+import com.google.inject.Singleton;
 import org.apache.log4j.Logger;
 
 import javax.annotation.PreDestroy;
@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentMap;
  *
  * @author jbae
  */
-@LazySingleton
+@Singleton
 public class SinkManager {
     private static final Logger log = Logger.getLogger(SinkManager.class);
 

@@ -1,11 +1,10 @@
 package com.netflix.suro.sink.kafka
 
 import kafka.utils._
-import com.netflix.suro.message.Compression
+import com.netflix.suro.message._
 import com.netflix.suro.jackson.DefaultObjectMapper
 import com.netflix.suro.sink.Sink
 import com.fasterxml.jackson.core.`type`.TypeReference
-import com.netflix.suro.message.{MessageSetBuilder, MessageSetReader}
 import org.apache.commons.io.FileUtils
 import java.io.File
 import org.mockito.Mockito.mock
@@ -21,12 +20,12 @@ import org.scalatest.junit.JUnit3Suite
 import kafka.server.{KafkaConfig, KafkaServer}
 import kafka.consumer.SimpleConsumer
 import org.I0Itec.zkclient.{IDefaultNameSpace, ZkClient, ZkServer}
-import kafka.admin.CreateTopicCommand
 import kafka.api.FetchRequestBuilder
-import kafka.message.MessageAndOffset
-import kafka.common.TopicAndPartition
 import com.fasterxml.jackson.databind.jsontype.NamedType
-import com.netflix.suro.message.StringMessage
+import scala.Some
+import kafka.common.TopicAndPartition
+import kafka.message.MessageAndOffset
+import kafka.admin.TopicCommand.TopicCommandOptions
 
 class TestKafkaSink extends JUnit3Suite {
   private val brokerId1 = 0
@@ -78,8 +77,8 @@ class TestKafkaSink extends JUnit3Suite {
   def test() {
     val topic = "routingKey"
     // create topic with 1 partition and await leadership
-    CreateTopicCommand.createTopic(zkClient, topic, 1, 2)
-    waitUntilMetadataIsPropagated(servers, topic, 0, 10000)
+    kafka.admin.TopicCommand.createTopic(zkClient,
+      new TopicCommandOptions(Array[String]("--zookeeper", "localhost:4711", "create", "--topic", topic)))
     waitUntilLeaderIsElectedOrChanged(zkClient, topic, 0, 500)
 
     val description = "{\n" +
@@ -118,7 +117,6 @@ class TestKafkaSink extends JUnit3Suite {
     assertEquals(new String(createMsg(messageSet, 0)),"testMessage" + 0)
     assertEquals(new String(createMsg(messageSet, 1)), "testMessage" + 1)
   }
-
 
   def createMsg(messageSet: mutable.Buffer[MessageAndOffset], offset: Int): Array[Byte] = {
     val bb = messageSet(offset).message.payload
@@ -253,12 +251,6 @@ class TestKafkaSink extends JUnit3Suite {
     } finally {
       leaderLock.unlock()
     }
-  }
-
-  def waitUntilMetadataIsPropagated(servers: Seq[KafkaServer], topic: String, partition: Int, timeout: Long) = {
-    assertTrue("Partition [%s,%d] metadata not propagated after timeout".format(topic, partition),
-      waitUntilTrue(() =>
-        servers.foldLeft(true)(_ && _.apis.leaderCache.keySet.contains(TopicAndPartition(topic, partition))), timeout))
   }
 
   /**

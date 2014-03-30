@@ -9,11 +9,8 @@ import com.netflix.suro.sink.QueuedSink;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.queue.MemoryQueue4Sink;
 import com.netflix.suro.queue.MessageQueue4Sink;
-import kafka.producer.KeyedMessage;
-import kafka.producer.ProducerStats;
-import kafka.producer.ProducerStatsRegistry;
-import kafka.producer.ProducerTopicStatsRegistry;
-import kafka.producer.ProducerTopicStats;
+import kafka.javaapi.producer.Producer;
+import kafka.producer.*;
 import kafka.serializer.DefaultEncoder;
 import kafka.serializer.NullEncoder;
 
@@ -32,7 +29,7 @@ public class KafkaSink extends QueuedSink implements Sink {
 
     private String clientId;
 
-    protected final KafkaProducer producer;
+    protected final Producer producer;
 
     @JsonCreator
     public KafkaSink(
@@ -84,7 +81,7 @@ public class KafkaSink extends QueuedSink implements Sink {
             props.putAll(metricsProps);
         }
 
-        producer = new KafkaProducer(props);
+        producer = new Producer(new ProducerConfig(props));
     }
 
     @Override
