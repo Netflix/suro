@@ -24,6 +24,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +58,7 @@ public class TestLog4JAppenderWithLog4JConfig {
     }
 
     @Test
-    public void test() {
+    public void testAllMessagesWillBeDeliveredInSeparatedMessageSet() {
         Logger root = Logger.getRootLogger();
         if (!root.getAllAppenders().hasMoreElements()) {
             fail("No log4j appender is instantiated!");

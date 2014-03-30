@@ -122,18 +122,18 @@ project(':suro-server') {
     args = ['-m', 'conf/routingmap.json', '-s', 'conf/sink.json']
   }
   installApp {
-    into('build/install/'+applicationName){
+    into('build/install/'+applicationName + '-' + version){
       from ('conf').into '/conf'
     }
   }
   distZip {
     into(applicationName){
-      from ('conf').into applicationName+'/conf'
+      from ('conf').into applicationName + '-' + version + '/conf'
     }	
   }
   distTar {
     into(applicationName){
-      from ('conf').into applicationName+'/conf'
+      from ('conf').into applicationName + '-' + version + '/conf'
     }	
   }
 }
@@ -153,7 +153,7 @@ project(':suro-kafka') {
   dependencies {
     compile project(':suro-core')
 
-    compile('org.apache.kafka:kafka_2.8.0:0.8.1') {
+    compile('org.apache.kafka:kafka_2.8.2:0.8.1') {
       exclude module: 'jms'
       exclude module: 'jmxtools'
       exclude module: 'jmxri'
