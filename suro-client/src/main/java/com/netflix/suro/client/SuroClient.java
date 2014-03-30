@@ -22,12 +22,8 @@ import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
-import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.client.async.AsyncSuroClient;
-import com.netflix.suro.connection.ConnectionPool;
-import com.netflix.suro.connection.EurekaLoadBalancer;
-import com.netflix.suro.connection.StaticLoadBalancer;
 import com.netflix.suro.message.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +43,6 @@ public class SuroClient implements ISuroClient {
 
     public SuroClient(Properties properties) {
         createInjector(properties);
-        injector.getInstance(ConnectionPool.class);
         client = injector.getInstance(ISuroClient.class);
     }
 
@@ -61,25 +56,15 @@ public class SuroClient implements ISuroClient {
         injector = LifecycleInjector
                 .builder()
                 .withBootstrapModule(
-                        new BootstrapModule() {
-                            @Override
-                            public void configure(BootstrapBinder binder) {
-                                binder.bindConfigurationProvider().toInstance(
-                                        new PropertiesConfigurationProvider(properties));
-
-                                if (properties.getProperty(ClientConfig.LB_TYPE, "eureka").equals("eureka")) {
-                                    binder.bind(ILoadBalancer.class).to(EurekaLoadBalancer.class);
-                                } else {
-                                    binder.bind(ILoadBalancer.class).to(StaticLoadBalancer.class);
-                                }
-
-                                if (properties.getProperty(ClientConfig.CLIENT_TYPE, "async").equals("async")) {
-                                    binder.bind(ISuroClient.class).to(AsyncSuroClient.class);
-                                } else {
-                                    binder.bind(ISuroClient.class).to(SyncSuroClient.class);
-                                }
-                            }
-                        })
+                    new BootstrapModule() {
+                        @Override
+                        public void configure(BootstrapBinder binder) {
+                            binder.bindConfigurationProvider().toInstance(
+                                    new PropertiesConfigurationProvider(properties));
+                        }
+                    }
+                )
+                .withModules(new SuroClientModule())
                 .createInjector();
         LifecycleManager manager = injector.getInstance(LifecycleManager.class);
 
