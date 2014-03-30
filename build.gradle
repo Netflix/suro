@@ -153,13 +153,13 @@ project(':suro-kafka') {
   dependencies {
     compile project(':suro-core')
 
-    compile('org.apache.kafka:kafka_2.8.2:0.8.0') {
+    compile('org.apache.kafka:kafka_2.8.0:0.8.1') {
       exclude module: 'jms'
       exclude module: 'jmxtools'
       exclude module: 'jmxri'
     }
 
-    testCompile 'org.scalatest:scalatest_2.8.2:1.8'
+    testCompile 'org.scalatest:scalatest:1.2'
     testCompile project(':suro-client')
   }
 }
