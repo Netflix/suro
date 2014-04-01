@@ -86,5 +86,4 @@ public class SinkManager {
         }
         sinkMap.clear();
     }
-    
 }
