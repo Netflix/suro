@@ -26,6 +26,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.netflix.governator.guice.LifecycleInjector;
+import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.MessageContainer;
@@ -86,7 +88,7 @@ public class TestSinkManager {
 
     @Test
     public void test() throws Exception {
-        Injector injector = Guice.createInjector(
+        Injector injector = LifecycleInjector.builder().withModules(
                 new SuroPlugin() {
                     @Override
                     protected void configure() {
@@ -99,8 +101,11 @@ public class TestSinkManager {
                         bind(ObjectMapper.class).to(DefaultObjectMapper.class);
                     }
                 }
-            );
-        
+            ).build().createInjector();
+
+        LifecycleManager lifecycleManager = injector.getInstance(LifecycleManager.class);
+        lifecycleManager.start();
+
         String desc = "{\n" +
                 "    \"default\": {\n" +
                 "        \"type\": \"TestSink\",\n" +
@@ -112,7 +117,7 @@ public class TestSinkManager {
                 "    }\n" +
                 "}";
         
-        SinkManager sinkManager = new SinkManager();
+        SinkManager sinkManager = injector.getInstance(SinkManager.class);
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         
         sinkManager.set(getSinkMap(mapper, desc));
@@ -180,7 +185,7 @@ public class TestSinkManager {
         assertEquals(TestSink.getNumOfSinks(), 2);
 
         // test destroy
-        sinkManager.shutdown();
+        lifecycleManager.close();
         assertEquals(TestSink.getNumOfSinks(), 0);
         assertNull(sinkManager.getSink("any"));
     }
