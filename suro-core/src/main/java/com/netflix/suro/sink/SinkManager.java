@@ -20,6 +20,7 @@ import com.google.common.collect.Maps;
 import com.google.inject.Singleton;
 import org.apache.log4j.Logger;
 
+import javax.annotation.PreDestroy;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
@@ -79,6 +80,7 @@ public class SinkManager {
         return sb.toString();
     }
 
+    @PreDestroy
     public void shutdown() {
         log.info("SinkManager shutting down");
         for (Map.Entry<String, Sink> entry : sinkMap.entrySet()) {
