@@ -149,7 +149,6 @@ project(':suro-integration-test') {
 }
 
 project(':suro-kafka') {
-  apply plugin: 'scala'
   dependencies {
     compile project(':suro-core')
 
