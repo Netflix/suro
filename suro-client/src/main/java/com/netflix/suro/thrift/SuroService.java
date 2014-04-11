@@ -313,15 +313,20 @@ public class SuroService {
         super("shutdown");
       }
 
-      protected shutdown_args getEmptyArgsInstance() {
+      public shutdown_args getEmptyArgsInstance() {
         return new shutdown_args();
       }
 
-      protected shutdown_result getResult(I iface, shutdown_args args) throws org.apache.thrift.TException {
+      public shutdown_result getResult(I iface, shutdown_args args) throws org.apache.thrift.TException {
         shutdown_result result = new shutdown_result();
         result.success = iface.shutdown();
         result.setSuccessIsSet(true);
         return result;
+      }
+
+      @Override
+      protected boolean isOneway() {
+        return false;
       }
     }
 
@@ -330,14 +335,19 @@ public class SuroService {
         super("getName");
       }
 
-      protected getName_args getEmptyArgsInstance() {
+      public getName_args getEmptyArgsInstance() {
         return new getName_args();
       }
 
-      protected getName_result getResult(I iface, getName_args args) throws org.apache.thrift.TException {
+      public getName_result getResult(I iface, getName_args args) throws org.apache.thrift.TException {
         getName_result result = new getName_result();
         result.success = iface.getName();
         return result;
+      }
+
+      @Override
+      protected boolean isOneway() {
+        return false;
       }
     }
 
@@ -346,14 +356,19 @@ public class SuroService {
         super("getStatus");
       }
 
-      protected getStatus_args getEmptyArgsInstance() {
+      public getStatus_args getEmptyArgsInstance() {
         return new getStatus_args();
       }
 
-      protected getStatus_result getResult(I iface, getStatus_args args) throws org.apache.thrift.TException {
+      public getStatus_result getResult(I iface, getStatus_args args) throws org.apache.thrift.TException {
         getStatus_result result = new getStatus_result();
         result.success = iface.getStatus();
         return result;
+      }
+
+      @Override
+      protected boolean isOneway() {
+        return false;
       }
     }
 
@@ -362,17 +377,21 @@ public class SuroService {
         super("getVersion");
       }
 
-      protected getVersion_args getEmptyArgsInstance() {
+      public getVersion_args getEmptyArgsInstance() {
         return new getVersion_args();
       }
 
-      protected getVersion_result getResult(I iface, getVersion_args args) throws org.apache.thrift.TException {
+      public getVersion_result getResult(I iface, getVersion_args args) throws org.apache.thrift.TException {
         getVersion_result result = new getVersion_result();
         result.success = iface.getVersion();
         return result;
       }
-    }
 
+      @Override
+      protected boolean isOneway() {
+        return false;
+      }
+    }
   }
 
   public static class shutdown_args implements org.apache.thrift.TBase<shutdown_args, shutdown_args._Fields>, java.io.Serializable, Cloneable   {
