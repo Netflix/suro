@@ -48,7 +48,7 @@ subprojects {
       compile 'com.netflix.ribbon:ribbon-eureka:0.2.1'
       compile 'log4j:log4j:1.2.17'
 
-      compile 'org.apache.thrift:libthrift:0.9.1'
+      compile 'org.apache.thrift:libthrift:0.7.0'
       compile 'org.slf4j:slf4j-api:1.6.4'
       compile 'com.google.guava:guava:11.0.2'
       compile 'joda-time:joda-time:2.1'

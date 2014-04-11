@@ -149,19 +149,14 @@ public class SuroServer {
         super("process");
       }
 
-      public process_args getEmptyArgsInstance() {
+      protected process_args getEmptyArgsInstance() {
         return new process_args();
       }
 
-      public process_result getResult(I iface, process_args args) throws org.apache.thrift.TException {
+      protected process_result getResult(I iface, process_args args) throws org.apache.thrift.TException {
         process_result result = new process_result();
         result.success = iface.process(args.messageSet);
         return result;
-      }
-
-      @Override
-      protected boolean isOneway() {
-          return false;
       }
     }
   }
