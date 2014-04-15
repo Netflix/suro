@@ -105,7 +105,6 @@ public class KafkaSink extends QueuedSink implements Sink {
     protected void write(List<Message> msgList) throws IOException {
         send(msgList);
         msgList.clear();
-        queue4Sink.commit();
     }
 
     @Override
