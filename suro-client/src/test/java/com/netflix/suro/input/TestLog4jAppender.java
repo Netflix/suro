@@ -26,7 +26,9 @@ import org.apache.log4j.Level;
 import org.apache.log4j.spi.LoggingEvent;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
 
 import java.util.HashMap;
@@ -38,6 +40,9 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
 public class TestLog4jAppender {
+    @Rule
+    public TemporaryFolder tempDir = new TemporaryFolder();
+
     public static final int DEFAULT_WAIT_INTERVAL = 20;
     private Log4jAppender appender = new Log4jAppender();
     private List<SuroServer4Test> collectors;
@@ -89,8 +94,6 @@ public class TestLog4jAppender {
 
     @Test
     public void testMemory() throws Exception {
-        TestFileBlockingQueue.clean();
-
         appender.setLoadBalancerType("static");
         appender.setLoadBalancerServer("localhost:8500");
         appender.activateOptions();
@@ -117,10 +120,8 @@ public class TestLog4jAppender {
 
     @Test
     public void testFile() throws Exception {
-        TestFileBlockingQueue.clean();
-
         appender.setAsyncQueueType("file");
-        appender.setAsyncFileQueuePath(System.getProperty("java.io.tmpdir"));
+        appender.setAsyncFileQueuePath(tempDir.newFolder().getAbsolutePath());
         appender.setLoadBalancerType("static");
         appender.setLoadBalancerServer("localhost:8500");
         appender.activateOptions();
@@ -144,8 +145,6 @@ public class TestLog4jAppender {
 
     @Test
     public void testLog4jFormatter() {
-        TestFileBlockingQueue.clean();
-
         appender.setFormatterClass("com.netflix.suro.input.StaticLog4jFormatter");
 
         appender.setLoadBalancerType("static");
