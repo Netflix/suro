@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.io.DataInput;
 import java.io.IOException;
 
 /**
@@ -51,10 +52,12 @@ public class MessageSerDe implements SerDe<Message> {
     @Override
     public Message deserialize(byte[] payload) {
         try {
-            Message msg = new Message();
-            msg.readFields(ByteStreams.newDataInput(payload));
+            DataInput dataInput = ByteStreams.newDataInput(payload);
+            Class<? extends Message> clazz = Message.classMap.get(dataInput.readByte());
+            Message msg = clazz.newInstance();
+            msg.readFields(dataInput);
             return msg;
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Exception on deserialize: " + e.getMessage(), e);
             return new Message();
         }
@@ -64,6 +67,7 @@ public class MessageSerDe implements SerDe<Message> {
     public byte[] serialize(Message payload) {
         try {
             ByteArrayDataOutput out = new ByteArrayDataOutputStream(outputStream.get());
+            out.writeByte(Message.classMap.inverse().get(payload.getClass()));
             payload.write(out);
             return out.toByteArray();
         } catch (IOException e) {
