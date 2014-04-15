@@ -47,8 +47,7 @@ public class Queue4Client {
                 queue = new FileQueue4Sink(
                         config.getAsyncFileQueuePath(),
                         config.getAsyncFileQueueName(),
-                        config.getAsyncFileQueueGCPeriod(),
-                        true); // auto-commit needed due to AsyncSenders are multithreaded
+                        config.getAsyncFileQueueGCPeriod());
             } catch (IOException e) {
                 logger.error("Exception on initializing Queue4Client: " + e.getMessage(), e);
             }

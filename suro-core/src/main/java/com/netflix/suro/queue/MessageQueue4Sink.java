@@ -25,7 +25,6 @@ public interface MessageQueue4Sink {
     boolean offer(Message msg);
     Message poll(long timeout, TimeUnit timeUnit) throws InterruptedException;
     int drain(int batchSize, List<Message> msgList);
-    void commit();
     void close();
     boolean isEmpty();
     long size();

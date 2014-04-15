@@ -149,17 +149,21 @@ public class SuroServer {
         super("process");
       }
 
-      protected process_args getEmptyArgsInstance() {
+      public process_args getEmptyArgsInstance() {
         return new process_args();
       }
 
-      protected process_result getResult(I iface, process_args args) throws org.apache.thrift.TException {
+      public process_result getResult(I iface, process_args args) throws org.apache.thrift.TException {
         process_result result = new process_result();
         result.success = iface.process(args.messageSet);
         return result;
       }
-    }
 
+      @Override
+      protected boolean isOneway() {
+          return false;
+      }
+    }
   }
 
   public static class process_args implements org.apache.thrift.TBase<process_args, process_args._Fields>, java.io.Serializable, Cloneable   {
