@@ -17,12 +17,10 @@
 package com.netflix.suro.queue;
 
 import com.netflix.suro.message.StringSerDe;
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
@@ -33,17 +31,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.junit.Assert.*;
 
 public class TestFileBlockingQueue {
-    public static void clean() {
-        for (File file : new File(System.getProperty("java.io.tmpdir")).listFiles()) {
-            FileUtils.deleteQuietly(file);
-        }
-    }
-
-    @After
-    @Before
-    public void cleanFiles() {
-        clean();
-    }
+    @Rule
+    public TemporaryFolder tempDir = new TemporaryFolder();
 
     @Test
     public void testOpenAndReadFromStart() throws IOException {
@@ -66,7 +55,7 @@ public class TestFileBlockingQueue {
 
     private FileBlockingQueue<String> getFileBlockingQueue() throws IOException {
         return new FileBlockingQueue<String>(
-                    System.getProperty("java.io.tmpdir"), "default", 3600, new StringSerDe(), true);
+                    tempDir.newFolder().getAbsolutePath(), "default", 3600, new StringSerDe(), true);
     }
 
     @Test
