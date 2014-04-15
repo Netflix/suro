@@ -28,12 +28,11 @@ import com.netflix.suro.SuroServer4Test;
 import com.netflix.suro.connection.StaticLoadBalancer;
 import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.message.Message;
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.util.List;
 import java.util.Properties;
 
@@ -41,15 +40,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class TestAsyncSuroClient {
+    @Rule
+    public TemporaryFolder tempDir = new TemporaryFolder();
+
     private Injector injector;
     private List<SuroServer4Test> servers;
-
-    @Before
-    public void clean() {
-        for (File file : new File(System.getProperty("java.io.tmpdir")).listFiles()) {
-            FileUtils.deleteQuietly(file);
-        }
-    }
 
     private void setupMemory(final Properties props) throws Exception {
         servers = TestConnectionPool.startServers(3, 8100);
@@ -69,7 +64,7 @@ public class TestAsyncSuroClient {
         servers = TestConnectionPool.startServers(3, 8100);
 
         props.put(ClientConfig.LB_SERVER, "localhost:8100,localhost:8101,localhost:8102");
-        props.put(ClientConfig.ASYNC_FILEQUEUE_PATH, System.getProperty("java.io.tmpdir"));
+        props.put(ClientConfig.ASYNC_FILEQUEUE_PATH, tempDir.newFolder().getAbsolutePath());
         props.put(ClientConfig.ASYNC_QUEUE_TYPE, "file");
 
         injector = LifecycleInjector.builder()
@@ -86,7 +81,6 @@ public class TestAsyncSuroClient {
     @After
     public void tearDown() throws Exception {
         TestConnectionPool.shutdownServers(servers);
-        clean();
 
         injector.getInstance(LifecycleManager.class).close();
     }
@@ -112,7 +106,6 @@ public class TestAsyncSuroClient {
 
     @Test
     public void testFile() throws Exception {
-        clean();
         setupFile(new Properties());
 
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
@@ -129,7 +122,6 @@ public class TestAsyncSuroClient {
 
     @Test
     public void testRestore() throws Exception {
-        clean();
         setupFile(new Properties());
 
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
