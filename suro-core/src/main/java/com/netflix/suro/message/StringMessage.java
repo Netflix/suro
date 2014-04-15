@@ -1,5 +1,7 @@
 package com.netflix.suro.message;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+
 public class StringMessage implements MessageContainer {
 
     private final Message message;
@@ -32,6 +34,11 @@ public class StringMessage implements MessageContainer {
         else {
             throw new RuntimeException("Message cannot be deserialized to " + clazz.getCanonicalName());
         }
+    }
+
+    @Override
+    public <T> T getEntity(TypeReference<T> typeReference) throws Exception {
+        throw new RuntimeException("Message cannot be deserialized to TypeReference");
     }
 
     @Override

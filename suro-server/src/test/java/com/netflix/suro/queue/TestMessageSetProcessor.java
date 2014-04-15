@@ -17,7 +17,6 @@
 package com.netflix.suro.queue;
 
 import com.google.inject.Injector;
-import com.leansoft.bigqueue.utils.FileUtil;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
@@ -28,26 +27,20 @@ import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.thrift.ResultCode;
 import com.netflix.suro.thrift.ServiceStatus;
 import com.netflix.suro.thrift.TMessageSet;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 
 public class TestMessageSetProcessor {
-    private Injector injector;
-    private String dir;
+    @Rule
+    public TemporaryFolder tempDir = new TemporaryFolder();
 
-    @Before
-    @After
-    public void cleanUp() {
-        dir = System.getProperty("java.io.tmpdir") + "/testMessageSetProcessor";
-        FileUtil.deleteDirectory(new File(dir));
-    }
+    private Injector injector;
 
     @Test
     public void testMemoryQueue() throws Exception {
@@ -61,7 +54,7 @@ public class TestMessageSetProcessor {
         final Properties props = new Properties();
 
         props.setProperty(ServerConfig.QUEUE_TYPE, "file");
-        props.setProperty(ServerConfig.FILEQUEUE_PATH, dir);
+        props.setProperty(ServerConfig.FILEQUEUE_PATH, tempDir.newFolder().getAbsolutePath());
 
         testQueue(props);
     }
