@@ -42,11 +42,6 @@ public class MemoryQueue4Sink implements MessageQueue4Sink {
     }
 
     @Override
-    public void commit() {
-        // do nothing
-    }
-
-    @Override
     public void close() {
         // do nothing
     }
