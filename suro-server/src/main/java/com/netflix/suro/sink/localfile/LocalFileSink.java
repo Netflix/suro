@@ -143,7 +143,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
 
     @Override
     public void writeTo(MessageContainer message) {
-        queue4Sink.offer(message.getMessage());
+        enqueue(message.getMessage());
     }
 
     public static class SpaceChecker {
@@ -239,7 +239,6 @@ public class LocalFileSink extends QueuedSink implements Sink {
         }
 
         writer.sync();
-        msgList.clear();
     }
 
     @Override
