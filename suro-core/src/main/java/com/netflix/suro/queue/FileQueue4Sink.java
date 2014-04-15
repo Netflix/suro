@@ -52,16 +52,7 @@ public class FileQueue4Sink implements MessageQueue4Sink {
                 name,
                 new Period(gcPeriod == null ? "PT1h" : gcPeriod).toStandardSeconds().getSeconds(),
                 new MessageSerDe(),
-                false);
-    }
-
-    public FileQueue4Sink(String path, String name, String gcPeriod, boolean autoCommit) throws IOException {
-        queue = new FileBlockingQueue<Message>(
-                path,
-                name,
-                new Period(gcPeriod == null ? "PT1h" : gcPeriod).toStandardSeconds().getSeconds(),
-                new MessageSerDe(),
-                autoCommit);
+                true); // auto-commit needed because of message copy
     }
 
     @Override
@@ -82,11 +73,6 @@ public class FileQueue4Sink implements MessageQueue4Sink {
     @Override
     public Message poll(long timeout, TimeUnit unit) throws InterruptedException {
         return queue.poll(timeout, unit);
-    }
-
-    @Override
-    public void commit() {
-        queue.commit();
     }
 
     @Override
