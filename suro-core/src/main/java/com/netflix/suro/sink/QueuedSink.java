@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
  * @author jbae
  */
 public abstract class QueuedSink extends Thread {
-    static Logger log = LoggerFactory.getLogger(QueuedSink.class);
+    protected static Logger log = LoggerFactory.getLogger(QueuedSink.class);
 
     private long lastBatch = System.currentTimeMillis();
     protected volatile boolean isRunning = false;
