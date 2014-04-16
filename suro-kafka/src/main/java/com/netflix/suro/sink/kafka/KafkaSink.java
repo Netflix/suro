@@ -2,13 +2,15 @@ package com.netflix.suro.sink.kafka;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
-import com.netflix.suro.sink.QueuedSink;
-import com.netflix.suro.sink.Sink;
 import com.netflix.suro.queue.MemoryQueue4Sink;
 import com.netflix.suro.queue.MessageQueue4Sink;
+import com.netflix.suro.sink.QueuedSink;
+import com.netflix.suro.sink.Sink;
 import kafka.javaapi.producer.Producer;
 import kafka.metrics.KafkaMetricsReporter$;
 import kafka.producer.*;
@@ -19,6 +21,7 @@ import kafka.utils.VerifiableProperties;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -30,8 +33,10 @@ public class KafkaSink extends QueuedSink implements Sink {
     public final static String TYPE = "Kafka";
 
     private String clientId;
+    private final Map<String, String> keyTopicMap;
 
-    protected final Producer<Long, byte[]> producer;
+    private final Producer<Long, byte[]> producer;
+    private long msgId = 0;
 
     @JsonCreator
     public KafkaSink(
@@ -46,7 +51,8 @@ public class KafkaSink extends QueuedSink implements Sink {
             @JsonProperty("request.required.acks") Integer acks,
             @JsonProperty("message.send.max.retries") int maxRetries,
             @JsonProperty("retry.backoff.ms") int retryBackoff,
-            @JsonProperty("kafka.metrics") Properties metricsProps
+            @JsonProperty("kafka.etc") Properties etcProps,
+            @JsonProperty("keyTopicMap") Map<String, String> keyTopicMap
     ) {
         Preconditions.checkNotNull(brokerList);
         Preconditions.checkNotNull(acks);
@@ -79,9 +85,11 @@ public class KafkaSink extends QueuedSink implements Sink {
         props.put("serializer.class", DefaultEncoder.class.getName());
         props.put("key.serializer.class", NullEncoder.class.getName());
 
-        if (metricsProps != null) {
-            props.putAll(metricsProps);
+        if (etcProps != null) {
+            props.putAll(etcProps);
         }
+
+        this.keyTopicMap = keyTopicMap != null ? keyTopicMap : Maps.<String, String>newHashMap();
 
         producer = new Producer<Long, byte[]>(new ProducerConfig(props));
         KafkaMetricsReporter$.MODULE$.startReporters(new VerifiableProperties(props));
@@ -89,7 +97,20 @@ public class KafkaSink extends QueuedSink implements Sink {
 
     @Override
     public void writeTo(MessageContainer message) {
-        queue4Sink.offer(message.getMessage());
+        long key = msgId++;
+        if (!keyTopicMap.isEmpty()) {
+            try {
+                Map<String, Object> msgMap = message.getEntity(new TypeReference<Map<String, Object>>() {});
+                Object keyField = msgMap.get(keyTopicMap.get(message.getRoutingKey()));
+                if (keyField != null) {
+                    key = keyField.hashCode();
+                }
+            } catch (Exception e) {
+                log.error("Exception on getting key field: " + e.getMessage());
+            }
+        }
+
+        enqueue(new SuroKeyedMessage(key, message.getMessage()));
     }
 
     @Override
@@ -102,15 +123,12 @@ public class KafkaSink extends QueuedSink implements Sink {
     protected void beforePolling() throws IOException { /*do nothing */}
 
     @Override
-    protected void write(List<Message> msgList) throws IOException {
+    protected void write(List<Message> msgList) {
         send(msgList);
-        msgList.clear();
-        queue4Sink.commit();
     }
 
     @Override
     protected void innerClose() throws IOException {
-        queue4Sink.close();
         producer.close();
     }
 
@@ -135,12 +153,16 @@ public class KafkaSink extends QueuedSink implements Sink {
         return sb.toString();
     }
 
-    protected long msgId = 0;
     private List<KeyedMessage<Long, byte[]>> kafkaMsgList = new ArrayList<KeyedMessage<Long, byte[]>>();
     protected void send(List<Message> msgList) {
         for (Message m : msgList) {
-            kafkaMsgList.add(new KeyedMessage<Long, byte[]>(m.getRoutingKey(), msgId++, m.getPayload()));
+            SuroKeyedMessage keyedMessage = (SuroKeyedMessage) m;
+            kafkaMsgList.add(new KeyedMessage<Long, byte[]>(
+                    keyedMessage.getRoutingKey(),
+                    keyedMessage.getKey(),
+                    keyedMessage.getPayload()));
         }
+
         producer.send(kafkaMsgList);
         kafkaMsgList.clear();
     }

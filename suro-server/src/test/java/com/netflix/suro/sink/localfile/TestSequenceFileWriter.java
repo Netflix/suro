@@ -25,15 +25,14 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.StringSerDe;
 import com.netflix.suro.sink.ServerSinkPlugin;
-import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,7 +41,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 public class TestSequenceFileWriter {
-    public static String dir = System.getProperty("java.io.tmpdir") + "/filewritertest/";
+    @Rule
+    public TemporaryFolder tempDir = new TemporaryFolder();
 
     private static Injector injector = Guice.createInjector(
             new ServerSinkPlugin(),
@@ -54,14 +54,10 @@ public class TestSequenceFileWriter {
             }
         );
     
-    @Before
-    @After
-    public void cleanUp() throws IOException {
-        FileUtils.deleteDirectory(new File(dir));
-    }
-
     @Test
     public void test() throws IOException {
+        String dir = tempDir.newFolder().getAbsolutePath();
+
         String spec = "{\n" +
                 "    \"type\": \"sequence\"\n" +
                 "}";

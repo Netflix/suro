@@ -1,5 +1,6 @@
 package com.netflix.suro.sink;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.suro.message.Message;
@@ -11,6 +12,7 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Asynchronous sink would have the internal buffer to return on
@@ -22,13 +24,13 @@ import java.util.concurrent.TimeUnit;
  * @author jbae
  */
 public abstract class QueuedSink extends Thread {
-    static Logger log = LoggerFactory.getLogger(QueuedSink.class);
+    protected static Logger log = LoggerFactory.getLogger(QueuedSink.class);
 
     private long lastBatch = System.currentTimeMillis();
     protected volatile boolean isRunning = false;
     private volatile boolean isStopped = false;
 
-    protected MessageQueue4Sink queue4Sink;
+    private MessageQueue4Sink queue4Sink;
     private int batchSize;
     private int batchTimeout;
 
@@ -43,6 +45,16 @@ public abstract class QueuedSink extends Thread {
         return queue4Sink.size();
     }
 
+    @Monitor(name = "droppedMessages", type = DataSourceType.COUNTER)
+    @VisibleForTesting
+    protected AtomicLong droppedMessagesCount = new AtomicLong(0);
+
+    protected void enqueue(Message message) {
+        if (!queue4Sink.offer(message)) {
+            droppedMessagesCount.incrementAndGet();
+        }
+    }
+
     @Override
     public void run() {
         isRunning = true;
@@ -52,18 +64,24 @@ public abstract class QueuedSink extends Thread {
             try {
                 beforePolling();
 
-                Message msg = queue4Sink.poll(
-                        Math.max(0, lastBatch + batchTimeout - System.currentTimeMillis()),
-                        TimeUnit.MILLISECONDS);
-                boolean expired = (msg == null);
-                if (!expired) {
-                    msgList.add(msg);
-                    queue4Sink.drain(batchSize - msgList.size(), msgList);
-                }
                 boolean full = (msgList.size() >= batchSize);
+                boolean expired = false;
+
+                if (!full) {
+                    Message msg = queue4Sink.poll(
+                            Math.max(0, lastBatch + batchTimeout - System.currentTimeMillis()),
+                            TimeUnit.MILLISECONDS);
+                    expired = (msg == null);
+                    if (!expired) {
+                        msgList.add(msg);
+                        queue4Sink.drain(batchSize - msgList.size(), msgList);
+                    }
+                }
+                full = (msgList.size() >= batchSize);
                 if (expired || full) {
                     if (msgList.size() > 0) {
                         write(msgList);
+                        msgList.clear();
                     }
                     lastBatch = System.currentTimeMillis();
                 }
@@ -76,6 +94,7 @@ public abstract class QueuedSink extends Thread {
             while (!queue4Sink.isEmpty()) {
                 if (queue4Sink.drain(batchSize, msgList) > 0) {
                     write(msgList);
+                    msgList.clear();
                 }
             }
 
@@ -100,8 +119,9 @@ public abstract class QueuedSink extends Thread {
         } while (!isStopped);
 
         try {
+            queue4Sink.close();
             innerClose();
-        } catch (IOException e) {
+        } catch (Exception e) {
             // ignore exceptions when closing
             log.error("Exception while closing: " + e.getMessage(), e);
         } finally {

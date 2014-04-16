@@ -1,5 +1,8 @@
 package com.netflix.suro.message;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.reflect.TypeToken;
+
 /**
  * Wrapper for a message with caching for deserialization
  * 
@@ -20,6 +23,8 @@ public interface MessageContainer {
      * @throws Exception
      */
     public <T> T getEntity(Class<T> clazz) throws Exception;
+
+    public <T> T getEntity(TypeReference<T> typeReference) throws Exception;
     
     /**
      * Return the raw message
