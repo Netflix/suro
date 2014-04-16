@@ -109,7 +109,8 @@ public class KafkaSink extends QueuedSink implements Sink {
                 log.error("Exception on getting key field: " + e.getMessage());
             }
         }
-        queue4Sink.offer(new SuroKeyedMessage(key, message.getMessage()));
+
+        enqueue(new SuroKeyedMessage(key, message.getMessage()));
     }
 
     @Override
@@ -122,14 +123,12 @@ public class KafkaSink extends QueuedSink implements Sink {
     protected void beforePolling() throws IOException { /*do nothing */}
 
     @Override
-    protected void write(List<Message> msgList) throws IOException {
+    protected void write(List<Message> msgList) {
         send(msgList);
-        msgList.clear();
     }
 
     @Override
     protected void innerClose() throws IOException {
-        queue4Sink.close();
         producer.close();
     }
 
