@@ -47,20 +47,20 @@ import static org.junit.Assert.assertTrue;
 public class TestMessageRouter {
     public static Map<String, Integer> messageCount = new HashMap<String, Integer>();
 
-    public static class TestSink implements Sink {
+    public static class TestMessageRouterSink implements Sink {
         private final String message;
         private String status;
         private final List<String> messageList;
         private SerDe<String> serde = new StringSerDe();
 
         @JsonCreator
-        public TestSink(@JsonProperty("message") String message) {
+        public TestMessageRouterSink(@JsonProperty("message") String message) {
             this.message = message;
             this.messageList = new LinkedList<String>();
         }
 
         @Override
-        public void writeTo(MessageContainer message)  {
+        public synchronized void writeTo(MessageContainer message)  {
             try {
                 System.out.println("message: " + this.message + " msg: " + message.getEntity(String.class));
             } catch (Exception e1) {
@@ -130,7 +130,7 @@ public class TestMessageRouter {
                     @Override
                     protected void configure() {
                         bind(ObjectMapper.class).to(DefaultObjectMapper.class);
-                        this.addSinkType("TestSink", TestSink.class);
+                        this.addSinkType("TestSink", TestMessageRouterSink.class);
                     }
                 },
                 new RoutingPlugin()

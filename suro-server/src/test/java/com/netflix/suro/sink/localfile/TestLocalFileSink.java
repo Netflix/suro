@@ -34,10 +34,9 @@ import com.netflix.suro.queue.MessageSetProcessorManager;
 import com.netflix.suro.sink.ServerSinkPlugin;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.thrift.ServiceStatus;
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.*;
 import java.util.HashSet;
@@ -48,7 +47,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class TestLocalFileSink {
-    private static final String testdir = "/tmp/surotest/testlocalfilesink";
+    @Rule
+    public TemporaryFolder tempDir = new TemporaryFolder();
 
     private static Injector injector = Guice.createInjector(
             new ServerSinkPlugin(),
@@ -60,18 +60,10 @@ public class TestLocalFileSink {
             }
         );
 
-    @Before
-    @After
-    public void clean() throws IOException {
-        try {
-            FileUtils.deleteDirectory(new File(testdir));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
     @Test
     public void testDefaultParameters() throws IOException {
+        String testdir = tempDir.newFolder().getAbsolutePath();
+
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
                 "    \"outputDir\": \"" + testdir + "\"\n" +
@@ -122,6 +114,8 @@ public class TestLocalFileSink {
 
     @Test
     public void testWithPeriodRotation() throws IOException, InterruptedException {
+        String testdir = tempDir.newFolder().getAbsolutePath();
+
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
                 "    \"outputDir\": \"" + testdir + "\",\n" +
@@ -181,6 +175,8 @@ public class TestLocalFileSink {
 
     @Test
     public void testSpaceChecker() throws Exception {
+        String testdir = tempDir.newFolder().getAbsolutePath();
+
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
                 "    \"outputDir\": \"" + testdir + "\",\n" +
@@ -255,6 +251,8 @@ public class TestLocalFileSink {
 
     @Test
     public void testWithSizeRotation() throws IOException {
+        String testdir = tempDir.newFolder().getAbsolutePath();
+
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
                 "    \"outputDir\": \"" + testdir + "\",\n" +
@@ -319,6 +317,8 @@ public class TestLocalFileSink {
 
     @Test
     public void rotateEmptyFile() throws IOException, InterruptedException {
+        String testdir = tempDir.newFolder().getAbsolutePath();
+
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
                 "    \"outputDir\": \"" + testdir + "\",\n" +
@@ -381,7 +381,7 @@ public class TestLocalFileSink {
 
     @Test
     public void testCleanUp() throws IOException, InterruptedException {
-        new File(testdir).mkdir();
+        String testdir = tempDir.newFolder().getAbsolutePath();
 
         // create files
         final int numFiles = 5;

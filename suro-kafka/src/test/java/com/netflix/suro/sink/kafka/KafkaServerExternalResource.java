@@ -5,11 +5,10 @@ import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
 import org.apache.commons.lang.StringUtils;
 import org.junit.rules.ExternalResource;
+import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.util.List;
 import java.util.Properties;
-import java.util.Random;
 
 public class KafkaServerExternalResource extends ExternalResource {
     public static final int    BROKER_ID1 = 0;
@@ -29,12 +28,23 @@ public class KafkaServerExternalResource extends ExternalResource {
     private  List<KafkaServer> servers;
     private  List<KafkaConfig> configs;
 
+    private final ZkExternalResource zk;
+    private final TemporaryFolder tempDir = new TemporaryFolder();
+
+    public KafkaServerExternalResource(ZkExternalResource zk) {
+        this.zk = zk;
+    }
+
     @Override
     protected void before() throws Throwable {
-        config1 = new KafkaConfig(createBrokerConfig(BROKER_ID1, KAFKA_PORT1));
+        tempDir.create();
+
+        config1 = new KafkaConfig(
+                createBrokerConfig(BROKER_ID1, KAFKA_PORT1, zk.getServerPort(), tempDir.newFolder().getAbsolutePath()));
         server1 = createServer(config1);
 
-        config2 = new KafkaConfig(createBrokerConfig(BROKER_ID2, KAFKA_PORT2));
+        config2 = new KafkaConfig(
+                createBrokerConfig(BROKER_ID2, KAFKA_PORT2, zk.getServerPort(), tempDir.newFolder().getAbsolutePath()));
         server2 = createServer(config2);
 
         servers = Lists.newArrayList(server1, server2);
@@ -52,6 +62,8 @@ public class KafkaServerExternalResource extends ExternalResource {
             server2.shutdown();
             server2.awaitShutdown();
         }
+
+        tempDir.delete();
     }
 
     public String getBrokerListStr() {
@@ -72,23 +84,15 @@ public class KafkaServerExternalResource extends ExternalResource {
         return server;
     }
 
-    public static File tempDir() {
-        String ioDir = System.getProperty("java.io.tmpdir");
-        File f = new File(ioDir, "kafka-" + new Random().nextInt(1000000));
-        f.mkdirs();
-        f.deleteOnExit();
-        return f;
-    }
-
-    public static Properties createBrokerConfig(int nodeId, int port) {
+    public static Properties createBrokerConfig(int nodeId, int port, int zkPort, String dir) {
         Properties props = new Properties();
         props.put("broker.id",                   Integer.toString(nodeId));
         props.put("brokerId",                    Integer.toString(nodeId));
         props.put("host.name",                   "localhost");
         props.put("port",                        Integer.toString(port));
-        props.put("log.dir",                     tempDir().getAbsolutePath());
+        props.put("log.dir", dir);
         props.put("log.flush.interval.messages", "1");
-        props.put("zookeeper.connect",           "localhost:" + ZkExternalResource.ZK_SERVER_PORT);
+        props.put("zookeeper.connect",           "localhost:" + zkPort);
         props.put("replica.socket.timeout.ms",   "1500");
         props.put("hostName",                    "localhost");
         props.put("numPartitions",               "1");
