@@ -34,16 +34,15 @@ import com.netflix.suro.sink.ServerSinkPlugin;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.LocalFileSink;
 import com.netflix.suro.sink.localfile.LocalFileSink.SpaceChecker;
-import org.apache.commons.io.FileUtils;
 import org.jets3t.service.ServiceException;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.model.S3Object;
 import org.jets3t.service.multi.s3.S3ServiceEventListener;
 import org.jets3t.service.utils.MultipartUtils;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -59,23 +58,20 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
 public class TestS3FileSink {
-    private static final String testdir = "/tmp/surotest/tests3filesink";
-
-    @Before
-    @After
-    public void clean() throws IOException {
-        FileUtils.deleteDirectory(new File(testdir));
-    }
+    @Rule
+    public TemporaryFolder tempDir = new TemporaryFolder();
 
     @Test
     public void testDefaultParameters() throws Exception {
+        String testDir = tempDir.newFolder().getAbsolutePath();
+
         Injector injector = getInjector();
         
         final String s3FileSink = "{\n" +
                 "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
                 "    \"localFileSink\": {\n" +
                 "        \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
-                "        \"outputDir\": \"" + testdir + "\"\n" +
+                "        \"outputDir\": \"" + testDir + "\"\n" +
                 "    },\n" +
                 "    \"bucket\": \"s3bucket\"\n" +
                 "}";
@@ -91,7 +87,7 @@ public class TestS3FileSink {
         sink.close();
 
         // check every file uploaded, deleted, and notified
-        File[] files = getFiles();
+        File[] files = getFiles(testDir);
         assertEquals(files.length, 0);
         int count = 0;
         while (sink.recvNotice() != null) {
@@ -102,11 +98,13 @@ public class TestS3FileSink {
 
     @Test
     public void test() throws Exception {
+        String testDir = tempDir.newFolder().getAbsolutePath();
+
         final String s3FileSink = "{\n" +
                 "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
                 "    \"localFileSink\": {\n" +
                 "        \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
-                "        \"outputDir\": \"" + testdir + "\",\n" +
+                "        \"outputDir\": \"" + testDir + "\",\n" +
                 "        \"writer\": {\n" +
                 "            \"type\": \"text\"\n" +
                 "        },\n" +
@@ -141,7 +139,7 @@ public class TestS3FileSink {
         sink.close();
 
         // check every file uploaded, deleted, and notified
-        File[] files = getFiles();
+        File[] files = getFiles(testDir);
         assertEquals(files.length, 0);
         int count = 0;
         while (sink.recvNotice() != null) {
@@ -152,21 +150,23 @@ public class TestS3FileSink {
 
     @Test
     public void testTooManyFiles() throws IOException {
+        String testDir = tempDir.newFolder().getAbsolutePath();
+
         Injector injector = getInjector();
 
         final String s3FileSink = "{\n" +
                 "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
                 "    \"localFileSink\": {\n" +
                 "        \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
-                "        \"outputDir\": \"" + testdir + "\"\n" +
+                "        \"outputDir\": \"" + testDir + "\"\n" +
                 "    },\n" +
                 "    \"bucket\": \"s3bucket\"\n" +
                 "}";
 
         // pre-create many files
-        new File(testdir).mkdir();
+        new File(testDir).mkdir();
         for (int i = 0; i < 100; ++i) {
-            createFile(i);
+            createFile(testDir, i);
         }
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
 
@@ -176,7 +176,7 @@ public class TestS3FileSink {
         sink.close();
 
         // check every file uploaded, deleted, and notified
-        File[] files = getFiles();
+        File[] files = getFiles(testDir);
         assertEquals(files.length, 0);
         int count = 0;
         while (sink.recvNotice() != null) {
@@ -185,8 +185,8 @@ public class TestS3FileSink {
         assertEquals(count, 100);
     }
 
-    private void createFile(int i) throws IOException {
-        File f = new File(testdir, "fileNo" + i + ".done");
+    private void createFile(String testDir, int i) throws IOException {
+        File f = new File(testDir, "fileNo" + i + ".done");
         f.createNewFile();
         FileOutputStream o = new FileOutputStream(f);
         o.write(100/*any data*/);
@@ -195,31 +195,33 @@ public class TestS3FileSink {
 
     @Test
     public void testUploadAll() throws IOException {
+        String testDir = tempDir.newFolder().getAbsolutePath();
+
         Injector injector = getInjector();
 
         final String s3FileSink = "{\n" +
                 "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
                 "    \"localFileSink\": {\n" +
                 "        \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
-                "        \"outputDir\": \"" + testdir + "\"\n" +
+                "        \"outputDir\": \"" + testDir + "\"\n" +
                 "    },\n" +
                 "    \"bucket\": \"s3bucket\",\n" +
                 "    \"batchUpload\":true\n" +
                 "}";
 
         // pre-create many files
-        new File(testdir).mkdir();
+        new File(testDir).mkdir();
         for (int i = 0; i < 100; ++i) {
-            createFile(i);
+            createFile(testDir, i);
         }
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
 
         S3FileSink sink = mapper.readValue(s3FileSink, new TypeReference<Sink>(){});
         sink.open();
-        sink.uploadAll(testdir);
+        sink.uploadAll(testDir);
 
         // check every file uploaded, deleted, and notified
-        File[] files = getFiles();
+        File[] files = getFiles(testDir);
         assertEquals(files.length, 0);
         int count = 0;
         while (sink.recvNotice() != null) {
@@ -230,11 +232,13 @@ public class TestS3FileSink {
 
     @Test
     public void testAclFailure() throws IOException, ServiceException, InterruptedException {
+        String testDir = tempDir.newFolder().getAbsolutePath();
+
         final String s3FileSink = "{\n" +
                 "    \"type\": \"" + S3FileSink.TYPE + "\",\n" +
                 "    \"localFileSink\": {\n" +
                 "        \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
-                "        \"outputDir\": \"" + testdir + "\"\n" +
+                "        \"outputDir\": \"" + testDir + "\"\n" +
                 "    },\n" +
                 "    \"bucket\": \"s3bucket\"" +
                 "}";
@@ -252,7 +256,7 @@ public class TestS3FileSink {
             sink.writeTo(new StringMessage(m));
         }
         sink.close();
-        File[] files = getFiles();
+        File[] files = getFiles(testDir);
 
         assertTrue(files.length > 0);
         int count = 0;
@@ -262,9 +266,9 @@ public class TestS3FileSink {
         assertEquals(count, 0);
     }
 
-    private File[] getFiles() {
+    private File[] getFiles(String testDir) {
         // check no file uploaded, deleted, and notified
-        File dir = new File(testdir);
+        File dir = new File(testDir);
         return dir.listFiles(new FilenameFilter() {
             @Override
             public boolean accept(File file, String name) {

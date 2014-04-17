@@ -40,8 +40,8 @@ public class TestKafkaSink {
     @Rule
     public TemporaryFolder tempDir = new TemporaryFolder();
 
-    public static KafkaServerExternalResource kafkaServer = new KafkaServerExternalResource();
     public static ZkExternalResource zk = new ZkExternalResource();
+    public static KafkaServerExternalResource kafkaServer = new KafkaServerExternalResource(zk);
 
     @ClassRule
     public static TestRule chain = RuleChain
@@ -141,7 +141,7 @@ public class TestKafkaSink {
         System.out.println(sink.getStat());
 
         ConsumerConnector consumer = kafka.consumer.Consumer.createJavaConsumerConnector(
-                createConsumerConfig("localhost:2181", "gropuid"));
+                createConsumerConfig("localhost:" + zk.getServerPort(), "gropuid"));
         Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
         topicCountMap.put(TOPIC_NAME_PARTITION_BY_KEY, 1);
         Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);

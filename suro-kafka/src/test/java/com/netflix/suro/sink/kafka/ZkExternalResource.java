@@ -5,24 +5,26 @@ import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.ZkServer;
 import org.I0Itec.zkclient.exception.ZkMarshallingError;
 import org.I0Itec.zkclient.serialize.ZkSerializer;
-import org.apache.commons.io.FileUtils;
 import org.junit.rules.ExternalResource;
+import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.ServerSocket;
 
 public class ZkExternalResource extends ExternalResource {
-    public static final String ZK_SERVER_NAME  = "testzkserver";
-    public static final int    ZK_SERVER_PORT  = 2181;
+    private ZkServer    zkServer;
+    private ZkClient    zkClient;
+    private TemporaryFolder tempDir = new TemporaryFolder();
 
-    private  ZkServer    zkServer;
-    private  ZkClient    zkClient;
 
     @Override
     protected void before() throws Throwable {
+        tempDir.create();
+
         zkServer = startZkServer();
 
-        zkClient = new ZkClient("localhost:2181", 20000, 20000, new ZkSerializer() {
+        zkClient = new ZkClient("localhost:" + zkServer.getPort(), 20000, 20000, new ZkSerializer() {
             @Override
             public byte[] serialize(Object data) throws ZkMarshallingError {
                 try {
@@ -50,13 +52,13 @@ public class ZkExternalResource extends ExternalResource {
         if (zkServer != null) {
             zkServer.shutdown();
         }
+        tempDir.delete();
     }
 
+
     public ZkServer startZkServer() throws Exception {
-        String dataPath = "./build/test/" + ZK_SERVER_NAME + "/data";
-        String logPath  = "./build/test/" + ZK_SERVER_NAME + "/log";
-        FileUtils.deleteDirectory(new File(dataPath));
-        FileUtils.deleteDirectory(new File(logPath));
+        String dataPath = tempDir.newFolder().getAbsolutePath();
+        String logPath  = tempDir.newFolder().getAbsolutePath();
 
         ZkServer zkServer = new ZkServer(
                 dataPath,
@@ -66,7 +68,7 @@ public class ZkExternalResource extends ExternalResource {
                     public void createDefaultNameSpace(ZkClient zkClient) {
                     }
                 },
-                ZK_SERVER_PORT,
+                pickPort(),
                 ZkServer.DEFAULT_TICK_TIME, 100);
         zkServer.start();
         return zkServer;
@@ -74,5 +76,14 @@ public class ZkExternalResource extends ExternalResource {
 
     public ZkClient getZkClient() {
         return zkClient;
+    }
+    public int getServerPort() { return zkServer.getPort(); }
+
+    public int pickPort() throws IOException {
+        ServerSocket socket = new ServerSocket(0);
+        int port = socket.getLocalPort();
+        socket.close();
+
+        return port;
     }
 }

@@ -16,16 +16,13 @@
 
 package com.netflix.suro;
 
-import com.google.inject.Injector;
 import com.netflix.suro.client.SuroClient;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.queue.MessageSetProcessor;
 import com.netflix.suro.routing.TestMessageRouter;
-import com.netflix.suro.server.TestServer;
+import com.netflix.suro.server.SuroServerExternalResource;
 import com.netflix.suro.sink.SinkManager;
 import org.apache.thrift.transport.TTransportException;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.Properties;
@@ -33,29 +30,15 @@ import java.util.Properties;
 import static org.junit.Assert.assertEquals;
 
 public class TestSuroClient {
-    private Injector serverInjector;
-    private SinkManager sinkManager;
-
-    @Before
-    public void createServer() throws Exception {
-        // create the test server
-        serverInjector = TestServer.start();
-        sinkManager = TestMessageRouter.startSinkMakager(serverInjector);
-        TestMessageRouter.startMessageRouter(serverInjector);
-        serverInjector.getInstance(MessageSetProcessor.class).start();
-    }
-
-    @After
-    public void shutdown() {
-        TestServer.shutdown();
-    }
+    @Rule
+    public SuroServerExternalResource suroServer = new SuroServerExternalResource();
 
     @Test
     public void testSyncClient() throws TTransportException {
         // create the client
         final Properties clientProperties = new Properties();
         clientProperties.setProperty(ClientConfig.LB_TYPE, "static");
-        clientProperties.setProperty(ClientConfig.LB_SERVER, "localhost:7101");
+        clientProperties.setProperty(ClientConfig.LB_SERVER, "localhost:" + suroServer.getServerPort());
         clientProperties.setProperty(ClientConfig.CLIENT_TYPE, "sync");
 
         SuroClient client = new SuroClient(clientProperties);
@@ -64,7 +47,8 @@ public class TestSuroClient {
         client.send(new Message("routingKey", "testMessage".getBytes()));
 
         // check the test server whether it got received
-        TestMessageRouter.TestSink testSink = (TestMessageRouter.TestSink) sinkManager.getSink("default");
+        TestMessageRouter.TestMessageRouterSink testSink = (TestMessageRouter.TestMessageRouterSink)
+                suroServer.getInjector().getInstance(SinkManager.class).getSink("default");
         assertEquals(testSink.getMessageList().size(), 1);
         assertEquals(testSink.getMessageList().get(0), "testMessage");
 
@@ -76,7 +60,7 @@ public class TestSuroClient {
         // create the client
         final Properties clientProperties = new Properties();
         clientProperties.setProperty(ClientConfig.LB_TYPE, "static");
-        clientProperties.setProperty(ClientConfig.LB_SERVER, "localhost:7101");
+        clientProperties.setProperty(ClientConfig.LB_SERVER, "localhost:" + suroServer.getServerPort());
         clientProperties.setProperty(ClientConfig.ASYNC_TIMEOUT, "0");
 
         SuroClient client = new SuroClient(clientProperties);
@@ -89,7 +73,8 @@ public class TestSuroClient {
         }
 
         // check the test server whether it got received
-        TestMessageRouter.TestSink testSink = (TestMessageRouter.TestSink) sinkManager.getSink("default");
+        TestMessageRouter.TestMessageRouterSink testSink = (TestMessageRouter.TestMessageRouterSink)
+                suroServer.getInjector().getInstance(SinkManager.class).getSink("default");
 
         int count = 0;
         while (client.getSentMessageCount() < numMessages && count < waitTime) {
