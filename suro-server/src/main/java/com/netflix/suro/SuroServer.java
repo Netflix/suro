@@ -18,6 +18,7 @@ package com.netflix.suro;
 
 import com.google.common.io.Closeables;
 import com.google.inject.Injector;
+import com.google.inject.Module;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
@@ -49,7 +50,7 @@ public class SuroServer {
     public static final String OPT_CONTROL_PORT = "controlPort";
 
     public static void main(String[] args) throws IOException {
-        final AtomicReference<LifecycleManager> manager = new AtomicReference<LifecycleManager>();
+        final AtomicReference<Injector> injector = new AtomicReference<Injector>();
 
         try {
             // Parse the command line
@@ -78,33 +79,17 @@ public class SuroServer {
                 }
             }
 
-            // Create the injector
-            Injector injector = LifecycleInjector.builder()
-                    .withBootstrapModule(
-                            new BootstrapModule() {
-                                @Override
-                                public void configure(BootstrapBinder binder) {
-                                    binder.bindConfigurationProvider().toInstance(
-                                            new PropertiesConfigurationProvider(properties));
-                                }
-                            }
-                    )
-                    .withModules(
-                            new RoutingPlugin(),
-                            new ServerSinkPlugin(),
-                            new SuroDynamicPropertyModule(),
-                            new SuroModule(),
-                            StatusServer.createJerseyServletModule()
-                    )
-                    .createInjector();
-
-            manager.set(injector.getInstance(LifecycleManager.class));
-            manager.get().start();
+            create(injector, properties);
+            injector.get().getInstance(LifecycleManager.class).start();
 
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 @Override
                 public void run() {
-                    manager.get().close();
+                    try {
+                        Closeables.close(injector.get().getInstance(LifecycleManager.class), true);
+                    } catch (IOException e) {
+                        // do nothing because Closeables.close will swallow IOException
+                    }
                 }
             });
 
@@ -113,8 +98,31 @@ public class SuroServer {
             System.err.println("SuroServer startup failed: " + e.getMessage());
             System.exit(-1);
         } finally {
-            Closeables.close(manager.get(), true);
+            Closeables.close(injector.get().getInstance(LifecycleManager.class), true);
         }
+    }
+
+    public static void create(AtomicReference<Injector> injector, final Properties properties, Module... modules) throws Exception {
+        // Create the injector
+        injector.set(LifecycleInjector.builder()
+                .withBootstrapModule(
+                        new BootstrapModule() {
+                            @Override
+                            public void configure(BootstrapBinder binder) {
+                                binder.bindConfigurationProvider().toInstance(
+                                        new PropertiesConfigurationProvider(properties));
+                            }
+                        }
+                )
+                .withModules(
+                        new RoutingPlugin(),
+                        new ServerSinkPlugin(),
+                        new SuroDynamicPropertyModule(),
+                        new SuroModule(),
+                        StatusServer.createJerseyServletModule()
+                )
+                .withAdditionalModules(modules)
+                .createInjector());
     }
 
     private static void waitForShutdown(int port) throws IOException {

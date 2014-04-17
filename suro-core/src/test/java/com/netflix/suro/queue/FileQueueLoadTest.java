@@ -1,13 +1,11 @@
 package com.netflix.suro.queue;
 
 import com.netflix.suro.message.StringSerDe;
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Queue;
@@ -23,8 +21,8 @@ import static org.junit.Assert.*;
 
 @Ignore
 public class FileQueueLoadTest {
-
-    private static String testDir = "/tmp/filequeue/load";
+    @Rule
+    public TemporaryFolder tempDir = new TemporaryFolder();
     private static FileBlockingQueue<String> bigQueue;
 
     // configurable parameters
@@ -43,12 +41,6 @@ public class FileQueueLoadTest {
 
     private static class Result {
         Status status;
-    }
-
-    @Before
-    @After
-    public void clean() throws IOException {
-        FileUtils.deleteDirectory(new File(testDir));
     }
 
     private static final AtomicInteger producingItemCount = new AtomicInteger(0);
@@ -160,7 +152,7 @@ public class FileQueueLoadTest {
     }
 
     private void createQueue() throws IOException {
-        bigQueue = new FileBlockingQueue<String>(testDir, "load_test", 1, new StringSerDe(), true);
+        bigQueue = new FileBlockingQueue<String>(tempDir.newFolder().getAbsolutePath(), "load_test", 1, new StringSerDe(), true);
     }
 
     public void doRunProduceThenConsume() throws Exception {
