@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.netflix.config.DynamicStringProperty;
 import com.netflix.governator.annotations.Configuration;
-import com.netflix.suro.routing.DynamicPropertyRoutingMapConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +19,7 @@ import java.util.Map;
  * @author elandau
  */
 public class DynamicPropertySinkConfigurator {
-    private static final Logger log = LoggerFactory.getLogger(DynamicPropertyRoutingMapConfigurator.class);
+    private static final Logger log = LoggerFactory.getLogger(DynamicPropertySinkConfigurator.class);
 
     public static final String SINK_PROPERTY = "SuroServer.sinkConfig";
 

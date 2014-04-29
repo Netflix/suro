@@ -108,6 +108,7 @@ project(':suro-server') {
     compile 'com.sun.jersey.contribs:jersey-guice:1.11'
     compile 'com.sun.jersey:jersey-bundle:1.11'
     compile 'com.amazonaws:aws-java-sdk:1.4.7'
+    compile 'javax.servlet:servlet-api:2.5'
 
     compile 'commons-cli:commons-cli:1.2'
     
