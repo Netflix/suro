@@ -1,7 +1,9 @@
 package com.netflix.suro.sink;
 
 import com.netflix.suro.SuroPlugin;
+import com.netflix.suro.message.Message;
 import com.netflix.suro.sink.kafka.KafkaSink;
+import com.netflix.suro.sink.kafka.SuroKeyedMessage;
 import com.netflix.suro.sink.localfile.LocalFileSink;
 import com.netflix.suro.sink.notice.LogNotice;
 import com.netflix.suro.sink.notice.NoNotice;
@@ -23,6 +25,7 @@ public class ServerSinkPlugin extends SuroPlugin {
         this.addSinkType(LocalFileSink.TYPE, LocalFileSink.class);
 
         this.addSinkType(KafkaSink.TYPE, KafkaSink.class);
+        Message.classMap.put((byte) 1, SuroKeyedMessage.class);
 
         this.addSinkType(S3FileSink.TYPE, S3FileSink.class);
         this.addSinkType(HdfsFileSink.TYPE, HdfsFileSink.class);
