@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.queue.MemoryQueue4Sink;
@@ -93,6 +94,8 @@ public class KafkaSink extends QueuedSink implements Sink {
 
         producer = new Producer<Long, byte[]>(new ProducerConfig(props));
         KafkaMetricsReporter$.MODULE$.startReporters(new VerifiableProperties(props));
+
+        Monitors.registerObject(KafkaSink.class.getSimpleName() + "-" + clientId, this);
     }
 
     @Override
