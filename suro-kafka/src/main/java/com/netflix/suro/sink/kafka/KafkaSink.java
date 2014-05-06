@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+import com.netflix.servo.annotations.DataSourceType;
+import com.netflix.servo.annotations.Monitor;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
@@ -24,6 +26,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Kafka 0.8 Sink
@@ -39,6 +44,15 @@ public class KafkaSink extends QueuedSink implements Sink {
     private final Producer<Long, byte[]> producer;
     private long msgId = 0;
 
+    private final ThreadPoolExecutor senders;
+    private final ArrayBlockingQueue<Runnable> jobQueue;
+    private final long jobTimeout;
+
+    @Monitor(name = "jobQueueSize", type = DataSourceType.GAUGE)
+    public long getQueueSize() {
+        return jobQueue.size();
+    }
+
     @JsonCreator
     public KafkaSink(
             @JsonProperty("queue4Sink") MessageQueue4Sink queue4Sink,
@@ -53,7 +67,11 @@ public class KafkaSink extends QueuedSink implements Sink {
             @JsonProperty("message.send.max.retries") int maxRetries,
             @JsonProperty("retry.backoff.ms") int retryBackoff,
             @JsonProperty("kafka.etc") Properties etcProps,
-            @JsonProperty("keyTopicMap") Map<String, String> keyTopicMap
+            @JsonProperty("keyTopicMap") Map<String, String> keyTopicMap,
+            @JsonProperty("jobQueueSize") int jobQueueSize,
+            @JsonProperty("corePoolSize") int corePoolSize,
+            @JsonProperty("maxPoolSize") int maxPoolSize,
+            @JsonProperty("jobTimeout") long jobTimeout
     ) {
         Preconditions.checkNotNull(brokerList);
         Preconditions.checkNotNull(acks);
@@ -61,6 +79,24 @@ public class KafkaSink extends QueuedSink implements Sink {
 
         this.clientId = clientId;
         initialize(queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+
+        jobQueue = new ArrayBlockingQueue<Runnable>(jobQueueSize == 0 ? 1000 : jobQueueSize) {
+            @Override
+            public boolean offer(Runnable runnable) {
+                try {
+                    put(runnable); // not to reject the task, slowing down
+                } catch (InterruptedException e) {
+                    // do nothing
+                }
+                return true;
+            }
+        };
+        senders = new ThreadPoolExecutor(
+                corePoolSize == 0 ? 3 : corePoolSize,
+                maxPoolSize == 0 ? 10 : maxPoolSize,
+                10, TimeUnit.SECONDS,
+                jobQueue);
+        this.jobTimeout = jobTimeout;
 
         Properties props = new Properties();
         props.put("client.id", clientId);
@@ -132,6 +168,16 @@ public class KafkaSink extends QueuedSink implements Sink {
 
     @Override
     protected void innerClose() throws IOException {
+        senders.shutdown();
+        try {
+            senders.awaitTermination(jobTimeout == 0 ? Long.MAX_VALUE : jobTimeout, TimeUnit.MILLISECONDS);
+            if (!senders.isTerminated()) {
+                log.error("KafkaSink not terminated gracefully");
+            }
+        } catch (InterruptedException e) {
+            log.error("Interrupted: " + e.getMessage());
+        }
+
         producer.close();
     }
 
@@ -156,8 +202,8 @@ public class KafkaSink extends QueuedSink implements Sink {
         return sb.toString();
     }
 
-    private List<KeyedMessage<Long, byte[]>> kafkaMsgList = new ArrayList<KeyedMessage<Long, byte[]>>();
-    protected void send(List<Message> msgList) {
+    protected void send(final List<Message> msgList) {
+        final List<KeyedMessage<Long, byte[]>> kafkaMsgList = new ArrayList<KeyedMessage<Long, byte[]>>();
         for (Message m : msgList) {
             SuroKeyedMessage keyedMessage = (SuroKeyedMessage) m;
             kafkaMsgList.add(new KeyedMessage<Long, byte[]>(
@@ -166,7 +212,11 @@ public class KafkaSink extends QueuedSink implements Sink {
                     keyedMessage.getPayload()));
         }
 
-        producer.send(kafkaMsgList);
-        kafkaMsgList.clear();
+        senders.submit(new Runnable() {
+            @Override
+            public void run() {
+                producer.send(kafkaMsgList);
+            }
+        });
     }
 }
