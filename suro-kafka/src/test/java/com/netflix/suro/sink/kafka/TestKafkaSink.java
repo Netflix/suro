@@ -49,6 +49,7 @@ public class TestKafkaSink {
             .around(kafkaServer);
 
     private static final String TOPIC_NAME = "routingKey";
+    private static final String TOPIC_NAME_MULTITHREAD = "routingKeyMultithread";
     private static final String TOPIC_NAME_PARTITION_BY_KEY = "routingKey_partitionByKey";
 
     @Test
@@ -94,6 +95,56 @@ public class TestKafkaSink {
 
         assertEquals(new String(extractMessage(messageSet, 0)), "testMessage" + 0);
         assertEquals(new String(extractMessage(messageSet, 1)), "testMessage" + 1);
+    }
+
+    @Test
+    public void testMultithread() throws IOException {
+        TopicCommand.createTopic(zk.getZkClient(),
+                new TopicCommand.TopicCommandOptions(new String[]{
+                        "--zookeeper", "dummy", "--create", "--topic", TOPIC_NAME_MULTITHREAD,
+                        "--replication-factor", "2", "--partitions", "1"}));
+        String description = "{\n" +
+                "    \"type\": \"kafka\",\n" +
+                "    \"client.id\": \"kafkasink\",\n" +
+                "    \"metadata.broker.list\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
+                "    \"request.required.acks\": 1,\n" +
+                "    \"batchSize\": 10,\n" +
+                "    \"jobQueueSize\": 3\n" +
+                "}";
+
+        ObjectMapper jsonMapper = new DefaultObjectMapper();
+        jsonMapper.registerSubtypes(new NamedType(KafkaSink.class, "kafka"));
+        KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
+        sink.open();
+        int msgCount = 10000;
+        for (int i = 0; i < msgCount; ++i) {
+            Map<String, Object> msgMap = new ImmutableMap.Builder<String, Object>()
+                    .put("key", Integer.toString(i))
+                    .put("value", "message:" + i).build();
+            sink.writeTo(new DefaultMessageContainer(
+                    new Message(TOPIC_NAME_MULTITHREAD, jsonMapper.writeValueAsBytes(msgMap)),
+                    jsonMapper));
+        }
+        sink.close();
+        System.out.println(sink.getStat());
+
+        ConsumerConnector consumer = kafka.consumer.Consumer.createJavaConsumerConnector(
+                createConsumerConfig("localhost:" + zk.getServerPort(), "gropuid_multhread"));
+        Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
+        topicCountMap.put(TOPIC_NAME_MULTITHREAD, 1);
+        Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
+        KafkaStream<byte[], byte[]> stream = consumerMap.get(TOPIC_NAME_MULTITHREAD).get(0);
+        for (int i = 0; i < msgCount; ++i) {
+            stream.iterator().next();
+        }
+
+        try {
+            stream.iterator().next();
+            fail();
+        } catch (ConsumerTimeoutException e) {
+            //this is expected
+            consumer.shutdown();
+        }
     }
 
     @Test
