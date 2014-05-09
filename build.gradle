@@ -8,6 +8,17 @@ buildscript {
     apply from: file('gradle/buildscript.gradle'), to: buildscript 
 }
 
+if (JavaVersion.current().isJava8Compatible()) {
+    allprojects {
+        //noinspection SpellCheckingInspection
+        tasks.withType(Javadoc) {
+            // disable the crazy super-strict doclint tool in Java 8
+            //noinspection SpellCheckingInspection
+            options.addStringOption('Xdoclint:none', '-quiet')
+        }
+    }
+}
+
 allprojects {
     repositories { 
       mavenCentral()
