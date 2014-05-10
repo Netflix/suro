@@ -16,6 +16,7 @@
 
 package com.netflix.suro.connection;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
@@ -156,7 +157,8 @@ public class ConnectionPool {
                 TimeUnit.SECONDS);
     }
 
-    private void addConnection(Server server, SuroConnection connection, boolean inPool) {
+    @VisibleForTesting
+    protected void addConnection(Server server, SuroConnection connection, boolean inPool) {
         if (inPool) {
             connectionPool.put(server, connection);
             if (populationLatch.getCount() > 0) {
