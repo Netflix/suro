@@ -29,6 +29,7 @@ import com.netflix.suro.connection.StaticLoadBalancer;
 import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.message.Message;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -46,9 +47,12 @@ public class TestAsyncSuroClient {
     private Injector injector;
     private List<SuroServer4Test> servers;
 
-    private void setupMemory(final Properties props) throws Exception {
-        servers = TestConnectionPool.startServers(3, 8100);
+    @Before
+    public void setup() throws Exception {
+        servers = TestConnectionPool.startServers(3);
+    }
 
+    private void setupMemory(final Properties props) throws Exception {
         injector = LifecycleInjector.builder()
                 .withBootstrapModule(new BootstrapModule() {
                     @Override
@@ -61,9 +65,9 @@ public class TestAsyncSuroClient {
     }
 
     private void setupFile(final Properties props) throws Exception {
-        servers = TestConnectionPool.startServers(3, 8100);
+        servers = TestConnectionPool.startServers(3);
 
-        props.put(ClientConfig.LB_SERVER, "localhost:8100,localhost:8101,localhost:8102");
+        props.put(ClientConfig.LB_SERVER, TestConnectionPool.createConnectionString(servers));
         props.put(ClientConfig.ASYNC_FILEQUEUE_PATH, tempDir.newFolder().getAbsolutePath());
         props.put(ClientConfig.ASYNC_QUEUE_TYPE, "file");
 
@@ -88,7 +92,7 @@ public class TestAsyncSuroClient {
     @Test
     public void testMemory() throws Exception {
         Properties props = new Properties();
-        props.put(ClientConfig.LB_SERVER, "localhost:8101,localhost:8102,localhost:8100");
+        props.put(ClientConfig.LB_SERVER, TestConnectionPool.createConnectionString(servers));
 
         setupMemory(props);
 
