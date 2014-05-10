@@ -5,12 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.SuroServer4Test;
 import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.StringMessage;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -25,7 +23,7 @@ public class TestClientSuroSink {
 
     @Before
     public void setup() throws Exception {
-        servers = TestConnectionPool.startServers(3, 9200);
+        servers = TestConnectionPool.startServers(3);
     }
 
     @After
@@ -38,7 +36,7 @@ public class TestClientSuroSink {
         String desc = "{\n" +
                 "  \"type\":\"suro\",\n" +
                 "  \"properties\": {\n" +
-                "    \"SuroClient.loadBalancerServer\":\"localhost:9200,localhost:9201,localhost:9202\",\n" +
+                "    \"SuroClient.loadBalancerServer\":\"" + TestConnectionPool.createConnectionString(servers) + "\",\n" +
                 "    \"SuroClient.loadBalancerType\":\"static\",\n" +
                 "    \"SuroClient.clientType\":\"sync\"\n" +
                 "  }\n" +
