@@ -16,6 +16,7 @@
 
 package com.netflix.suro.connection;
 
+import com.google.common.base.Joiner;
 import com.google.inject.Injector;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
@@ -34,6 +35,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -41,8 +45,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.assertEquals;
+import static junit.framework.Assert.assertFalse;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -54,11 +59,11 @@ public class TestConnectionPool {
 
     @Before
     public void setup() throws Exception {
-        servers = startServers(3, 8300);
+        servers = startServers(3);
     }
 
     private void createInjector() throws Exception {
-        props.put(ClientConfig.LB_SERVER, "localhost:8300,localhost:8301,localhost:8302");
+        props.put(ClientConfig.LB_SERVER, createConnectionString(servers));
 
         injector = LifecycleInjector.builder()
                 .withBootstrapModule(new BootstrapModule() {
@@ -80,15 +85,31 @@ public class TestConnectionPool {
         props.clear();
     }
 
-    public static List<SuroServer4Test> startServers(int count, int startPort) throws Exception {
+    public static List<SuroServer4Test> startServers(int count) throws Exception {
         List<SuroServer4Test> collectors = new LinkedList<SuroServer4Test>();
         for (int i = 0; i < count; ++i) {
-            SuroServer4Test c = new SuroServer4Test(startPort + i);
+            SuroServer4Test c = new SuroServer4Test(pickPort());
             c.start();
             collectors.add(c);
         }
 
         return collectors;
+    }
+
+    public static int pickPort() throws IOException {
+        ServerSocket s = new ServerSocket(0);
+        int port = s.getLocalPort();
+        s.close();
+        return port;
+    }
+
+    public static String createConnectionString(List<SuroServer4Test> servers) {
+        List<String> addrList = new ArrayList<String>();
+        for (SuroServer4Test c : servers) {
+            addrList.add("localhost:" + c.getPort());
+        }
+
+        return Joiner.on(',').join(addrList);
     }
 
     public static void shutdownServers(List<SuroServer4Test> servers) {
@@ -280,9 +301,9 @@ public class TestConnectionPool {
 
         ILoadBalancer lb = mock(ILoadBalancer.class);
         List<Server> servers = new LinkedList<Server>();
-        servers.add(new Server("localhost", 8300));
-        servers.add(new Server("localhost", 8301));
-        servers.add(new Server("localhost", 8302));
+        for (SuroServer4Test suroServer4Test : this.servers) {
+            servers.add(new Server("localhost", suroServer4Test.getPort()));
+        }
         when(lb.getServerList(true)).thenReturn(servers);
 
         ConnectionPool pool = new ConnectionPool(injector.getInstance(ClientConfig.class), lb);
@@ -303,12 +324,63 @@ public class TestConnectionPool {
 
         ILoadBalancer lb = mock(ILoadBalancer.class);
         List<Server> servers = new LinkedList<Server>();
-        servers.add(new Server("localhost", 8300));
-        servers.add(new Server("localhost", 8301));
-        servers.add(new Server("localhost", 8302));
+        for (SuroServer4Test suroServer4Test : this.servers) {
+            servers.add(new Server("localhost", suroServer4Test.getPort()));
+        }
         when(lb.getServerList(true)).thenReturn(servers);
 
         ConnectionPool pool = new ConnectionPool(injector.getInstance(ClientConfig.class), lb);
         assertEquals(pool.getPoolSize(), 3);
+    }
+
+    @Test
+    public void shouldNotConcurrentModificationException() throws Exception {
+        createInjector();
+
+        final ConnectionPool pool = injector.getInstance(ConnectionPool.class);
+
+        final AtomicBoolean exceptionHappened = new AtomicBoolean(false);
+        ExecutorService executors = Executors.newFixedThreadPool(3);
+        executors.execute(new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < 100; ++i) {
+                    for (SuroServer4Test server : servers) {
+                        try {
+                            Server s = new Server("localhost", server.getPort());
+                            ConnectionPool.SuroConnection client = new ConnectionPool.SuroConnection(s, new ClientConfig(), true);
+                            client.connect();
+
+                            pool.addConnection(s, client, true);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            exceptionHappened.set(true);
+                        }
+                    }
+                }
+            }
+        });
+        executors.execute(new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < 100; ++i) {
+                    for (SuroServer4Test server : servers) {
+                        try {
+                            Server s = new Server("localhost", server.getPort());
+                            ConnectionPool.SuroConnection client = new ConnectionPool.SuroConnection(s, new ClientConfig(), true);
+                            pool.markServerDown(client);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            exceptionHappened.set(true);
+                        }
+                    }
+                }
+            }
+        });
+
+        executors.shutdown();
+        executors.awaitTermination(10, TimeUnit.SECONDS);
+
+        assertFalse(exceptionHappened.get());
     }
 }

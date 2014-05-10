@@ -46,12 +46,14 @@ public class TestConnectionOutPool {
 
     @Test
     public void testOutPool() throws Exception {
-        props.put(ClientConfig.LB_SERVER, "localhost:8900");
+        servers = TestConnectionPool.startServers(1);
+
+        props.put(ClientConfig.LB_SERVER, TestConnectionPool.createConnectionString(servers));
         props.setProperty(ClientConfig.MINIMUM_RECONNECT_TIME_INTERVAL, "0");
         props.setProperty(ClientConfig.RECONNECT_INTERVAL, "0");
         props.setProperty(ClientConfig.RECONNECT_TIME_INTERVAL, "0");
 
-        servers = TestConnectionPool.startServers(1, 8900);
+
 
         injector = LifecycleInjector.builder()
                 .withBootstrapModule(new BootstrapModule() {

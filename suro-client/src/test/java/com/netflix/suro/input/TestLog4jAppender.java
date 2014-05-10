@@ -21,7 +21,6 @@ import com.netflix.suro.SuroServer4Test;
 import com.netflix.suro.client.SuroClient;
 import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.queue.TestFileBlockingQueue;
 import org.apache.log4j.Level;
 import org.apache.log4j.spi.LoggingEvent;
 import org.junit.After;
@@ -45,16 +44,16 @@ public class TestLog4jAppender {
 
     public static final int DEFAULT_WAIT_INTERVAL = 20;
     private Log4jAppender appender = new Log4jAppender();
-    private List<SuroServer4Test> collectors;
+    private List<SuroServer4Test> servers;
 
     @Before
     public void setup() throws Exception {
-        collectors = TestConnectionPool.startServers(1, 8500);
+        servers = TestConnectionPool.startServers(1);
     }
 
     @After
     public void clean() {
-        TestConnectionPool.shutdownServers(collectors);
+        TestConnectionPool.shutdownServers(servers);
     }
 
     private void sleepThrough(long millis) {
@@ -95,7 +94,7 @@ public class TestLog4jAppender {
     @Test
     public void testMemory() throws Exception {
         appender.setLoadBalancerType("static");
-        appender.setLoadBalancerServer("localhost:8500");
+        appender.setLoadBalancerServer(TestConnectionPool.createConnectionString(servers));
         appender.activateOptions();
 
         LoggingEvent event = mock(LoggingEvent.class);
@@ -123,7 +122,7 @@ public class TestLog4jAppender {
         appender.setAsyncQueueType("file");
         appender.setAsyncFileQueuePath(tempDir.newFolder().getAbsolutePath());
         appender.setLoadBalancerType("static");
-        appender.setLoadBalancerServer("localhost:8500");
+        appender.setLoadBalancerServer(TestConnectionPool.createConnectionString(servers));
         appender.activateOptions();
 
         LoggingEvent event = mock(LoggingEvent.class);
@@ -148,7 +147,7 @@ public class TestLog4jAppender {
         appender.setFormatterClass("com.netflix.suro.input.StaticLog4jFormatter");
 
         appender.setLoadBalancerType("static");
-        appender.setLoadBalancerServer("localhost:8500");
+        appender.setLoadBalancerServer(TestConnectionPool.createConnectionString(servers));
         appender.setClientType("sync");
         appender.setRoutingKey("testRoutingKey");
         appender.activateOptions();
