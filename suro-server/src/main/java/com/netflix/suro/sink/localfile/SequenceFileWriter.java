@@ -64,7 +64,7 @@ public class SequenceFileWriter implements FileWriter {
     @Override
     public void writeTo(Message message) throws IOException {
         routingKey.set(message.getRoutingKey());
-        seqFileWriter.append(routingKey, message);
+        seqFileWriter.append(routingKey, new MessageWritable(message));
     }
 
     @Override
