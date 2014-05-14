@@ -30,18 +30,15 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /**
  *
  */
 public class TestLog4JAppenderWithLog4JConfig {
-    private final static Logger LOG = Logger.getLogger(TestLog4JAppenderWithLog4JConfig.class.getName());
+    private final static Logger LOG = Logger.getLogger(TestLog4JAppenderWithLog4JConfig.class);
     public static final int DEFAULT_WAIT_INTERVAL = 20;
 
-
     private List<SuroServer4Test> servers;
-
 
     @Before
     public void setup() throws Exception {
@@ -67,11 +64,6 @@ public class TestLog4JAppenderWithLog4JConfig {
 
     @Test
     public void testAllMessagesWillBeDeliveredInSeparatedMessageSet() {
-        Logger root = Logger.getRootLogger();
-        if (!root.getAllAppenders().hasMoreElements()) {
-            fail("No log4j appender is instantiated!");
-        }
-
         Map<String, String> message = new HashMap<String, String>();
         message.put(TagKey.ROUTING_KEY, "routing_key_1");
         message.put("data", "test");

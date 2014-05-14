@@ -72,10 +72,10 @@ public class TestSequenceFileWriter {
                     new Message("routingKey", ("message0" + i).getBytes()));
         }
         System.out.println("length: " + writer.getLength());
-        assertEquals(writer.getLength(), 525);
+        assertEquals(writer.getLength(), 540);
 
         writer.rotate(dir + "testfile1.suro");
-        assertEquals(writer.getLength(), 85); // empty sequence file length
+        assertEquals(writer.getLength(), 100); // empty sequence file length
         assertEquals(checkFileContents(dir + "testfile0.suro", "message0"), 10);
 
         writer.setDone(dir + "testfile0.suro", dir + "testfile0.done");
@@ -97,13 +97,13 @@ public class TestSequenceFileWriter {
                 new Configuration());
 
         Text routingKey = new Text();
-        Message value = new Message();
+        MessageWritable value = new MessageWritable();
         StringSerDe serde = new StringSerDe();
 
         int i = 0;
         while (r.next(routingKey, value)) {
             assertEquals(routingKey.toString(), "routingKey");
-            assertEquals(serde.deserialize(value.getPayload()), message + i);
+            assertEquals(serde.deserialize(value.getMessage().getPayload()), message + i);
             ++i;
         }
         r.close();
