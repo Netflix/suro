@@ -98,9 +98,9 @@ project(':suro-core') {
 project(':suro-client') {
   dependencies {
     compile project(':suro-core')
-    compile project(':suro-kafka')
 
     testCompile project(':suro-core').sourceSets.test.output
+    testCompile project(':suro-kafka')
   }
 }
 
