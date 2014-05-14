@@ -22,11 +22,21 @@ public class SequenceFileViewer {
 
         SequenceFile.Reader r = new SequenceFile.Reader(fs, new Path(args[0]), conf);
         Text routingKey = new Text();
-        Message message = new Message();
 
-        while (r.next(routingKey, message)) {
-            System.out.println("###routing key: " + routingKey);
-            System.out.println(SerDeFactory.create(args[1]).deserialize(message.getPayload()));
+        if (r.getValueClass().equals(Message.class)) {
+            Message message = new Message();
+
+            while (r.next(routingKey, message)) {
+                System.out.println("###routing key: " + routingKey);
+                System.out.println(SerDeFactory.create(args[1]).deserialize(message.getPayload()));
+            }
+        } else {
+            MessageWritable message = new MessageWritable();
+
+            while (r.next(routingKey, message)) {
+                System.out.println("###routing key: " + routingKey);
+                System.out.println(SerDeFactory.create(args[1]).deserialize(message.getMessage().getPayload()));
+            }
         }
 
         r.close();

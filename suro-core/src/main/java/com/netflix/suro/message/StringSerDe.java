@@ -16,8 +16,6 @@
 
 package com.netflix.suro.message;
 
-import com.netflix.suro.message.SerDe;
-
 public class StringSerDe implements SerDe<String> {
     @Override
     public String deserialize(byte[] message) {
