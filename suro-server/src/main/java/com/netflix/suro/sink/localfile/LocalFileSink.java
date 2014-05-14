@@ -106,9 +106,9 @@ public class LocalFileSink extends QueuedSink implements Sink {
 
         this.outputDir = outputDir;
         this.writer = writer == null ? new TextFileWriter(null) : writer;
-        this.maxFileSize = maxFileSize == 0 ? 100 * 1024 * 1024 : maxFileSize;
-        this.rotationPeriod = new Period(rotationPeriod == null ? "PT1m" : rotationPeriod);
-        this.minPercentFreeDisk = minPercentFreeDisk == 0 ? 50 : minPercentFreeDisk;
+        this.maxFileSize = maxFileSize == 0 ? 200 * 1024 * 1024 : maxFileSize;
+        this.rotationPeriod = new Period(rotationPeriod == null ? "PT2m" : rotationPeriod);
+        this.minPercentFreeDisk = minPercentFreeDisk == 0 ? 85 : minPercentFreeDisk;
         this.notice = notice == null ? new QueueNotice<String>() : notice;
         this.messageSetProcessorManager = messageSetProcessorManager;
         this.spaceChecker = spaceChecker;
