@@ -47,8 +47,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static junit.framework.Assert.assertFalse;
-import static org.junit.Assert.*;
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -294,7 +295,7 @@ public class TestConnectionPool {
     }
 
     @Test
-    public void testPopulation() throws Exception {
+    public void shouldBePopulatedWithNumberOfServersOnLessSenderThreads() throws Exception {
         props.setProperty(ClientConfig.ASYNC_SENDER_THREADS, "1");
 
         createInjector();
@@ -317,7 +318,7 @@ public class TestConnectionPool {
     }
 
     @Test
-    public void testPopulation2() throws Exception {
+    public void shouldBePopulatedWithNumberOfServersOnMoreSenderThreads() throws Exception {
         props.setProperty(ClientConfig.ASYNC_SENDER_THREADS, "10");
 
         createInjector();
@@ -331,5 +332,32 @@ public class TestConnectionPool {
 
         ConnectionPool pool = new ConnectionPool(injector.getInstance(ClientConfig.class), lb);
         assertEquals(pool.getPoolSize(), 3);
+    }
+
+    @Test
+    public void shouldPopulationFinishedOnTimeout() throws Exception {
+        shutdownServers(servers);
+
+        createInjector();
+
+        final ILoadBalancer lb = mock(ILoadBalancer.class);
+        List<Server> servers = new LinkedList<Server>();
+        for (SuroServer4Test suroServer4Test : this.servers) {
+            servers.add(new Server("localhost", suroServer4Test.getPort()));
+        }
+        when(lb.getServerList(true)).thenReturn(servers);
+
+        final AtomicBoolean passed = new AtomicBoolean(false);
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                ConnectionPool pool = new ConnectionPool(injector.getInstance(ClientConfig.class), lb);
+                assertEquals(pool.getPoolSize(), 0);
+                passed.set(true);
+            }
+        });
+        t.start();
+        t.join((servers.size() + 1) * injector.getInstance(ClientConfig.class).getConnectionTimeout());
+        assertTrue(passed.get());
     }
 }

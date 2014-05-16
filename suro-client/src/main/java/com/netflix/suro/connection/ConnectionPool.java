@@ -93,7 +93,7 @@ public class ConnectionPool {
             };
         });
         try {
-            populationLatch.await();
+            populationLatch.await(populationLatch.getCount() * config.getConnectionTimeout(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             logger.error("Exception on CountDownLatch awaitin: " + e.getMessage(), e);
         }
