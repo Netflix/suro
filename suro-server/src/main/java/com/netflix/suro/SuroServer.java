@@ -62,8 +62,8 @@ public class SuroServer {
             if (line.hasOption('p')) {
                 properties.load(new FileInputStream(line.getOptionValue('p')));
             }
-            if (line.hasOption("port")) {
-                properties.setProperty(PROP_PREFIX + "port", line.getOptionValue("port"));
+            if (line.hasOption('P')) {
+                properties.setProperty(PROP_PREFIX + "port", line.getOptionValue('P'));
             }
             // Bind all command line options to the properties with prefix "SuroServer."
             for (Option opt : line.getOptions()) {
@@ -160,6 +160,12 @@ public class SuroServer {
                 .withDescription("sink")
                 .create('s');
 
+        Option serverPort = OptionBuilder.withArgName("port")
+                .hasArg()
+                .isRequired(true)
+                .withDescription("Server Port")
+                .create('P');
+
         Option accessKey = OptionBuilder.withArgName("AWSAccessKey" )
                 .hasArg()
                 .isRequired(false)
@@ -182,6 +188,7 @@ public class SuroServer {
         options.addOption(propertyFile);
         options.addOption(mapFile);
         options.addOption(sinkFile);
+        options.addOption(serverPort);
         options.addOption(accessKey);
         options.addOption(secretKey);
         options.addOption(controlPort);
