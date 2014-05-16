@@ -8,6 +8,7 @@ import com.netflix.governator.guice.lazy.LazySingletonScope;
 import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.suro.client.async.AsyncSuroClient;
 import com.netflix.suro.connection.EurekaLoadBalancer;
+import com.netflix.suro.connection.MarathonLoadBalancer;
 import com.netflix.suro.connection.StaticLoadBalancer;
 
 @Singleton
@@ -16,6 +17,7 @@ public class SuroClientModule extends AbstractModule {
     protected void configure() {
         MapBinder<String, ILoadBalancer> loadBalancers = MapBinder.newMapBinder(binder(), String.class, ILoadBalancer.class);
         loadBalancers.addBinding("eureka").to(EurekaLoadBalancer.class);
+        loadBalancers.addBinding("marathon").to(MarathonLoadBalancer.class);
         loadBalancers.addBinding("static").to(StaticLoadBalancer.class);
         
         MapBinder<String, ISuroClient> clientImpls = MapBinder.newMapBinder(binder(), String.class, ISuroClient.class);

@@ -99,6 +99,8 @@ project(':suro-client') {
   dependencies {
     compile project(':suro-core')
 
+    compile 'com.github.mohitsoni:marathon-client:0.4.0'
+
     testCompile project(':suro-core').sourceSets.test.output
     testCompile project(':suro-kafka')
   }
