@@ -38,7 +38,7 @@ import javax.ws.rs.Produces;
  *
  * @author jbae
  */
-@Path("/healthcheck")
+@Path("/surohealthcheck")
 @Singleton
 public class HealthCheck {
     private static final Logger log = LoggerFactory.getLogger(HealthCheck.class);
