@@ -25,7 +25,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 
 @Singleton
-@Path("/sinkstat")
+@Path("/surosinkstat")
 public class SinkStat {
     private final SinkManager sinkManager;
 
