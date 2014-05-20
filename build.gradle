@@ -193,6 +193,6 @@ project(':suro-localfile') {
 
         compile project(':suro-client')
 
-        testCompile project(':suro-client')
+        testCompile project(':suro-client').sourceSets.test.output
     }
 }
