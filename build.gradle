@@ -183,7 +183,7 @@ project(':suro-s3') {
         compile 'net.java.dev.jets3t:jets3t:0.9.0'
         compile 'com.amazonaws:aws-java-sdk:1.4.7'
 
-        testCompile project(':suro-client')
+        testCompile project(':suro-client').sourceSets.test.output
     }
 }
 
