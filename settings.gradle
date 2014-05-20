@@ -1,2 +1,2 @@
 rootProject.name='suro'
-include 'suro-core', 'suro-client', 'suro-server', 'suro-integration-test', 'suro-kafka'
+include 'suro-core', 'suro-client', 'suro-server', 'suro-integration-test', 'suro-kafka', 'suro-s3', 'suro-localfile'
