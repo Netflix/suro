@@ -42,13 +42,13 @@ public interface FileWriter {
      * {@link FileNameFormatter}
      *
      * @param outputDir the directory where the file is located
-     * @throws IOException
+     * @throws java.io.IOException
      */
     void open(String outputDir) throws IOException;
 
     /**
      * @return the file length
-     * @throws IOException
+     * @throws java.io.IOException
      */
     long getLength() throws IOException;
     void writeTo(Message message) throws IOException;
@@ -56,7 +56,7 @@ public interface FileWriter {
     /**
      * Flush all data to the disk
      *
-     * @throws IOException
+     * @throws java.io.IOException
      */
     void sync() throws IOException;
 
@@ -64,7 +64,7 @@ public interface FileWriter {
      * Close the current file, create and open the new file.
      *
      * @param newPath The path that points to the newly rotated file.
-     * @throws IOException
+     * @throws java.io.IOException
      */
     void rotate(String newPath) throws IOException;
     FileSystem getFS();
@@ -77,7 +77,7 @@ public interface FileWriter {
      *
      * @param oldName The name of the file when it is not done.
      * @param newName The new name of the file after is is marked as done.
-     * @throws IOException
+     * @throws java.io.IOException
      */
     void setDone(String oldName, String newName) throws IOException;
 }

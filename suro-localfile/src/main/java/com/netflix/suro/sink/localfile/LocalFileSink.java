@@ -30,7 +30,7 @@ import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.sink.notice.QueueNotice;
 import com.netflix.suro.sink.notice.Notice;
-import com.netflix.suro.queue.MessageSetProcessorManager;
+import com.netflix.suro.queue.TrafficController;
 import com.netflix.suro.sink.QueuedSink;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.queue.MemoryQueue4Sink;
@@ -51,8 +51,8 @@ import java.util.List;
 /**
  * LocalFileSink appends messages to the file in local file system and rotates
  * the file when the file size reaches to the threshold or in the regular basis
- * whenever it comes earlier. When {@link SpaceChecker} checks not enough disk
- * space, it triggers {@link com.netflix.suro.queue.MessageSetProcessorManager} not to take the traffic anymore.
+ * whenever it comes earlier. When {@link com.netflix.suro.sink.localfile.LocalFileSink.SpaceChecker} checks not enough disk
+ * space, it triggers {@link com.netflix.suro.queue.TrafficController} not to take the traffic anymore.
  *
  * @author jbae
  */
@@ -71,7 +71,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
     private final int minPercentFreeDisk;
     private final Notice<String> notice;
 
-    private MessageSetProcessorManager messageSetProcessorManager;
+    private TrafficController trafficController;
     private SpaceChecker spaceChecker;
 
     private String filePath;
@@ -97,7 +97,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
             @JsonProperty("queue4Sink") MessageQueue4Sink queue4Sink,
             @JsonProperty("batchSize") int batchSize,
             @JsonProperty("batchTimeout") int batchTimeout,
-            @JacksonInject("queueManager") MessageSetProcessorManager messageSetProcessorManager,
+            @JacksonInject("queueManager") TrafficController trafficController,
             @JacksonInject("spaceChecker") SpaceChecker spaceChecker) {
         if (!outputDir.endsWith("/")) {
             outputDir += "/";
@@ -110,7 +110,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
         this.rotationPeriod = new Period(rotationPeriod == null ? "PT2m" : rotationPeriod);
         this.minPercentFreeDisk = minPercentFreeDisk == 0 ? 85 : minPercentFreeDisk;
         this.notice = notice == null ? new QueueNotice<String>() : notice;
-        this.messageSetProcessorManager = messageSetProcessorManager;
+        this.trafficController = trafficController;
         this.spaceChecker = spaceChecker;
 
         Monitors.registerObject(LocalFileSink.class.getSimpleName() + "-" + outputDir.replace('/', '_'), this);
@@ -127,8 +127,23 @@ public class LocalFileSink extends QueuedSink implements Sink {
             if (spaceChecker == null) {
                 spaceChecker = new SpaceChecker(minPercentFreeDisk, outputDir);
             }
-            if (messageSetProcessorManager == null) {
-                messageSetProcessorManager = new MessageSetProcessorManager();
+            if (trafficController == null) {
+                trafficController = new TrafficController() {
+                    @Override
+                    public void stopTakingTraffic() {
+
+                    }
+
+                    @Override
+                    public void startTakingTraffic() {
+
+                    }
+
+                    @Override
+                    public int getStatus() {
+                        return 0;
+                    }
+                };
             }
 
             notice.init();
@@ -191,9 +206,9 @@ public class LocalFileSink extends QueuedSink implements Sink {
         nextRotation = new DateTime().plus(rotationPeriod).getMillis();
 
         if (!spaceChecker.hasEnoughSpace()) {
-            messageSetProcessorManager.stopTakingTraffic();
+            trafficController.stopTakingTraffic();
         } else {
-            messageSetProcessorManager.startTakingTraffic();
+            trafficController.startTakingTraffic();
         }
     }
 
@@ -201,7 +216,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
      * Before polling messages from the queue, it should check whether to rotate
      * the file and start to write to new file.
      *
-     * @throws IOException
+     * @throws java.io.IOException
      */
     @Override
     protected void beforePolling() throws IOException {
@@ -218,7 +233,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
      * commit the queue and clear messages
      *
      * @param msgList
-     * @throws IOException
+     * @throws java.io.IOException
      */
     @Override
     protected void write(List<Message> msgList) throws IOException {

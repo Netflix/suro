@@ -29,20 +29,23 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.message.StringMessage;
-import com.netflix.suro.queue.MessageSetProcessor;
-import com.netflix.suro.queue.MessageSetProcessorManager;
-import com.netflix.suro.sink.ServerSinkPlugin;
+import com.netflix.suro.queue.TrafficController;
 import com.netflix.suro.sink.Sink;
-import com.netflix.suro.thrift.ServiceStatus;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -50,15 +53,34 @@ public class TestLocalFileSink {
     @Rule
     public TemporaryFolder tempDir = new TemporaryFolder();
 
+    private TrafficController trafficController = new TrafficController() {
+        int status = 200;
+
+        @Override
+        public void stopTakingTraffic() {
+            status = 503;
+        }
+
+        @Override
+        public void startTakingTraffic() {
+            status = 200;
+        }
+
+        @Override
+        public int getStatus() {
+            return status;
+        }
+    };
+
     private static Injector injector = Guice.createInjector(
-            new ServerSinkPlugin(),
-            new AbstractModule() {
-                @Override
-                protected void configure() {
-                    bind(ObjectMapper.class).to(DefaultObjectMapper.class);
-                }
+        new SuroSinkPlugin(),
+        new AbstractModule() {
+            @Override
+            protected void configure() {
+                bind(ObjectMapper.class).to(DefaultObjectMapper.class);
             }
-        );
+            }
+    );
 
     @Test
     public void testDefaultParameters() throws IOException {
@@ -75,7 +97,7 @@ public class TestLocalFileSink {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
                 if (valueId.equals("queueManager")) {
-                    return new MessageSetProcessorManager();
+                    return trafficController;
                 } else {
                     return null;
                 }
@@ -135,7 +157,7 @@ public class TestLocalFileSink {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
                 if (valueId.equals("queueManager")) {
-                    return new MessageSetProcessorManager();
+                    return trafficController;
                 } else {
                     return null;
                 }
@@ -192,9 +214,6 @@ public class TestLocalFileSink {
                 "}";
 
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
-        final MessageSetProcessorManager messageSetProcessorManager = new MessageSetProcessorManager();
-        final MessageSetProcessor queue = new MessageSetProcessor(null, null, messageSetProcessorManager, null, mapper);
-        messageSetProcessorManager.registerService(queue);
 
         final LocalFileSink.SpaceChecker spaceChecker = mock(LocalFileSink.SpaceChecker.class);
         when(spaceChecker.hasEnoughSpace()).thenReturn(false);
@@ -203,7 +222,7 @@ public class TestLocalFileSink {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
                 if (valueId.equals("queueManager")) {
-                    return messageSetProcessorManager;
+                    return trafficController;
                 } else if (valueId.equals("spaceChecker")) {
                     return spaceChecker;
                 } else {
@@ -211,16 +230,14 @@ public class TestLocalFileSink {
                 }
             }
         });
-        assertEquals(queue.getStatus(), ServiceStatus.ALIVE);
-        assertEquals(messageSetProcessorManager.getStatus(), MessageSetProcessorManager.OK);
+        assertEquals(trafficController.getStatus(), 200);
 
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
 
         Thread.sleep(1000); // wait until thread starts
 
-        assertEquals(queue.getStatus(), ServiceStatus.WARNING);
-        assertEquals(messageSetProcessorManager.getStatus(), MessageSetProcessorManager.IN_ERROR);
+        assertEquals(trafficController.getStatus(), 503);
         assertNull(sink.recvNotice());
 
         when(spaceChecker.hasEnoughSpace()).thenReturn(true);
@@ -273,7 +290,7 @@ public class TestLocalFileSink {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
                 if (valueId.equals("queueManager")) {
-                    return new MessageSetProcessorManager();
+                    return trafficController;
                 } else {
                     return null;
                 }
@@ -338,7 +355,7 @@ public class TestLocalFileSink {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
                 if (valueId.equals("queueManager")) {
-                    return new MessageSetProcessorManager();
+                    return trafficController;
                 } else {
                     return null;
                 }
@@ -409,7 +426,7 @@ public class TestLocalFileSink {
             @Override
             public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
                 if (valueId.equals("queueManager")) {
-                    return new MessageSetProcessorManager();
+                    return trafficController;
                 } else {
                     return null;
                 }

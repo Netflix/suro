@@ -17,7 +17,13 @@
 package com.netflix.suro.sink.notice;
 
 import com.amazonaws.services.sqs.AmazonSQSClient;
-import com.amazonaws.services.sqs.model.*;
+import com.amazonaws.services.sqs.model.GetQueueUrlRequest;
+import com.amazonaws.services.sqs.model.GetQueueUrlResult;
+import com.amazonaws.services.sqs.model.Message;
+import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
+import com.amazonaws.services.sqs.model.ReceiveMessageResult;
+import com.amazonaws.services.sqs.model.SendMessageRequest;
+import com.amazonaws.services.sqs.model.SendMessageResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.BeanProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -31,10 +37,6 @@ import com.google.inject.Injector;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.sink.TestSinkManager.TestSink;
-import com.netflix.suro.sink.notice.NoNotice;
-import com.netflix.suro.sink.notice.QueueNotice;
-import com.netflix.suro.sink.notice.SQSNotice;
-import com.netflix.suro.sink.notice.Notice;
 import org.apache.commons.codec.binary.Base64;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -46,7 +48,9 @@ import java.util.Map;
 import static junit.framework.Assert.assertNull;
 import static junit.framework.TestCase.assertEquals;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class TestNotice {
     private static Injector injector = Guice.createInjector(
