@@ -37,7 +37,7 @@ public class TestStatusServer {
     public void connectionFailureShouldBeDetected() throws Exception {
         suroServer.getInjector().getInstance(ThriftServer.class).shutdown();
 
-        HttpResponse response = runQuery("healthcheck");
+        HttpResponse response = runQuery("surohealthcheck");
 
         assertEquals(500, response.getStatusLine().getStatusCode());
 
@@ -57,13 +57,13 @@ public class TestStatusServer {
 
     @Test
     public void healthcheckShouldPassForHealthyServer() throws Exception {
-        HttpResponse response = runQuery("healthcheck");
+        HttpResponse response = runQuery("surohealthcheck");
         assertEquals(200, response.getStatusLine().getStatusCode());
     }
 
     @Test
     public void testSinkStat() throws IOException {
-        HttpResponse response = runQuery("sinkstat");
+        HttpResponse response = runQuery("surosinkstat");
         InputStream data = response.getEntity().getContent();
         BufferedReader br = new BufferedReader(new InputStreamReader(data));
         String line = null;
