@@ -23,7 +23,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.name.Names;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.sink.ServerSinkPlugin;
+import com.netflix.suro.sink.remotefile.SuroSinkPlugin;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -35,16 +35,16 @@ import static org.junit.Assert.assertEquals;
 
 public class TestPrefixFormatter {
     private static Injector injector = Guice.createInjector(
-            new ServerSinkPlugin(),
-            new AbstractModule() {
+        new SuroSinkPlugin(),
+        new AbstractModule() {
                 @Override
                 protected void configure() {
                     bind(ObjectMapper.class).to(DefaultObjectMapper.class);
                     bind(String.class).annotatedWith(Names.named("region")).toInstance("eu-west-1");
                     bind(String.class).annotatedWith(Names.named("stack")).toInstance("gps");
                 }
-            }
-        );
+        }
+    );
 
     @Test
     public void testStatic() throws IOException {
@@ -58,33 +58,34 @@ public class TestPrefixFormatter {
         assertEquals(formatter.get(), "prefix");
     }
 
-    @Test
-    public void testDateRegionStack() throws IOException {
-        String spec = "{\n" +
-                "    \"type\": \"DateRegionStack\",\n" +
-                "    \"date\": \"YYYYMMDD\",\n" +
-                "    \"region\": \"us-east-1\",\n" +
-                "    \"stack\": \"normal\"\n" +
-                "}";
-
-        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
-        RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>() {});
-        DateTimeFormatter format = DateTimeFormat.forPattern("YYYYMMDD");
-        String answer = String.format("%s/us-east-1/normal/", format.print(new DateTime()));
-        assertEquals(formatter.get(), answer);
-    }
 
     @Test
     public void testInjectedDateRegionStack() throws IOException {
         String spec = "{\n" +
-                "    \"type\": \"DateRegionStack\",\n" +
-                "    \"date\": \"YYYYMMDD\"\n" +
-                "}";
+            "    \"type\": \"DateRegionStack\",\n" +
+            "    \"date\": \"YYYYMMDD\"\n" +
+            "}";
 
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>() {});
         DateTimeFormatter format = DateTimeFormat.forPattern("YYYYMMDD");
         String answer = String.format("%s/eu-west-1/gps/", format.print(new DateTime()));
+        assertEquals(formatter.get(), answer);
+    }
+
+    @Test
+    public void testDateRegionStack() throws IOException {
+        String spec = "{\n" +
+            "    \"type\": \"DateRegionStack\",\n" +
+            "    \"date\": \"YYYYMMDD\",\n" +
+            "    \"region\": \"us-east-1\",\n" +
+            "    \"stack\": \"normal\"\n" +
+            "}";
+
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
+        RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>() {});
+        DateTimeFormatter format = DateTimeFormat.forPattern("YYYYMMDD");
+        String answer = String.format("%s/us-east-1/normal/", format.print(new DateTime()));
         assertEquals(formatter.get(), answer);
     }
 }

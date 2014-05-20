@@ -29,8 +29,7 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.message.StringMessage;
-import com.netflix.suro.queue.MessageSetProcessorManager;
-import com.netflix.suro.sink.ServerSinkPlugin;
+import com.netflix.suro.queue.TrafficController;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.LocalFileSink;
 import com.netflix.suro.sink.localfile.LocalFileSink.SpaceChecker;
@@ -55,7 +54,9 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class TestS3FileSink {
     @Rule
@@ -283,33 +284,33 @@ public class TestS3FileSink {
 
     private Injector getInjector() {
         return Guice.createInjector(
-                new ServerSinkPlugin(),
-                new AbstractModule() {
+            new SuroSinkPlugin(),
+            new AbstractModule() {
                     @Override
                     protected void configure() {
                         bind(ObjectMapper.class).to(DefaultObjectMapper.class);
                         bind(AWSCredentialsProvider.class)
-                                .annotatedWith(Names.named("credentials"))
-                                .toInstance(new AWSCredentialsProvider() {
-                                    @Override
-                                    public AWSCredentials getCredentials() {
-                                        return new AWSCredentials() {
-                                            @Override
-                                            public String getAWSAccessKeyId() {
-                                                return "accessKey";
-                                            }
+                            .annotatedWith(Names.named("credentials"))
+                            .toInstance(new AWSCredentialsProvider() {
+                                @Override
+                                public AWSCredentials getCredentials() {
+                                    return new AWSCredentials() {
+                                        @Override
+                                        public String getAWSAccessKeyId() {
+                                            return "accessKey";
+                                        }
 
-                                            @Override
-                                            public String getAWSSecretKey() {
-                                                return "secretKey";
-                                            }
-                                        };
-                                    }
+                                        @Override
+                                        public String getAWSSecretKey() {
+                                            return "secretKey";
+                                        }
+                                    };
+                                }
 
-                                    @Override
-                                    public void refresh() {
-                                    }
-                                });
+                                @Override
+                                public void refresh() {
+                                }
+                            });
 
                         MultipartUtils mpUtils = mock(MultipartUtils.class);
                         try {
@@ -320,25 +321,25 @@ public class TestS3FileSink {
                                     return null;
                                 }
                             }).when(mpUtils).uploadObjects(
-                                    any(String.class),
-                                    any(RestS3Service.class),
-                                    any(List.class),
-                                    any(S3ServiceEventListener.class));
+                                any(String.class),
+                                any(RestS3Service.class),
+                                any(List.class),
+                                any(S3ServiceEventListener.class));
 
                             bind(MultipartUtils.class)
-                                    .annotatedWith(Names.named("multipartUtils"))
-                                    .toInstance(mpUtils);
+                                .annotatedWith(Names.named("multipartUtils"))
+                                .toInstance(mpUtils);
                         } catch (Exception e) {
                             Assert.fail(e.getMessage());
                         }
-                        bind(MessageSetProcessorManager.class)
-                                .annotatedWith(Names.named("queueManager"))
-                                .toInstance(new MessageSetProcessorManager());
+                        bind(TrafficController.class)
+                            .annotatedWith(Names.named("queueManager"))
+                            .toInstance(mock(TrafficController.class));
                         bind(SpaceChecker.class)
-                                .annotatedWith(Names.named("spaceChecker"))
-                                .toInstance(mock(SpaceChecker.class));
+                            .annotatedWith(Names.named("spaceChecker"))
+                            .toInstance(mock(SpaceChecker.class));
                     }
-                }
+            }
         );
     }
 }

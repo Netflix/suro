@@ -62,7 +62,7 @@ public class FileWriterBase {
      *
      * @param oldName
      * @param newName
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public void setDone(String oldName, String newName) throws IOException {
         Path oldPath = new Path(oldName);
@@ -104,7 +104,7 @@ public class FileWriterBase {
      *
      * @param newPath
      * @return
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public SequenceFile.Writer createSequenceFile(String newPath) throws IOException {
         if (codec != null) {
@@ -125,7 +125,7 @@ public class FileWriterBase {
      *
      * @param path
      * @return
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public FSDataOutputStream createFSDataOutputStream(String path) throws IOException {
         return fs.create(new Path(path), false);
@@ -137,7 +137,7 @@ public class FileWriterBase {
      *
      * @param outputStream
      * @return
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public DataOutputStream createDataOutputStream(FSDataOutputStream outputStream) throws IOException {
         if (codec != null) {

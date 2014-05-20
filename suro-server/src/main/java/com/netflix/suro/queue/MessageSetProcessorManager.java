@@ -19,7 +19,7 @@ package com.netflix.suro.queue;
 import com.google.inject.Singleton;
 
 @Singleton
-public class MessageSetProcessorManager {
+public class MessageSetProcessorManager implements TrafficController {
     public static final int IN_ERROR = 503;
     public static final int OK = 200;
 
@@ -30,6 +30,7 @@ public class MessageSetProcessorManager {
         this.service = service;
     }
 
+    @Override
     public void stopTakingTraffic(){
         if (this.service != null){
             this.service.stopTakingTraffic();
@@ -37,6 +38,7 @@ public class MessageSetProcessorManager {
         }
     }
 
+    @Override
     public void startTakingTraffic(){
         if (this.service != null){
             this.service.startTakingTraffic();
@@ -44,6 +46,7 @@ public class MessageSetProcessorManager {
         }
     }
 
+    @Override
     public int getStatus(){
         return status;
     }

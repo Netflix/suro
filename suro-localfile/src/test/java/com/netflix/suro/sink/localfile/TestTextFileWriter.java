@@ -23,7 +23,6 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.sink.ServerSinkPlugin;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -33,7 +32,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -43,14 +46,14 @@ public class TestTextFileWriter {
     public TemporaryFolder tempDir = new TemporaryFolder();
 
     private static Injector injector = Guice.createInjector(
-            new ServerSinkPlugin(),
-            new AbstractModule() {
-                @Override
-                protected void configure() {
-                    bind(ObjectMapper.class).to(DefaultObjectMapper.class);
-                }
+        new SuroSinkPlugin(),
+        new AbstractModule() {
+            @Override
+            protected void configure() {
+                bind(ObjectMapper.class).to(DefaultObjectMapper.class);
             }
-        );
+        }
+    );
     
     @Test
     public void test() throws IOException {
