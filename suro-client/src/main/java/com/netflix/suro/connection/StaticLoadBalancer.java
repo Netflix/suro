@@ -25,6 +25,7 @@ import com.netflix.loadbalancer.BaseLoadBalancer;
 import com.netflix.loadbalancer.Server;
 import com.netflix.suro.ClientConfig;
 
+import javax.annotation.PreDestroy;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,5 +57,10 @@ public class StaticLoadBalancer extends BaseLoadBalancer {
 		loadBalancerConfig.setProperty(CommonClientConfigKey.NFLoadBalancerPingClassName, "com.netflix.suro.connection.SuroPing");
         super.initWithNiwsConfig(loadBalancerConfig);
         addServers(serverList);
+    }
+
+    @PreDestroy
+    public void clear() {
+        setServersList(new ArrayList<Server>());
     }
 }

@@ -167,8 +167,10 @@ project(':suro-kafka') {
       exclude module: 'jms'
       exclude module: 'jmxtools'
       exclude module: 'jmxri'
+      exclude module: 'zookeeper'
     }
 
+    testCompile 'org.apache.curator:curator-test:2.4.2'
     testCompile project(':suro-client')
   }
 }
