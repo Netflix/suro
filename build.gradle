@@ -190,5 +190,7 @@ project(':suro-localfile') {
         compile project(':suro-core')
 
         compile project(':suro-client')
+
+        testCompile project(':suro-client')
     }
 }
