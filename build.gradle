@@ -72,10 +72,6 @@ subprojects {
       compile 'com.leansoft:bigqueue:0.7.0'
       compile 'commons-io:commons-io:2.4'
 
-      compile (
-        [group: 'org.apache.hadoop', name: 'hadoop-core', version: '0.20.205.0', transitive: false]
-      )
-
       runtime 'com.netflix.netflix-commons:netflix-commons-util:0.1.1'
 
       testCompile 'org.mockito:mockito-core:1.9.5'
@@ -192,6 +188,11 @@ project(':suro-localfile') {
         compile project(':suro-core')
 
         compile project(':suro-client')
+
+        compile (
+          [group: 'org.apache.hadoop', name: 'hadoop-core', version: '0.20.205.0', transitive: false]
+        )
+
 
         testCompile project(':suro-client').sourceSets.test.output
     }
