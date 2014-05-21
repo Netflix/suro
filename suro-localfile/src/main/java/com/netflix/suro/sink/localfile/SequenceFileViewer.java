@@ -1,6 +1,5 @@
 package com.netflix.suro.sink.localfile;
 
-import com.netflix.suro.message.Message;
 import com.netflix.suro.message.serde.SerDeFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -23,20 +22,11 @@ public class SequenceFileViewer {
         SequenceFile.Reader r = new SequenceFile.Reader(fs, new Path(args[0]), conf);
         Text routingKey = new Text();
 
-        if (r.getValueClass().equals(Message.class)) {
-            Message message = new Message();
+        MessageWritable message = new MessageWritable();
 
-            while (r.next(routingKey, message)) {
-                System.out.println("###routing key: " + routingKey);
-                System.out.println(SerDeFactory.create(args[1]).deserialize(message.getPayload()));
-            }
-        } else {
-            MessageWritable message = new MessageWritable();
-
-            while (r.next(routingKey, message)) {
-                System.out.println("###routing key: " + routingKey);
-                System.out.println(SerDeFactory.create(args[1]).deserialize(message.getMessage().getPayload()));
-            }
+        while (r.next(routingKey, message)) {
+            System.out.println("###routing key: " + routingKey);
+            System.out.println(SerDeFactory.create(args[1]).deserialize(message.getMessage().getPayload()));
         }
 
         r.close();
