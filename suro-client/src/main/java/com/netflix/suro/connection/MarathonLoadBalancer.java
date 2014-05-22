@@ -19,15 +19,19 @@ import com.google.inject.Inject;
 import com.netflix.client.config.CommonClientConfigKey;
 import com.netflix.client.config.DefaultClientConfigImpl;
 import com.netflix.client.config.IClientConfig;
+import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.loadbalancer.DynamicServerListLoadBalancer;
 import com.netflix.loadbalancer.Server;
 import com.netflix.suro.ClientConfig;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by thinker0 on 2014. 5. 16..
+ * @author thinker0
  */
+@LazySingleton
 public class MarathonLoadBalancer extends DynamicServerListLoadBalancer {
     private final String _marathonURL;
     private final String _appName;
@@ -47,8 +51,9 @@ public class MarathonLoadBalancer extends DynamicServerListLoadBalancer {
 
         final IClientConfig loadBalancerConfig = new DefaultClientConfigImpl();
         loadBalancerConfig.loadProperties("suroClient");
-        loadBalancerConfig.setProperty(CommonClientConfigKey.PrimeConnectionsURI, _marathonURL);
         loadBalancerConfig.setProperty(CommonClientConfigKey.AppName, _appName);
+        Map<String, Object> properties = loadBalancerConfig.getProperties();
+        properties.put("SuroClient.LoadBalancerServer", _marathonURL);
         loadBalancerConfig.setProperty(CommonClientConfigKey.NIWSServerListClassName, DiscoveryEnabledMarathonServerList.class.getName());
         super.initWithNiwsConfig(loadBalancerConfig);
     }
