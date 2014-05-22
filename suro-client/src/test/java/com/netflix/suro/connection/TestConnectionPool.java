@@ -308,7 +308,7 @@ public class TestConnectionPool {
         when(lb.getServerList(true)).thenReturn(servers);
 
         ConnectionPool pool = new ConnectionPool(injector.getInstance(ClientConfig.class), lb);
-        assertEquals(pool.getPoolSize(), 1);
+        assertTrue(pool.getPoolSize() >= 1);
         for (int i = 0; i < 10; ++i) {
             if (pool.getPoolSize() != 3) {
                 Thread.sleep(1000);

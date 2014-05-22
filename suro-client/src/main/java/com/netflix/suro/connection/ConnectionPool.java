@@ -90,7 +90,7 @@ public class ConnectionPool {
             @Override
             public void run() {
                 populateClients();
-            };
+            }
         });
         try {
             populationLatch.await(populationLatch.getCount() * config.getConnectionTimeout(), TimeUnit.MILLISECONDS);
