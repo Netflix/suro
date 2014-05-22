@@ -18,7 +18,6 @@ package com.netflix.suro.message;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
-import org.apache.hadoop.io.Writable;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -32,7 +31,7 @@ import java.util.Arrays;
  *
  * @author jbae
  */
-public class Message implements Writable {
+public class Message {
     public static final BiMap<Byte, Class<? extends Message>> classMap = HashBiMap.create();
     static {
         classMap.put((byte) 0, Message.class);
@@ -81,14 +80,12 @@ public class Message implements Writable {
         return result;
     }
 
-    @Override
     public void write(DataOutput dataOutput) throws IOException {
         dataOutput.writeUTF(routingKey);
         dataOutput.writeInt(payload.length);
         dataOutput.write(payload);
     }
 
-    @Override
     public void readFields(DataInput dataInput) throws IOException {
         routingKey = dataInput.readUTF();
         payload = new byte[dataInput.readInt()];
