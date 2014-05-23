@@ -350,6 +350,8 @@ public class ConnectionPool {
             socket.getSocket().setTcpNoDelay(true);
             socket.getSocket().setKeepAlive(true);
             socket.getSocket().setSoLinger(true, 0);
+            socket.getSocket().setSoTimeout(config.getConnectionTimeout());
+            socket.getSocket().setReuseAddress(true);
             transport = new TFramedTransport(socket);
             transport.open();
 
