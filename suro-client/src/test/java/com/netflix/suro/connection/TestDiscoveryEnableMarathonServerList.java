@@ -39,6 +39,7 @@ public class TestDiscoveryEnableMarathonServerList {
         final Map<String, Object> properties = loadBalancerConfig.getProperties();
         properties.put("SuroClient.LoadBalancerServer", "http://localhost/v2/apps/suro/tasks");
         loadBalancerConfig.setProperty(CommonClientConfigKey.AppName, "suro");
+        marathonServerList.initWithNiwsConfig(loadBalancerConfig);
         List<DiscoveryEnabledServer> initialListOfServers = marathonServerList.getInitialListOfServers();
         assertEquals(0, initialListOfServers.size());
     }
