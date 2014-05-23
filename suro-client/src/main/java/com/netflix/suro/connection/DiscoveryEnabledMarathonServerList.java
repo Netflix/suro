@@ -97,7 +97,7 @@ public class DiscoveryEnabledMarathonServerList extends AbstractServerList<Disco
                 }
             }
         } catch (Exception e) {
-            logger.error(e.getLocalizedMessage(), e);
+            logger.error(e.getMessage(), e);
         }
         return serverList;
     }
