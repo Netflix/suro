@@ -197,10 +197,14 @@ public class AsyncSuroClient implements ISuroClient {
         poller.shutdown();
         try {
             poller.awaitTermination(5000 + config.getAsyncTimeout(), TimeUnit.MILLISECONDS);
+            if (!poller.isTerminated()) {
+                log.error("AsyncSuroClient.poller didn't terminate gracefully within {} seconds", (5 + config.getAsyncTimeout()/1000));
+                poller.shutdownNow();
+            }
             senders.shutdown();
             senders.awaitTermination(5000 + config.getAsyncTimeout(), TimeUnit.MILLISECONDS);
             if (!senders.isTerminated()) {
-                log.error("AsyncSuroClient didn't terminate gracefully within 5 seconds");
+                log.error("AsyncSuroClient.senders didn't terminate gracefully within {} seconds", (5 + config.getAsyncTimeout()/1000));
                 senders.shutdownNow();
             }
         } catch (InterruptedException e) {
