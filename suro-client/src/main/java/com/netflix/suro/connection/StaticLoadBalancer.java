@@ -61,6 +61,7 @@ public class StaticLoadBalancer extends BaseLoadBalancer {
 
     @PreDestroy
     public void clear() {
+        cancelPingTask();
         setServersList(new ArrayList<Server>());
     }
 }
