@@ -91,6 +91,11 @@ public class SuroClient implements ISuroClient {
         return client.getLostMessageCount();
     }
 
+    @Override
+    public long getNumOfPendingMessages() {
+        return client.getNumOfPendingMessages();
+    }
+
     public ClientConfig getConfig() {
         return injector.getInstance(ClientConfig.class);
     }

@@ -150,4 +150,8 @@ public abstract class QueuedSink extends Thread {
      * @throws IOException
      */
     abstract protected void innerClose() throws IOException;
+
+    public long getNumOfPendingMessages() {
+        return queue4Sink.size();
+    }
 }
