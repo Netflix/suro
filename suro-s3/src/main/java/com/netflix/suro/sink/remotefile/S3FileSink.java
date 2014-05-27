@@ -25,15 +25,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
-import com.netflix.servo.monitor.Monitors;
-import com.netflix.suro.message.MessageContainer;
-import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.FileNameFormatter;
 import com.netflix.suro.sink.localfile.LocalFileSink;
 import com.netflix.suro.sink.notice.Notice;
 import com.netflix.suro.sink.notice.QueueNotice;
-import com.netflix.suro.sink.remotefile.formatter.SimpleDateFormatter;
-import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.jets3t.service.Jets3tProperties;
 import org.jets3t.service.S3ServiceException;
@@ -42,17 +37,12 @@ import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.model.S3Object;
 import org.jets3t.service.security.AWSCredentials;
 import org.jets3t.service.utils.MultipartUtils;
-import org.joda.time.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**

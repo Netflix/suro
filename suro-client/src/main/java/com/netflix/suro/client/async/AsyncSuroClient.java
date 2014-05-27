@@ -62,6 +62,12 @@ public class AsyncSuroClient implements ISuroClient {
     public long getLostMessageCount() {
         return lostMessages.get();
     }
+
+    @Override
+    public long getNumOfPendingMessages() {
+        return getMessageQueueSize();
+    }
+
     @Monitor(name = TagKey.SENT_COUNT, type = DataSourceType.COUNTER)
     private AtomicLong sentMessages = new AtomicLong(0);
     @Override
