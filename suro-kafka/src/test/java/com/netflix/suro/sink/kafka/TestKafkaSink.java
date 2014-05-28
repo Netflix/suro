@@ -73,7 +73,9 @@ public class TestKafkaSink {
         while (msgIterator.hasNext()) {
             sink.writeTo(new StringMessage(msgIterator.next()));
         }
+        assertTrue(sink.getNumOfPendingMessages() > 0);
         sink.close();
+        assertEquals(sink.getNumOfPendingMessages(), 0);
         System.out.println(sink.getStat());
 
         // get the leader
@@ -125,8 +127,10 @@ public class TestKafkaSink {
                     new Message(TOPIC_NAME_MULTITHREAD, jsonMapper.writeValueAsBytes(msgMap)),
                     jsonMapper));
         }
+        assertTrue(sink.getNumOfPendingMessages() > 0);
         sink.close();
         System.out.println(sink.getStat());
+        assertEquals(sink.getNumOfPendingMessages(), 0);
 
         ConsumerConnector consumer = kafka.consumer.Consumer.createJavaConsumerConnector(
                 createConsumerConfig("localhost:" + zk.getServerPort(), "gropuid_multhread"));
