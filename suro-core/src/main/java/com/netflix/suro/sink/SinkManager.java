@@ -91,5 +91,6 @@ public class SinkManager {
         for (Map.Entry<String, Sink> entry : sinkMap.entrySet()) {
            entry.getValue().close();
         }
+        sinkMap.clear();
     }
 }
