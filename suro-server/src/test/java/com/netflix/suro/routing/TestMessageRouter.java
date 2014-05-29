@@ -100,6 +100,11 @@ public class TestMessageRouter {
             return message + " " + status;
         }
 
+        @Override
+        public long getNumOfPendingMessages() {
+            return 0;
+        }
+
         public List<String> getMessageList() {
             return messageList;
         }
