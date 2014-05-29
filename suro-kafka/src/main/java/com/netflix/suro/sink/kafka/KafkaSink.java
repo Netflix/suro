@@ -49,7 +49,7 @@ public class KafkaSink extends QueuedSink implements Sink {
     private final long jobTimeout;
 
     @Monitor(name = "jobQueueSize", type = DataSourceType.GAUGE)
-    public long getQueueSize() {
+    public long getJobQueueSize() {
         return jobQueue.size();
     }
 

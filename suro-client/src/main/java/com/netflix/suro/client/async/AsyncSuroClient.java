@@ -62,6 +62,13 @@ public class AsyncSuroClient implements ISuroClient {
     public long getLostMessageCount() {
         return lostMessages.get();
     }
+
+    @Monitor(name = "MessageQueueSize", type = DataSourceType.GAUGE)
+    @Override
+    public long getNumOfPendingMessages() {
+        return messageQueue.size();
+    }
+
     @Monitor(name = TagKey.SENT_COUNT, type = DataSourceType.COUNTER)
     private AtomicLong sentMessages = new AtomicLong(0);
     @Override
@@ -149,7 +156,6 @@ public class AsyncSuroClient implements ISuroClient {
 
     private boolean running;
 
-
     private long lastBatch;
     private Runnable createPoller() {
         running = true;
@@ -210,11 +216,6 @@ public class AsyncSuroClient implements ISuroClient {
         } catch (InterruptedException e) {
             // ignore exceptions while shutting down
         }
-    }
-
-    @Monitor(name = "MessageQueueSize", type = DataSourceType.GAUGE)
-    private int getMessageQueueSize() {
-        return (int) messageQueue.size();
     }
 
     @Monitor(name = "JobQueueSize", type = DataSourceType.GAUGE)
