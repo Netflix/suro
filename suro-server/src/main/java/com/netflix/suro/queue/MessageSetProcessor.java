@@ -245,11 +245,16 @@ public class MessageSetProcessor implements SuroServer.Iface {
 
     @Override
     public long shutdown() throws TException {
+        shutdown(config.messageRouterMaxPollTimeout * 2);
+        return 0;
+    }
+
+    public void shutdown(long timeout) {
         log.info("MessageQueue is shutting down");
         isRunning = false;
         try {
             executors.shutdown();
-            executors.awaitTermination(config.messageRouterMaxPollTimeout * 2, TimeUnit.MILLISECONDS);
+            executors.awaitTermination(timeout, TimeUnit.MILLISECONDS);
             if ( !executors.isTerminated() ) {
                 log.error("MessageDispatcher was not shut down gracefully");
             }
@@ -257,7 +262,6 @@ public class MessageSetProcessor implements SuroServer.Iface {
         } catch (InterruptedException e) {
             Thread.interrupted();
         }
-        return 0;
     }
 
     public TMessageSet poll(long timeout, TimeUnit unit) {

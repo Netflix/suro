@@ -7,8 +7,6 @@ import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.LocalFileSink;
-import com.netflix.suro.sink.notice.Notice;
-import com.netflix.suro.sink.notice.QueueNotice;
 import com.netflix.suro.sink.remotefile.formatter.SimpleDateFormatter;
 import org.joda.time.Period;
 import org.slf4j.Logger;
@@ -237,4 +235,9 @@ public abstract class RemoteFileSink implements Sink {
     abstract void initialize();
     abstract void upload(String localFilePath, String remoteFilePath) throws Exception;
     abstract void notify(String filePath, long fileSize) throws Exception;
+
+    @Override
+    public long getNumOfPendingMessages() {
+        return localFileSink.getNumOfPendingMessages();
+    }
 }
