@@ -100,6 +100,9 @@ public class SyncSuroClient implements ISuroClient {
 
         for (int i = 0; i < config.getRetryCount(); ++i) {
             ConnectionPool.SuroConnection connection = connectionPool.chooseConnection();
+            if (connection == null) {
+                continue;
+            }
             try {
                 if (connection.send(messageSet).getResultCode() == ResultCode.OK) {
                     sent = true;
