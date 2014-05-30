@@ -22,8 +22,8 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.name.Names;
+import com.netflix.config.ConfigurationManager;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.sink.remotefile.SuroSinkPlugin;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -47,15 +47,61 @@ public class TestPrefixFormatter {
     );
 
     @Test
-    public void testStatic() throws IOException {
+    public void testDynamicStatic() throws IOException {
         String spec = "{\n" +
-                "    \"type\": \"static\",\n" +
-                "    \"prefix\": \"prefix\"\n" +
+                "    \"type\": \"dynamic\",\n" +
+                "    \"format\": \"static(prefix)\"\n" +
                 "}";
 
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>(){});
-        assertEquals(formatter.get(), "prefix");
+        assertEquals(formatter.get(), "prefix/");
+    }
+
+    @Test
+    public void testDynamicDate() throws IOException {
+        String spec = "{\n" +
+                "    \"type\": \"dynamic\",\n" +
+                "    \"format\": \"date(YYYYMMDD)\"\n" +
+                "}";
+
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
+        RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>(){});
+
+        DateTimeFormatter format = DateTimeFormat.forPattern("YYYYMMDD");
+        assertEquals(formatter.get(), format.print(new DateTime()) + "/");
+    }
+
+    @Test
+    public void testDynamicProperty() throws IOException {
+        String spec = "{\n" +
+                "    \"type\": \"dynamic\",\n" +
+                "    \"format\": \"property(prop1)\"\n" +
+                "}";
+
+        ConfigurationManager.getConfigInstance().setProperty("prop1", "prop1");
+
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
+        RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>(){});
+
+        assertEquals(formatter.get(), "prop1/");
+    }
+
+    @Test
+    public void testDynamicCombination() throws IOException {
+        String spec = "{\n" +
+                "    \"type\": \"dynamic\",\n" +
+                "    \"format\": \"static(routing_key)/date(YYYYMMDD)/property(prop1)\"\n" +
+                "}";
+
+        ConfigurationManager.getConfigInstance().setProperty("prop1", "propvalue1");
+
+        DateTimeFormatter format = DateTimeFormat.forPattern("YYYYMMDD");
+
+        ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
+        RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>(){});
+
+        assertEquals(formatter.get(), "routing_key/" + format.print(new DateTime()) + "/propvalue1/");
     }
 
 
