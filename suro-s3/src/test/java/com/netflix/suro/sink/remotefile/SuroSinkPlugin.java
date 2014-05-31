@@ -13,7 +13,6 @@ public class SuroSinkPlugin extends SuroPlugin {
     protected void configure() {
         this.addSinkType(LocalFileSink.TYPE, LocalFileSink.class);
 
-
         this.addSinkType(S3FileSink.TYPE, S3FileSink.class);
         this.addSinkType(HdfsFileSink.TYPE, HdfsFileSink.class);
         this.addRemotePrefixFormatterType(DateRegionStackFormatter.TYPE, DateRegionStackFormatter.class);
