@@ -16,27 +16,20 @@
 
 package com.netflix.suro.sink.remotefile.formatter;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.netflix.suro.sink.remotefile.RemotePrefixFormatter;
-
 /**
  * Append static prefix for the remote file path
  *
  * @author jbae
  */
-public class StaticPrefixFormatter implements RemotePrefixFormatter {
-    public static final String TYPE = "static";
+public class StaticPrefixFormatter implements PrefixFormatter {
+    private final String formatString;
 
-    private final String prefix;
-
-    @JsonCreator
-    public StaticPrefixFormatter(@JsonProperty("prefix") String prefix) {
-        this.prefix = prefix;
+    public StaticPrefixFormatter(String formatString) {
+        this.formatString = formatString;
     }
 
     @Override
-    public String get() {
-        return prefix;
+    public String format() {
+        return formatString;
     }
 }
