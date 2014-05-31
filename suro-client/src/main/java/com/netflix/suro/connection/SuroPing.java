@@ -32,7 +32,10 @@ public class SuroPing extends AbstractLoadBalancerPing {
 			return true;
 		} catch (TTransportException e) {
 			return false;
-		}
+        } finally {
+            transport.close();
+            socket.close();
+        }
     }
 
     @Override
