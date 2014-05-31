@@ -25,7 +25,7 @@ public class SuroPing extends AbstractLoadBalancerPing {
     public SuroPing() {
     }
 
-    private static void close(@Nullable TTransport transport) {
+    private void close(@Nullable TTransport transport) {
         if (transport == null) {
             return;
         }
