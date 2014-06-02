@@ -53,7 +53,7 @@ public abstract class RemoteFileSink implements Sink {
         localFilePoller = Executors.newSingleThreadExecutor();
 
         if (!batchUpload) {
-            localFileSink.cleanUp();
+            localFileSink.cleanUp(false);
         }
 
         Monitors.registerObject(
@@ -78,7 +78,7 @@ public abstract class RemoteFileSink implements Sink {
                 public void run() {
                     while (running) {
                         uploadAllFromQueue();
-                        localFileSink.cleanUp();
+                        localFileSink.cleanUp(false);
                     }
                     uploadAllFromQueue();
                 }
@@ -133,8 +133,13 @@ public abstract class RemoteFileSink implements Sink {
     public void uploadAll(String dir) {
         clearFileHistory();
 
-        while (localFileSink.cleanUp(dir) > 0) {
+        while (localFileSink.cleanUp(dir, true) > 0) {
             uploadAllFromQueue();
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // do nothing
+            }
         }
     }
 
@@ -238,6 +243,11 @@ public abstract class RemoteFileSink implements Sink {
 
     @Override
     public long getNumOfPendingMessages() {
-        return localFileSink.getNumOfPendingMessages();
+        long numMessages = localFileSink.getNumOfPendingMessages();
+        if (numMessages == 0) {
+            return localFileSink.cleanUp(true);
+        } else {
+            return numMessages;
+        }
     }
 }

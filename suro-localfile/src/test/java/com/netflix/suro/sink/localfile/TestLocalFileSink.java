@@ -403,19 +403,21 @@ public class TestLocalFileSink {
         // create files
         final int numFiles = 5;
         Set<String> filePathSet = new HashSet<String>();
-        for (int i = 0; i < numFiles - 1; ++i) {
-            String fileName = "testFile" + i + LocalFileSink.done;
+        for (int i = 0; i < numFiles; ++i) {
+            String fileName = "testFile" + i + (i == numFiles - 1 ? LocalFileSink.suffix : LocalFileSink.done);
             File f = new File(testdir, fileName);
             f.createNewFile();
             FileOutputStream o = new FileOutputStream(f);
             o.write(100 /*any data*/);
             o.close();
-            filePathSet.add(f.getAbsolutePath());
+            if (i != numFiles - 1) {
+                filePathSet.add(f.getAbsolutePath());
+            }
         }
 
         final String localFileSinkSpec = "{\n" +
                 "    \"type\": \"" + LocalFileSink.TYPE + "\",\n" +
-                "    \"rotationPeriod\": \"PT1s\",\n" +
+                "    \"rotationPeriod\": \"PT1m\",\n" +
                 "    \"outputDir\": \"" + testdir + "\"\n" +
                 "    }\n" +
                 "}";
@@ -435,13 +437,15 @@ public class TestLocalFileSink {
         LocalFileSink sink = (LocalFileSink)mapper.readValue(
                 localFileSinkSpec,
                 new TypeReference<Sink>(){});
-        assertEquals(sink.cleanUp(testdir), numFiles -1); // due to empty file wouldn't be clean up
+        assertEquals(sink.cleanUp(testdir, false), numFiles -1); // due to empty file wouldn't be clean up
 
         Set<String> filePathSetResult = new HashSet<String>();
         for (int i = 0; i < numFiles - 1; ++i) {
             filePathSetResult.add(sink.recvNotice());
         }
         assertEquals(filePathSet, filePathSetResult);
+
+        assertEquals(sink.cleanUp(testdir, true), numFiles);
     }
 
     @Test
