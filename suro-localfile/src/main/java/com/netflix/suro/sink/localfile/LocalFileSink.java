@@ -284,12 +284,12 @@ public class LocalFileSink extends QueuedSink implements Sink {
     }
 
     /**
-     * This method calls {@link #cleanUp(String)} with outputDir
+     * This method calls {@link #cleanUp(String, boolean)} with outputDir
      *
      * @return
      */
-    public int cleanUp() {
-        return cleanUp(outputDir);
+    public int cleanUp(boolean fetchAll) {
+        return cleanUp(outputDir, fetchAll);
     }
 
     /**
@@ -301,7 +301,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
      * @param dir
      * @return the number of files found in the directory
      */
-    public int cleanUp(String dir) {
+    public int cleanUp(String dir, boolean fetchAll) {
         if (!dir.endsWith("/")) {
             dir += "/";
         }
@@ -328,12 +328,15 @@ public class LocalFileSink extends QueuedSink implements Sink {
                             writer.setDone(dir + fileName, dir + doneFile);
                             notice.send(dir + doneFile);
                             ++count;
+                        } else if (fetchAll) {
+                            ++count;
                         }
                     }
                 }
             }
         } catch (Exception e) {
             log.error("Exception while on cleanUp: " + e.getMessage(), e);
+            return Integer.MAX_VALUE; // return non-zero value
         }
 
         return count;
