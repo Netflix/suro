@@ -190,7 +190,7 @@ public class TestS3FileSink {
         File f = new File(testDir, "fileNo" + i + ".done");
         f.createNewFile();
         FileOutputStream o = new FileOutputStream(f);
-        o.write(100/*any data*/);
+        o.write("temporaryStringContents".getBytes());
         o.close();
     }
 
@@ -219,16 +219,20 @@ public class TestS3FileSink {
 
         S3FileSink sink = mapper.readValue(s3FileSink, new TypeReference<Sink>(){});
         sink.open();
+        assertEquals(sink.getNumOfPendingMessages(), 100);
         sink.uploadAll(testDir);
 
         // check every file uploaded, deleted, and notified
-        File[] files = getFiles(testDir);
-        assertEquals(files.length, 0);
         int count = 0;
         while (sink.recvNotice() != null) {
             ++count;
         }
         assertEquals(count, 100);
+
+        File[] files = getFiles(testDir);
+        assertEquals(files.length, 0);
+
+        assertEquals(sink.getNumOfPendingMessages(), 0);
     }
 
     @Test
