@@ -82,6 +82,11 @@ public class TestSinkManager {
         public String getStat() {
             return message + " " + status;
         }
+
+        @Override
+        public long getNumOfPendingMessages() {
+            return 0;
+        }
     }
 
     @Test

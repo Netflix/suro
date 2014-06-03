@@ -69,6 +69,12 @@ public class SyncSuroClient implements ISuroClient {
     public long getLostMessageCount() {
         return lostMessageCount.get();
     }
+
+    @Override
+    public long getNumOfPendingMessages() {
+        return 0;
+    }
+
     @Monitor(name = TagKey.RETRIED_COUNT, type = DataSourceType.COUNTER)
     private AtomicLong retriedCount = new AtomicLong(0);
     public long getRetriedCount() {
@@ -94,6 +100,9 @@ public class SyncSuroClient implements ISuroClient {
 
         for (int i = 0; i < config.getRetryCount(); ++i) {
             ConnectionPool.SuroConnection connection = connectionPool.chooseConnection();
+            if (connection == null) {
+                continue;
+            }
             try {
                 if (connection.send(messageSet).getResultCode() == ResultCode.OK) {
                     sent = true;

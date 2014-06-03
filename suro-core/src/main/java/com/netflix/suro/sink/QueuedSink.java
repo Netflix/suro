@@ -40,11 +40,6 @@ public abstract class QueuedSink extends Thread {
         this.batchTimeout = batchTimeout == 0 ? 1000 : batchTimeout;
     }
 
-    @Monitor(name = "queueSize", type = DataSourceType.GAUGE)
-    public long getQueueSize() {
-        return queue4Sink.size();
-    }
-
     @Monitor(name = "droppedMessages", type = DataSourceType.COUNTER)
     @VisibleForTesting
     protected AtomicLong droppedMessagesCount = new AtomicLong(0);
@@ -150,4 +145,9 @@ public abstract class QueuedSink extends Thread {
      * @throws IOException
      */
     abstract protected void innerClose() throws IOException;
+
+    @Monitor(name = "numOfPendingMessages", type = DataSourceType.GAUGE)
+    public long getNumOfPendingMessages() {
+        return queue4Sink.size();
+    }
 }

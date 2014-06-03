@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.netflix.suro.client.SuroClient;
 import com.netflix.suro.message.MessageContainer;
-import com.netflix.suro.sink.Sink;
 
 import java.util.Properties;
 
@@ -47,5 +46,10 @@ public class SuroSink implements Sink {
     @Override
     public String getStat() {
         return "sent: " + client.getSentMessageCount() + '\n' + "lost: " + client.getLostMessageCount();
+    }
+
+    @Override
+    public long getNumOfPendingMessages() {
+        return client.getNumOfPendingMessages();
     }
 }

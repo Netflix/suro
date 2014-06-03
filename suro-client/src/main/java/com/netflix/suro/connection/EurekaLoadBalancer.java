@@ -26,6 +26,7 @@ import com.netflix.loadbalancer.Server;
 import com.netflix.niws.loadbalancer.DiscoveryEnabledNIWSServerList;
 import com.netflix.suro.ClientConfig;
 
+import javax.annotation.PreDestroy;
 import java.util.List;
 
 /**
@@ -84,5 +85,10 @@ public class EurekaLoadBalancer extends DynamicServerListLoadBalancer {
         }
 
         return serverList;
+    }
+
+    @PreDestroy
+    public void clear() {
+        cancelPingTask();
     }
 }

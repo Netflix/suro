@@ -21,6 +21,7 @@ import com.google.inject.Singleton;
 import org.apache.log4j.Logger;
 
 import javax.annotation.PreDestroy;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
@@ -78,6 +79,10 @@ public class SinkManager {
         }
 
         return sb.toString();
+    }
+
+    public Collection<Sink> getSinks() {
+        return sinkMap.values();
     }
 
     @PreDestroy

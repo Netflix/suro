@@ -7,9 +7,7 @@ import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.LocalFileSink;
-import com.netflix.suro.sink.notice.Notice;
-import com.netflix.suro.sink.notice.QueueNotice;
-import com.netflix.suro.sink.remotefile.formatter.SimpleDateFormatter;
+import com.netflix.suro.sink.remotefile.formatter.DynamicRemotePrefixFormatter;
 import org.joda.time.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +44,7 @@ public abstract class RemoteFileSink implements Sink {
             int concurrentUpload,
             boolean batchUpload) {
         this.localFileSink = localFileSink;
-        this.prefixFormatter = prefixFormatter == null ? new SimpleDateFormatter("yyyyMMdd") : prefixFormatter;
+        this.prefixFormatter = prefixFormatter == null ? new DynamicRemotePrefixFormatter("date(yyyyMMdd)") : prefixFormatter;
         this.batchUpload = batchUpload;
 
         Preconditions.checkNotNull(localFileSink, "localFileSink is needed");
@@ -55,7 +53,7 @@ public abstract class RemoteFileSink implements Sink {
         localFilePoller = Executors.newSingleThreadExecutor();
 
         if (!batchUpload) {
-            localFileSink.cleanUp();
+            localFileSink.cleanUp(false);
         }
 
         Monitors.registerObject(
@@ -80,7 +78,7 @@ public abstract class RemoteFileSink implements Sink {
                 public void run() {
                     while (running) {
                         uploadAllFromQueue();
-                        localFileSink.cleanUp();
+                        localFileSink.cleanUp(false);
                     }
                     uploadAllFromQueue();
                 }
@@ -135,8 +133,13 @@ public abstract class RemoteFileSink implements Sink {
     public void uploadAll(String dir) {
         clearFileHistory();
 
-        while (localFileSink.cleanUp(dir) > 0) {
+        while (localFileSink.cleanUp(dir, true) > 0) {
             uploadAllFromQueue();
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // do nothing
+            }
         }
     }
 
@@ -237,4 +240,14 @@ public abstract class RemoteFileSink implements Sink {
     abstract void initialize();
     abstract void upload(String localFilePath, String remoteFilePath) throws Exception;
     abstract void notify(String filePath, long fileSize) throws Exception;
+
+    @Override
+    public long getNumOfPendingMessages() {
+        long numMessages = localFileSink.getNumOfPendingMessages();
+        if (numMessages == 0) {
+            return localFileSink.cleanUp(true);
+        } else {
+            return numMessages;
+        }
+    }
 }

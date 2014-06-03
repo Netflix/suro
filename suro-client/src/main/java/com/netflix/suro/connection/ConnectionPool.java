@@ -366,9 +366,10 @@ public class ConnectionPool {
         public void disconnect() {
             try {
                 transport.flush();
-                transport.close();
             } catch (TTransportException e) {
                 logger.error("Exception on disconnect: " + e.getMessage(), e);
+            } finally {
+                transport.close();
             }
         }
 
