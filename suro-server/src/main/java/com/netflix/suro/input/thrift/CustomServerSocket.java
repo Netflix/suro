@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.server;
+package com.netflix.suro.input.thrift;
 
 import org.apache.thrift.transport.TNonblockingServerTransport;
 import org.apache.thrift.transport.TNonblockingSocket;

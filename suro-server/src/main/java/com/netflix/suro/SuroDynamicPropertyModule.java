@@ -17,6 +17,7 @@
 package com.netflix.suro;
 
 import com.google.inject.AbstractModule;
+import com.netflix.suro.input.DynamicPropertyInputConfigurator;
 import com.netflix.suro.routing.DynamicPropertyRoutingMapConfigurator;
 import com.netflix.suro.sink.DynamicPropertySinkConfigurator;
 
@@ -28,6 +29,7 @@ import com.netflix.suro.sink.DynamicPropertySinkConfigurator;
 public class SuroDynamicPropertyModule extends AbstractModule {
     @Override
     protected void configure() {
+        bind(DynamicPropertyInputConfigurator.class).asEagerSingleton();
         bind(DynamicPropertySinkConfigurator.class).asEagerSingleton();
         bind(DynamicPropertyRoutingMapConfigurator.class).asEagerSingleton();
     }

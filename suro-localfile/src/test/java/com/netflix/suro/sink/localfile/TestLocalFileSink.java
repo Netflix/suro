@@ -17,9 +17,6 @@
 package com.netflix.suro.sink.localfile;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.BeanProperty;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
@@ -35,17 +32,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -64,11 +55,6 @@ public class TestLocalFileSink {
         @Override
         public void startTakingTraffic() {
             status = 200;
-        }
-
-        @Override
-        public int getStatus() {
-            return status;
         }
     };
 
@@ -93,16 +79,6 @@ public class TestLocalFileSink {
                 "}";
 
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
-        mapper.setInjectableValues(new InjectableValues() {
-            @Override
-            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
-                if (valueId.equals("queueManager")) {
-                    return trafficController;
-                } else {
-                    return null;
-                }
-            }
-        });
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
 
@@ -153,16 +129,6 @@ public class TestLocalFileSink {
                 "}";
 
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
-        mapper.setInjectableValues(new InjectableValues() {
-            @Override
-            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
-                if (valueId.equals("queueManager")) {
-                    return trafficController;
-                } else {
-                    return null;
-                }
-            }
-        });
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
         assertNull(sink.recvNotice());
@@ -218,26 +184,11 @@ public class TestLocalFileSink {
         final LocalFileSink.SpaceChecker spaceChecker = mock(LocalFileSink.SpaceChecker.class);
         when(spaceChecker.hasEnoughSpace()).thenReturn(false);
 
-        mapper.setInjectableValues(new InjectableValues() {
-            @Override
-            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
-                if (valueId.equals("queueManager")) {
-                    return trafficController;
-                } else if (valueId.equals("spaceChecker")) {
-                    return spaceChecker;
-                } else {
-                    return null;
-                }
-            }
-        });
-        assertEquals(trafficController.getStatus(), 200);
-
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
 
         Thread.sleep(1000); // wait until thread starts
 
-        assertEquals(trafficController.getStatus(), 503);
         assertNull(sink.recvNotice());
 
         when(spaceChecker.hasEnoughSpace()).thenReturn(true);
@@ -286,17 +237,6 @@ public class TestLocalFileSink {
                 "}";
 
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
-        mapper.setInjectableValues(new InjectableValues() {
-            @Override
-            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
-                if (valueId.equals("queueManager")) {
-                    return trafficController;
-                } else {
-                    return null;
-                }
-
-            }
-        });
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
         assertNull(sink.recvNotice());
@@ -351,16 +291,6 @@ public class TestLocalFileSink {
                 "}";
 
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
-        mapper.setInjectableValues(new InjectableValues() {
-            @Override
-            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
-                if (valueId.equals("queueManager")) {
-                    return trafficController;
-                } else {
-                    return null;
-                }
-            }
-        });
         Sink sink = mapper.readValue(localFileSinkSpec, new TypeReference<Sink>(){});
         sink.open();
         assertNull(sink.recvNotice());
@@ -424,16 +354,6 @@ public class TestLocalFileSink {
 
         Thread.sleep(3000); // wait until .suro file is expired
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
-        mapper.setInjectableValues(new InjectableValues() {
-            @Override
-            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
-                if (valueId.equals("queueManager")) {
-                    return trafficController;
-                } else {
-                    return null;
-                }
-            }
-        });
         LocalFileSink sink = (LocalFileSink)mapper.readValue(
                 localFileSinkSpec,
                 new TypeReference<Sink>(){});

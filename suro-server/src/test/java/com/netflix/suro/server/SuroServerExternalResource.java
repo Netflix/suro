@@ -5,6 +5,7 @@ import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.SuroServer;
 import com.netflix.suro.TestUtils;
+import com.netflix.suro.input.DynamicPropertyInputConfigurator;
 import com.netflix.suro.routing.DynamicPropertyRoutingMapConfigurator;
 import com.netflix.suro.routing.TestMessageRouter;
 import com.netflix.suro.sink.DynamicPropertySinkConfigurator;
@@ -29,10 +30,16 @@ public class SuroServerExternalResource extends ExternalResource {
             "    }\n" +
             "}";
 
-    private String mapDesc;
+    private String mapDesc="{}";
+    private String inputConfig = "[\n" +
+            "    {\n" +
+            "        \"type\": \"thrift\"\n" +
+            "    }\n" +
+            "]";
 
     public SuroServerExternalResource() {}
-    public SuroServerExternalResource(String sinkDesc, String mapDesc) {
+    public SuroServerExternalResource(String inputConfig, String sinkDesc, String mapDesc) {
+        this.inputConfig = inputConfig;
         this.sinkDesc = sinkDesc;
         this.mapDesc = mapDesc;
     }
@@ -46,6 +53,7 @@ public class SuroServerExternalResource extends ExternalResource {
         props.put("SuroServer.statusServerPort", Integer.toString(statusPort));
         props.put("SuroServer.port", Integer.toString(serverPort));
         props.put(DynamicPropertySinkConfigurator.SINK_PROPERTY, sinkDesc);
+        props.put(DynamicPropertyInputConfigurator.INPUT_CONFIG_PROPERTY, inputConfig);
         if (mapDesc != null) {
             props.put(DynamicPropertyRoutingMapConfigurator.ROUTING_MAP_PROPERTY, mapDesc);
         }

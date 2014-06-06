@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.queue;
+package com.netflix.suro.input.thrift;
 
 import com.google.inject.Injector;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
@@ -23,7 +23,8 @@ import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.connection.TestConnectionPool;
-import com.netflix.suro.server.ServerConfig;
+import com.netflix.suro.input.thrift.MessageSetProcessor;
+import com.netflix.suro.input.thrift.ServerConfig;
 import com.netflix.suro.thrift.ResultCode;
 import com.netflix.suro.thrift.ServiceStatus;
 import com.netflix.suro.thrift.TMessageSet;

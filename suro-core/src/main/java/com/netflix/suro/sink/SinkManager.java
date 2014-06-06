@@ -18,7 +18,8 @@ package com.netflix.suro.sink;
 
 import com.google.common.collect.Maps;
 import com.google.inject.Singleton;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.PreDestroy;
 import java.util.Collection;
@@ -32,7 +33,7 @@ import java.util.concurrent.ConcurrentMap;
  */
 @Singleton
 public class SinkManager {
-    private static final Logger log = Logger.getLogger(SinkManager.class);
+    private static final Logger log = LoggerFactory.getLogger(SinkManager.class);
 
     private final ConcurrentMap<String, Sink> sinkMap = Maps.newConcurrentMap();
 
