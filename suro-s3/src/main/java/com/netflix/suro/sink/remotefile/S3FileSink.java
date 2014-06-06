@@ -85,8 +85,8 @@ public class S3FileSink extends RemoteFileSink {
             @JsonProperty("batchUpload") boolean batchUpload,
             @JsonProperty("s3Acl") String s3Acl,
             @JsonProperty("s3AclRetries") int s3AclRetries,
-            @JacksonInject("multipartUtils") MultipartUtils mpUtils,
-            @JacksonInject("credentials") AWSCredentialsProvider credentialProvider) {
+            @JacksonInject MultipartUtils mpUtils,
+            @JacksonInject AWSCredentialsProvider credentialProvider) {
         super(localFileSink, prefixFormatter, concurrentUpload, batchUpload);
 
         this.bucket = bucket;
