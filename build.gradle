@@ -62,7 +62,7 @@ subprojects {
       compile 'org.apache.thrift:libthrift:0.9.1'
       compile 'org.slf4j:slf4j-api:1.6.4'
       compile 'com.google.guava:guava:11.0.2'
-      compile 'joda-time:joda-time:2.1'
+      compile 'joda-time:joda-time:2.3'
       compile 'com.fasterxml.jackson.core:jackson-databind:2.1.4'
       compile 'com.fasterxml.jackson.core:jackson-annotations:2.1.4'
       compile 'com.fasterxml.jackson.core:jackson-core:2.1.4'
