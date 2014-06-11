@@ -62,7 +62,7 @@ subprojects {
       compile 'org.apache.thrift:libthrift:0.9.1'
       compile 'org.slf4j:slf4j-api:1.6.4'
       compile 'com.google.guava:guava:11.0.2'
-      compile 'joda-time:joda-time:2.1'
+      compile 'joda-time:joda-time:2.3'
       compile 'com.fasterxml.jackson.core:jackson-databind:2.1.4'
       compile 'com.fasterxml.jackson.core:jackson-annotations:2.1.4'
       compile 'com.fasterxml.jackson.core:jackson-core:2.1.4'
@@ -118,7 +118,9 @@ project(':suro-server') {
 
     compile 'commons-cli:commons-cli:1.2'
     
+    testCompile 'org.apache.curator:curator-test:2.4.2'
     testCompile project(':suro-client').sourceSets.test.output
+    testCompile project(':suro-kafka').sourceSets.test.output
   }
 
   mainClassName = "com.netflix.suro.SuroServer"
@@ -126,7 +128,7 @@ project(':suro-server') {
     main = "com.netflix.suro.SuroServer"
     classpath = sourceSets.main.runtimeClasspath
     classpath += sourceSets.main.compileClasspath
-    args = ['-m', 'conf/routingmap.json', '-s', 'conf/sink.json']
+    args = ['-m', 'conf/routingmap.json', '-s', 'conf/sink.json', '-i', 'conf/input.json']
   }
   installApp {
     into('build/install/'+applicationName + '-' + version){

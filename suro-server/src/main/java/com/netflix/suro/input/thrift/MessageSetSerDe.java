@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.queue;
+package com.netflix.suro.input.thrift;
 
 import com.netflix.suro.message.SerDe;
 import com.netflix.suro.thrift.TMessageSet;

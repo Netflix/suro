@@ -61,4 +61,5 @@ public class ZkExternalResource extends ExternalResource {
         return zkClient;
     }
     public int getServerPort() { return zkServer.getPort(); }
+    public String getConnectionString() { return zkServer.getConnectString(); }
 }
