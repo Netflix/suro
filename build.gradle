@@ -186,14 +186,21 @@ project(':suro-s3') {
 project(':suro-localfile') {
     dependencies {
         compile project(':suro-core')
-
         compile project(':suro-client')
 
         compile (
           [group: 'org.apache.hadoop', name: 'hadoop-core', version: '0.20.205.0', transitive: false]
         )
 
-
         testCompile project(':suro-client').sourceSets.test.output
+    }
+}
+
+project(':suro-elasticsearch') {
+    dependencies {
+        compile project(':suro-core')
+        compile 'org.elasticsearch:elasticsearch:0.90.12'
+
+        testCompile project(':suro-client')
     }
 }
