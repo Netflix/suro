@@ -97,8 +97,8 @@ public class LocalFileSink extends QueuedSink implements Sink {
             @JsonProperty("queue4Sink") MessageQueue4Sink queue4Sink,
             @JsonProperty("batchSize") int batchSize,
             @JsonProperty("batchTimeout") int batchTimeout,
-            @JacksonInject("queueManager") TrafficController trafficController,
-            @JacksonInject("spaceChecker") SpaceChecker spaceChecker) {
+            @JacksonInject TrafficController trafficController,
+            @JacksonInject SpaceChecker spaceChecker) {
         if (!outputDir.endsWith("/")) {
             outputDir += "/";
         }
@@ -128,22 +128,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
                 spaceChecker = new SpaceChecker(minPercentFreeDisk, outputDir);
             }
             if (trafficController == null) {
-                trafficController = new TrafficController() {
-                    @Override
-                    public void stopTakingTraffic() {
-
-                    }
-
-                    @Override
-                    public void startTakingTraffic() {
-
-                    }
-
-                    @Override
-                    public int getStatus() {
-                        return 0;
-                    }
-                };
+                trafficController = new TrafficController();
             }
 
             notice.init();

@@ -17,7 +17,8 @@
 package com.netflix.suro.queue;
 
 import com.google.inject.Inject;
-import com.netflix.suro.server.ServerConfig;
+import com.netflix.suro.input.thrift.MessageSetSerDe;
+import com.netflix.suro.input.thrift.ServerConfig;
 import com.netflix.suro.thrift.TMessageSet;
 import org.joda.time.Period;
 import org.slf4j.Logger;
@@ -30,7 +31,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * {@link BlockingQueue} wrapper that decides whether delegate queue operations to an in-memory bounded queue, or
- * to a disk-backed queue. An in-memory bounded blocking queue will be used if the configuration {@link com.netflix.suro.server.ServerConfig#getQueueType()}
+ * to a disk-backed queue. An in-memory bounded blocking queue will be used if the configuration {@link com.netflix.suro.input.thrift.ServerConfig#getQueueType()}
  * returns "memory". Otherwise, a disk-backed queue will be used.
  *
  * @author jbae

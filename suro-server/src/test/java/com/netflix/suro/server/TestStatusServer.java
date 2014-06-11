@@ -16,6 +16,7 @@
 
 package com.netflix.suro.server;
 
+import com.netflix.suro.input.InputManager;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
@@ -35,13 +36,13 @@ public class TestStatusServer {
 
     @Test
     public void connectionFailureShouldBeDetected() throws Exception {
-        suroServer.getInjector().getInstance(ThriftServer.class).shutdown();
+        suroServer.getInjector().getInstance(InputManager.class).getInput("thrift").shutdown();
 
         HttpResponse response = runQuery("surohealthcheck");
 
         assertEquals(500, response.getStatusLine().getStatusCode());
 
-        suroServer.getInjector().getInstance(ThriftServer.class).start();
+        suroServer.getInjector().getInstance(InputManager.class).getInput("thrift").start();
     }
 
     private HttpResponse runQuery(String path) throws IOException {

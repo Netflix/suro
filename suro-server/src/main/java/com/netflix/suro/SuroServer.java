@@ -24,6 +24,8 @@ import com.netflix.governator.guice.BootstrapBinder;
 import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
+import com.netflix.suro.input.DynamicPropertyInputConfigurator;
+import com.netflix.suro.input.SuroInputPlugin;
 import com.netflix.suro.routing.DynamicPropertyRoutingMapConfigurator;
 import com.netflix.suro.routing.RoutingPlugin;
 import com.netflix.suro.server.StatusServer;
@@ -74,6 +76,9 @@ public class SuroServer {
                 } else if (propName.equals(DynamicPropertySinkConfigurator.SINK_PROPERTY)) {
                     properties.setProperty(DynamicPropertySinkConfigurator.SINK_PROPERTY,
                             FileUtils.readFileToString(new File(value)));
+                } else if (propName.equals(DynamicPropertyInputConfigurator.INPUT_CONFIG_PROPERTY)) {
+                    properties.setProperty(DynamicPropertyInputConfigurator.INPUT_CONFIG_PROPERTY,
+                            FileUtils.readFileToString(new File(value)));
                 } else {
                     properties.setProperty(propName, value);
                 }
@@ -117,6 +122,7 @@ public class SuroServer {
                 .withModules(
                         new RoutingPlugin(),
                         new ServerSinkPlugin(),
+                        new SuroInputPlugin(),
                         new SuroDynamicPropertyModule(),
                         new SuroModule(),
                         StatusServer.createJerseyServletModule()
@@ -158,6 +164,12 @@ public class SuroServer {
                 .withDescription("sink")
                 .create('s');
 
+        Option inputFile = OptionBuilder.withArgName("inputConfig" )
+                .hasArg()
+                .isRequired(true)
+                .withDescription("input")
+                .create('i');
+
         Option accessKey = OptionBuilder.withArgName("AWSAccessKey" )
                 .hasArg()
                 .isRequired(false)
@@ -180,6 +192,7 @@ public class SuroServer {
         options.addOption(propertyFile);
         options.addOption(mapFile);
         options.addOption(sinkFile);
+        options.addOption(inputFile);
         options.addOption(accessKey);
         options.addOption(secretKey);
         options.addOption(controlPort);

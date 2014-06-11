@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.queue;
+package com.netflix.suro.input.thrift;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
@@ -30,8 +30,8 @@ import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetBuilder;
 import com.netflix.suro.message.MessageSetReader;
+import com.netflix.suro.queue.Queue4Server;
 import com.netflix.suro.routing.MessageRouter;
-import com.netflix.suro.server.ServerConfig;
 import com.netflix.suro.thrift.*;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
@@ -42,7 +42,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The {@link TMessageSet} processor used by {@link com.netflix.suro.server.ThriftServer}. It takes incoming {@link TMessageSet}
+ * The {@link TMessageSet} processor used by {@link com.netflix.suro.input.thrift.ThriftServer}. It takes incoming {@link TMessageSet}
  * sent by Suro client, validates each message set's CRC32 code, and then hands off validated message set to an internal queue.
  * A {@link MessageRouter} instance will asynchronously route the messages in the queue into configured sinks based on routing rules,
  * represented by {@link com.amazonaws.services.s3.model.RoutingRule}.
@@ -86,7 +86,6 @@ public class MessageSetProcessor implements SuroServer.Iface {
     public MessageSetProcessor(
         Queue4Server queue,
         MessageRouter router,
-        MessageSetProcessorManager manager,
         ServerConfig config,
         ObjectMapper jsonMapper) throws Exception {
         this.queue = queue;
@@ -96,7 +95,6 @@ public class MessageSetProcessor implements SuroServer.Iface {
 
         isRunning = true;
 
-        manager.registerService(this);
         Monitors.registerObject(this);
     }
 
