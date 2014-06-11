@@ -14,12 +14,14 @@
  *    limitations under the License.
  */
 
-package com.netflix.suro.server;
+package com.netflix.suro.input.thrift;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Throwables;
-import com.google.inject.Inject;
 import com.netflix.governator.guice.lazy.LazySingleton;
-import com.netflix.suro.queue.MessageSetProcessor;
+import com.netflix.suro.input.SuroInput;
+import com.netflix.suro.queue.TrafficController;
 import com.netflix.suro.thrift.SuroServer;
 import org.apache.thrift.server.THsHaServer;
 import org.apache.thrift.transport.TTransportException;
@@ -29,27 +31,39 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.*;
 
 @LazySingleton
-public class ThriftServer {
+public class ThriftServer implements SuroInput {
+    public static final String TYPE = "thrift";
+
     private static final Logger logger = LoggerFactory.getLogger(ThriftServer.class);
 
     private THsHaServer server = null;
 
     private final ServerConfig config;
-    private final MessageSetProcessor MessageSetProcessor;
+    private final MessageSetProcessor msgProcessor;
     private ExecutorService executor;
 
-    @Inject
+    @JsonCreator
     public ThriftServer(
-            ServerConfig config,
-            MessageSetProcessor MessageSetProcessor) throws Exception {
+            @JacksonInject ServerConfig config,
+            @JacksonInject MessageSetProcessor msgProcessor,
+            @JacksonInject TrafficController trafficController) throws Exception {
         this.config = config;
-        this.MessageSetProcessor = MessageSetProcessor;
+        this.msgProcessor = msgProcessor;
+        trafficController.registerService(this);
     }
 
+    @Override
+    public String getId() {
+        return TYPE;
+    }
+
+    @Override
     public void start() throws TTransportException {
+        msgProcessor.start();
+
         logger.info("Starting ThriftServer with config " + config);
         CustomServerSocket transport = new CustomServerSocket(config);
-        SuroServer.Processor processor =  new SuroServer.Processor<MessageSetProcessor>(MessageSetProcessor);
+        SuroServer.Processor processor =  new SuroServer.Processor<MessageSetProcessor>(msgProcessor);
 
         THsHaServer.Args serverArgs = new THsHaServer.Args(transport);
         serverArgs.workerThreads(config.getThriftWorkerThreadNum());
@@ -87,22 +101,42 @@ public class ThriftServer {
         }
     }
 
-    public boolean isServing(){
-        return server != null && server.isServing();
-    }
-
-    public boolean isStopped(){
-        return server == null || server.isStopped();
-    }
-
+    @Override
     public void shutdown() {
         logger.info("Shutting down thrift server");
         try {
+            stopTakingTraffic();
+            Thread.sleep(1000);
             server.stop();
             executor.shutdownNow();
+            msgProcessor.shutdown();
         } catch (Exception e) {
             // ignore any exception when shutdown
             logger.error("Exception while shutting down: " + e.getMessage(), e);
         }
+    }
+
+    @Override
+    public void startTakingTraffic() {
+        msgProcessor.startTakingTraffic();
+    }
+
+    @Override
+    public void stopTakingTraffic() {
+        msgProcessor.startTakingTraffic();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof ThriftServer) {
+            return true; // thrift server is singleton
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public int hashCode() {
+        return TYPE.hashCode();
     }
 }

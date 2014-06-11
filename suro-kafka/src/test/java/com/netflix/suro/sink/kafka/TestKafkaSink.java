@@ -69,7 +69,7 @@ public class TestKafkaSink {
         jsonMapper.registerSubtypes(new NamedType(KafkaSink.class, "kafka"));
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
-        Iterator<Message> msgIterator = new MessageSetReader(createMessageSet(2)).iterator();
+        Iterator<Message> msgIterator = new MessageSetReader(createMessageSet(TOPIC_NAME, 2)).iterator();
         while (msgIterator.hasNext()) {
             sink.writeTo(new StringMessage(msgIterator.next()));
         }
@@ -253,10 +253,10 @@ public class TestKafkaSink {
         return bytes;
     }
 
-    public static TMessageSet createMessageSet(int numMsgs) {
+    public static TMessageSet createMessageSet(String topic, int numMsgs) {
         MessageSetBuilder builder = new MessageSetBuilder(new ClientConfig()).withCompression(Compression.LZF);
         for (int i = 0; i < numMsgs; ++i) {
-            builder.withMessage(TOPIC_NAME, ("testMessage" + i).getBytes());
+            builder.withMessage(topic, ("testMessage" + i).getBytes());
         }
 
         return builder.build();

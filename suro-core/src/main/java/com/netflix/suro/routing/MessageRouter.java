@@ -17,7 +17,7 @@
 package com.netflix.suro.routing;
 
 import com.google.inject.Inject;
-import com.netflix.governator.guice.lazy.LazySingleton;
+import com.google.inject.Singleton;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.routing.RoutingMap.Route;
@@ -32,7 +32,7 @@ import java.util.List;
  *
  * @author jbae
  */
-@LazySingleton
+@Singleton
 public class MessageRouter {
     private static final Logger log = LoggerFactory.getLogger(MessageRouter.class);
 
