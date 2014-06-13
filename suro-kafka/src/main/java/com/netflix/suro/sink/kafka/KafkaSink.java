@@ -163,7 +163,21 @@ public class KafkaSink extends QueuedSink implements Sink {
 
     @Override
     protected void write(List<Message> msgList) {
-        send(msgList);
+        final List<KeyedMessage<Long, byte[]>> kafkaMsgList = new ArrayList<KeyedMessage<Long, byte[]>>();
+        for (Message m : msgList) {
+            SuroKeyedMessage keyedMessage = (SuroKeyedMessage) m;
+            kafkaMsgList.add(new KeyedMessage<Long, byte[]>(
+                    keyedMessage.getRoutingKey(),
+                    keyedMessage.getKey(),
+                    keyedMessage.getPayload()));
+        }
+
+        senders.submit(new Runnable() {
+            @Override
+            public void run() {
+                producer.send(kafkaMsgList);
+            }
+        });
     }
 
     @Override
@@ -200,23 +214,5 @@ public class KafkaSink extends QueuedSink implements Sink {
         sb.append("dropped message rate: " ).append(topicStats.getProducerAllTopicsStats().droppedMessageRate().count()).append('\n');
 
         return sb.toString();
-    }
-
-    protected void send(final List<Message> msgList) {
-        final List<KeyedMessage<Long, byte[]>> kafkaMsgList = new ArrayList<KeyedMessage<Long, byte[]>>();
-        for (Message m : msgList) {
-            SuroKeyedMessage keyedMessage = (SuroKeyedMessage) m;
-            kafkaMsgList.add(new KeyedMessage<Long, byte[]>(
-                    keyedMessage.getRoutingKey(),
-                    keyedMessage.getKey(),
-                    keyedMessage.getPayload()));
-        }
-
-        senders.submit(new Runnable() {
-            @Override
-            public void run() {
-                producer.send(kafkaMsgList);
-            }
-        });
     }
 }

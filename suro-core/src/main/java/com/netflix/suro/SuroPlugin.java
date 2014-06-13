@@ -17,7 +17,7 @@ import org.apache.log4j.Logger;
  *
  */
 public abstract class SuroPlugin extends AbstractModule {
-    private static final Logger LOG = Logger.getLogger(SuroPlugin.class);
+    protected static final Logger LOG = Logger.getLogger(SuroPlugin.class);
     
     /**
      * Add a sink implementation to Suro.  typeName is the expected value of the

@@ -109,6 +109,7 @@ project(':suro-server') {
     compile project(':suro-kafka')
     compile project(':suro-localfile')
     compile project(':suro-s3')
+    compile project(':suro-elasticsearch')
 
     compile 'org.eclipse.jetty:jetty-servlet:7.6.7.v20120910'
     compile 'com.sun.jersey.contribs:jersey-guice:1.11'
@@ -188,14 +189,21 @@ project(':suro-s3') {
 project(':suro-localfile') {
     dependencies {
         compile project(':suro-core')
-
         compile project(':suro-client')
 
         compile (
           [group: 'org.apache.hadoop', name: 'hadoop-core', version: '0.20.205.0', transitive: false]
         )
 
-
         testCompile project(':suro-client').sourceSets.test.output
+    }
+}
+
+project(':suro-elasticsearch') {
+    dependencies {
+        compile project(':suro-core')
+        compile 'org.elasticsearch:elasticsearch:0.90.10'
+
+        testCompile project(':suro-client')
     }
 }
