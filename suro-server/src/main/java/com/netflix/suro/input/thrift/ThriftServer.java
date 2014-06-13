@@ -123,7 +123,7 @@ public class ThriftServer implements SuroInput {
 
     @Override
     public void stopTakingTraffic() {
-        msgProcessor.startTakingTraffic();
+        msgProcessor.stopTakingTraffic();
     }
 
     @Override
