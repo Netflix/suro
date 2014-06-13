@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
         @JsonSubTypes.Type(name = MemoryQueue4Sink.TYPE, value = MemoryQueue4Sink.class),
+        @JsonSubTypes.Type(name = BlockingQueue4Sink.TYPE, value = BlockingQueue4Sink.class),
         @JsonSubTypes.Type(name = FileQueue4Sink.TYPE, value = FileQueue4Sink.class)
 })
 public interface MessageQueue4Sink {

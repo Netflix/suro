@@ -32,22 +32,26 @@ public class DynamicPropertyInputConfigurator {
 
     @PostConstruct
     public void init() {
-        DynamicStringProperty routingMapFP = new DynamicStringProperty(INPUT_CONFIG_PROPERTY, initialInputConfig) {
+        DynamicStringProperty inputFP = new DynamicStringProperty(INPUT_CONFIG_PROPERTY, initialInputConfig) {
             @Override
             protected void propertyChanged() {
-                buildInput(get());
+                buildInput(get(), false);
             }
         };
 
-        buildInput(routingMapFP.get());
+        buildInput(inputFP.get(), true);
     }
 
-    private void buildInput(String inputListStr) {
+    private void buildInput(String inputListStr, boolean initialSet) {
         try {
             List<SuroInput> inputList = jsonMapper.readValue(
                     inputListStr,
                     new TypeReference<List<SuroInput>>() {});
-            inputManager.set(inputList);
+            if (initialSet) {
+                inputManager.initialSet(inputList);
+            } else {
+                inputManager.set(inputList);
+            }
         } catch (Exception e) {
             LOG.info("Error reading input config from fast property: "+e.getMessage(), e);
         }

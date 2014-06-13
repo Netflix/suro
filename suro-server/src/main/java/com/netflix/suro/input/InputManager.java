@@ -17,6 +17,22 @@ public class InputManager {
 
     private ConcurrentMap<String, SuroInput> inputMap = new ConcurrentHashMap<String, SuroInput>();
 
+    public void initialStart() throws Exception {
+        for (SuroInput suroInput : inputMap.values()) {
+            suroInput.start();
+        }
+    }
+
+    public void initialSet(List<SuroInput> inputList) {
+        if (!inputMap.isEmpty()) {
+            throw new RuntimeException("inputMap is not empty");
+        }
+
+        for (SuroInput suroInput : inputList) {
+            inputMap.put(suroInput.getId(), suroInput);
+        }
+    }
+
     public void set(List<SuroInput> inputList) {
         for (SuroInput suroInput : inputList) {
             if (!inputMap.containsKey(suroInput.getId())) {
@@ -33,7 +49,8 @@ public class InputManager {
 
         for (Map.Entry<String, SuroInput> e : inputMap.entrySet()) {
             if (!suroInputIdSet.contains(e.getValue())) {
-                inputMap.remove(e.getKey());
+                SuroInput input = inputMap.remove(e.getKey());
+                input.shutdown();
             }
         }
     }
@@ -47,6 +64,4 @@ public class InputManager {
             input.shutdown();
         }
     }
-
-
 }

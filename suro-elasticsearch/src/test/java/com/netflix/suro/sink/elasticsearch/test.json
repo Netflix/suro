@@ -1,0 +1,31 @@
+[
+    {
+        "type": "default",
+        "indexTypeMap":{"routingkey1":"index1:type1", "routingkey2":"index2:type2"},
+        "idFields":["f1", "f2"],
+        "timestamp": {"field":"ts"},
+        "indexSuffixFormatter":{"type": "date", "properties":{"dateFormat":"YYYYMMdd"}}
+    },
+    {
+        "type": "elasticsearch",
+        "queue4Sink":{"type": "memory", "capacity": 10000 },
+        "batchSize": 100,
+        "batchTimeout": 1000,
+        "cluster.name": "es_test",
+        "client.transport.sniff": true,
+        "client.transport.ping_timeout": "60s",
+        "client.transport_nodes_sampler_interval": "60s",
+        "addressList": ["host1:port1", "host2:port2"],
+        "indexInfo":{
+            "type": "default",
+            "indexTypeMap":{"routingkey1":"index1:type1", "routingkey2":"index2:type2"},
+            "idFields":["f1", "f2"],
+            "timestamp": {"field":"ts"},
+            "indexSuffixFormatter":{"type": "date", "properties":{"dateFormat":"YYYYMMdd"}}
+        }
+    },
+    {
+        "type": "memory",
+        "capacity": 1000
+    }
+]

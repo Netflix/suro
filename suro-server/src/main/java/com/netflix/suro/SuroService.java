@@ -55,8 +55,9 @@ public class SuroService {
     public void start() {
         try {
             statusServer.start();
-        }
-        catch (Exception e) {
+            sinkManager.initialStart();
+            inputManager.initialStart();
+        } catch (Exception e) {
             log.error("Exception while starting up server: " + e.getMessage(), e);
             Throwables.propagate(e);
         }

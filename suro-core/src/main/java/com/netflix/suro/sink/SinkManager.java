@@ -37,6 +37,23 @@ public class SinkManager {
 
     private final ConcurrentMap<String, Sink> sinkMap = Maps.newConcurrentMap();
 
+    public void initialStart() {
+        for (Sink sink : sinkMap.values()) {
+            sink.open();
+        }
+    }
+
+    public void initialSet(Map<String, Sink> newSinkMap) {
+        if (!sinkMap.isEmpty()) {
+            throw new RuntimeException("sinkMap is not empty");
+        }
+
+        for (Map.Entry<String, Sink> sink : newSinkMap.entrySet()) {
+            log.info(String.format("Adding sink '%s'", sink.getKey()));
+            sinkMap.put(sink.getKey(), sink.getValue());
+        }
+    }
+
     public void set(Map<String, Sink> newSinkMap) {
         try {
             for (Map.Entry<String, Sink> sink : sinkMap.entrySet()) {
