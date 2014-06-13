@@ -65,6 +65,7 @@ public class TestElasticSearchSink {
                 "1s",
                 null,
                 null,
+                0,0,0,0,
                 null,
                 jsonMapper,
                 node.client()
@@ -99,7 +100,7 @@ public class TestElasticSearchSink {
         props.setProperty("dateFormat", "YYYYMMdd");
         ElasticSearchSink sink = new ElasticSearchSink(
                 null,
-                10,
+                1,
                 1000,
                 null,
                 true,
@@ -113,6 +114,7 @@ public class TestElasticSearchSink {
                         new IndexSuffixFormatter("date", props),
                         null,
                         jsonMapper),
+                0,0,0,0,
                 null,
                 jsonMapper,
                 node.client()
