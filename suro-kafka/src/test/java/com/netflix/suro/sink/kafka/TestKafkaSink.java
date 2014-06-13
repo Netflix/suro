@@ -33,6 +33,7 @@ import scala.Option;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.*;
 
 import static org.junit.Assert.*;
 
@@ -231,6 +232,54 @@ public class TestKafkaSink {
         } catch (ConsumerTimeoutException e) {
             //this is expected
             consumer.shutdown();
+        }
+    }
+
+    @Test
+    public void testBlockingThreadPoolExecutor() {
+        int jobQueueSize = 5;
+        int corePoolSize = 3;
+        int maxPoolSize = 3;
+
+        try {
+            testQueue(corePoolSize, maxPoolSize, new ArrayBlockingQueue<Runnable>(jobQueueSize));
+            fail("RejectedExecutionException should be thrown");
+        } catch (RejectedExecutionException e) {
+            // good to go
+        }
+
+        BlockingQueue<Runnable> jobQueue = new ArrayBlockingQueue<Runnable>(jobQueueSize) {
+            @Override
+            public boolean offer(Runnable runnable) {
+                try {
+                    put(runnable); // not to reject the task, slowing down
+                } catch (InterruptedException e) {
+                    // do nothing
+                }
+                return true;
+            }
+        };
+        testQueue(corePoolSize, maxPoolSize, jobQueue);
+    }
+
+    private void testQueue(int corePoolSize, int maxPoolSize, BlockingQueue<Runnable> jobQueue) {
+        ThreadPoolExecutor senders = new ThreadPoolExecutor(
+                corePoolSize,
+                maxPoolSize,
+                10, TimeUnit.SECONDS,
+                jobQueue);
+
+        for (int i = 0; i < 100; ++i) {
+            senders.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        fail();
+                    }
+                }
+            });
         }
     }
 
