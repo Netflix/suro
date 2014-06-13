@@ -63,7 +63,13 @@ public class DefaultIndexInfoBuilder implements IndexInfoBuilder {
     @Override
     public IndexInfo create(final Message msg) {
         try {
-            final Map<String, Object> msgMap = jsonMapper.readValue(msg.getPayload(), type);
+            final Map<String, Object> msgMap;
+            if (dataConveter != null) {
+                msgMap = dataConveter.convert((Map<String, Object>) jsonMapper.readValue(msg.getPayload(), type));
+            } else {
+                msgMap = jsonMapper.readValue(msg.getPayload(), type);
+            }
+
             return new IndexInfo() {
                 private long ts = 0; //timestamp caching
 
@@ -86,7 +92,7 @@ public class DefaultIndexInfoBuilder implements IndexInfoBuilder {
                 public byte[] getSource() {
                     if (dataConveter != null) {
                         try {
-                            return jsonMapper.writeValueAsBytes(dataConveter.convert(msgMap));
+                            return jsonMapper.writeValueAsBytes(msgMap);
                         } catch (JsonProcessingException e) {
                             log.error("Exception on converting", e);
                             throw new RuntimeException(e);

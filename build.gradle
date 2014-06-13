@@ -109,6 +109,7 @@ project(':suro-server') {
     compile project(':suro-kafka')
     compile project(':suro-localfile')
     compile project(':suro-s3')
+    compile project(':suro-elasticsearch')
 
     compile 'org.eclipse.jetty:jetty-servlet:7.6.7.v20120910'
     compile 'com.sun.jersey.contribs:jersey-guice:1.11'
@@ -201,7 +202,7 @@ project(':suro-localfile') {
 project(':suro-elasticsearch') {
     dependencies {
         compile project(':suro-core')
-        compile 'org.elasticsearch:elasticsearch:0.90.12'
+        compile 'org.elasticsearch:elasticsearch:0.90.10'
 
         testCompile project(':suro-client')
     }
