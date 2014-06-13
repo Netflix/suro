@@ -75,7 +75,7 @@ subprojects {
       runtime 'com.netflix.netflix-commons:netflix-commons-util:0.1.1'
 
       testCompile 'org.mockito:mockito-core:1.9.5'
-      testCompile 'junit:junit:4.+'
+      testCompile 'junit:junit:4.11'
     }
 
     test {
