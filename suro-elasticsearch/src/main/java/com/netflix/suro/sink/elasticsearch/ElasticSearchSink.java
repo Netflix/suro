@@ -13,10 +13,10 @@ import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.queue.MemoryQueue4Sink;
 import com.netflix.suro.queue.MessageQueue4Sink;
-import com.netflix.suro.sink.QueuedSink;
 import com.netflix.suro.sink.Sink;
+import com.netflix.suro.sink.ThreadPoolQueuedSink;
 import org.elasticsearch.action.bulk.BulkItemResponse;
-import org.elasticsearch.action.bulk.BulkRequestBuilder;
+import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 
-public class ElasticSearchSink extends QueuedSink implements Sink {
+public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private static Logger log = LoggerFactory.getLogger(ElasticSearchSink.class);
 
     public static final String TYPE = "elasticsearch";
@@ -65,9 +65,16 @@ public class ElasticSearchSink extends QueuedSink implements Sink {
             @JsonProperty("client.transport.nodes_sampler_interval") String nodesSamplerInterval,
             @JsonProperty("addressList") List<String> addressList,
             @JacksonInject @JsonProperty("indexInfo") IndexInfoBuilder indexInfo,
+            @JsonProperty("jobQueueSize") int jobQueueSize,
+            @JsonProperty("corePoolSize") int corePoolSize,
+            @JsonProperty("maxPoolSize") int maxPoolSize,
+            @JsonProperty("jobTimeout") long jobTimeout,
             @JacksonInject DiscoveryClient discoveryClient,
             @JacksonInject ObjectMapper jsonMapper,
             @JacksonInject Client client) {
+        super(jobQueueSize, corePoolSize, maxPoolSize, jobTimeout,
+                ElasticSearchSink.class.getSimpleName() + "-" + clusterName);
+
         this.indexInfo =
                 indexInfo == null ? new DefaultIndexInfoBuilder(null, null, null, null, null, jsonMapper) : indexInfo;
 
@@ -147,7 +154,7 @@ public class ElasticSearchSink extends QueuedSink implements Sink {
 
     @Override
     protected void write(List<Message> msgList) throws IOException {
-        BulkRequestBuilder request = client.prepareBulk();
+        final BulkRequest request = new BulkRequest();
         for (Message m : msgList) {
             IndexInfo info = indexInfo.create(m);
             if (info == null) {
@@ -157,32 +164,44 @@ public class ElasticSearchSink extends QueuedSink implements Sink {
                         .type(info.getType())
                         .source(info.getSource())
                         .id(info.getId())
-                        .opType(IndexRequest.OpType.CREATE));
+                        .opType(IndexRequest.OpType.CREATE),
+                        m);
             }
         }
 
-        BulkResponse response = request.execute().actionGet();
-        if (response.hasFailures()) {
-            int rejectedCount = 0;
-            for (BulkItemResponse r : response.getItems()) {
-                if (r.isFailed() && !r.getFailureMessage().startsWith("DocumentAlreadyExistsException")) {
-                    log.error("Failed with: " + r.getFailureMessage());
-                    ++rejectedCount;
+        senders.execute(createRunnable(request));
+    }
 
-                    enqueue(msgList.get(r.getItemId()));
+    private Runnable createRunnable(final BulkRequest request) {
+        return new Runnable() {
+            @Override
+            public void run() {
+                BulkResponse response = client.bulk(request).actionGet();
+                if (response.hasFailures()) {
+                    int rejectedCount = 0;
+                    for (BulkItemResponse r : response.getItems()) {
+                        if (r.isFailed() && !r.getFailureMessage().contains("DocumentAlreadyExistsException")) {
+                            log.error("Failed with: " + r.getFailureMessage());
+                            ++rejectedCount;
+
+                            enqueue((Message) request.payloads().get(r.getItemId()));
+                        }
+                    }
+                    rejectedRowCount += rejectedCount;
+                    indexedRowCount += request.numberOfActions() - rejectedCount;
+                } else {
+                    indexedRowCount += request.numberOfActions();
                 }
-            }
-            rejectedRowCount += rejectedCount;
-            indexedRowCount += request.numberOfActions() - rejectedCount;
-        } else {
-            indexedRowCount += request.numberOfActions();
-        }
 
-        indexDelay = System.currentTimeMillis() - indexInfo.create(msgList.get(0)).getTimestamp();
+                indexDelay = System.currentTimeMillis() - indexInfo.create((Message) request.payloads().get(0)).getTimestamp();
+            }
+        };
     }
 
     @Override
-    protected void innerClose() throws IOException {
+    protected void innerClose() {
+        super.innerClose();
+
         client.close();
     }
 }
