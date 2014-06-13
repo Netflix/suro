@@ -42,23 +42,26 @@ public class DynamicPropertySinkConfigurator {
         DynamicStringProperty sinkDescription = new DynamicStringProperty(SINK_PROPERTY, initialSink) {
             @Override
             protected void propertyChanged() {
-                buildSink(get());
+                buildSink(get(), false);
             }
         };
 
-        buildSink(sinkDescription.get());
+        buildSink(sinkDescription.get(), true);
     }
 
-    private void buildSink(String sink) {
+    private void buildSink(String sink, boolean initStart) {
         try {
             Map<String, Sink> newSinkMap = jsonMapper.readValue(sink, new TypeReference<Map<String, Sink>>(){});
             if ( !newSinkMap.containsKey("default") ) {
                 throw new IllegalStateException("default sink should be defined");
             }
 
-            sinkManager.set(newSinkMap);
-        }
-        catch (Exception e) {
+            if (initStart) {
+                sinkManager.initialSet(newSinkMap);
+            } else {
+                sinkManager.set(newSinkMap);
+            }
+        } catch (Exception e) {
             log.error("Exception on building SinkManager: " + e.getMessage(), e);
         }
     }

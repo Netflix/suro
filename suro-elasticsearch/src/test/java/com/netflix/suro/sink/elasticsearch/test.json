@@ -23,5 +23,9 @@
             "timestamp": {"field":"ts"},
             "indexSuffixFormatter":{"type": "date", "properties":{"dateFormat":"YYYYMMdd"}}
         }
+    },
+    {
+        "type": "memory",
+        "capacity": 1000
     }
 ]

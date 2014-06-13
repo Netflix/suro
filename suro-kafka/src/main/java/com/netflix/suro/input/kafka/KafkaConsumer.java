@@ -28,7 +28,7 @@ public class KafkaConsumer implements SuroInput {
     public static final String TYPE = "kafka";
     private static Logger log = LoggerFactory.getLogger(KafkaConsumer.class);
 
-    private final Properties consumerProps;
+    protected final Properties consumerProps;
     private final String topic;
     private final MessageRouter router;
     private final ObjectMapper jsonMapper;
