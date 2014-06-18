@@ -194,9 +194,11 @@ public class TestQueuedSink {
             sink.enqueue(new Message("routingKey", ("message" + i).getBytes()));
         }
 
+        for (int i = 0; i < 10 && !sink.queue4Sink.isEmpty(); ++i) {
+            Thread.sleep(1000);
+        }
         assertEquals(sink.getJobQueueSize(), jobPoolSize - 1);
         assertEquals(sink.getNumOfPendingMessages(), jobPoolSize);
-        assertTrue(sink.queue4Sink.isEmpty());
 
         waitingLatch.countDown();
         goLatch.await(10, TimeUnit.SECONDS);
