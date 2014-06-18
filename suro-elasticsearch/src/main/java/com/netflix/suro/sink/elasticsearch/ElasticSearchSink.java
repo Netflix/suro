@@ -64,7 +64,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             @JsonProperty("client.transport.ping_timeout") String pingTimeout,
             @JsonProperty("client.transport.nodes_sampler_interval") String nodesSamplerInterval,
             @JsonProperty("addressList") List<String> addressList,
-            @JacksonInject @JsonProperty("indexInfo") IndexInfoBuilder indexInfo,
+            @JsonProperty("indexInfo") @JacksonInject IndexInfoBuilder indexInfo,
             @JsonProperty("jobQueueSize") int jobQueueSize,
             @JsonProperty("corePoolSize") int corePoolSize,
             @JsonProperty("maxPoolSize") int maxPoolSize,

@@ -202,7 +202,7 @@ project(':suro-localfile') {
 project(':suro-elasticsearch') {
     dependencies {
         compile project(':suro-core')
-        compile 'org.elasticsearch:elasticsearch:0.90.10'
+        compile 'org.elasticsearch:elasticsearch:0.90.12'
 
         testCompile project(':suro-client')
     }
