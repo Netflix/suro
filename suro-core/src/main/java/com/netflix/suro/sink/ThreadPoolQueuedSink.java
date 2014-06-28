@@ -56,4 +56,14 @@ public abstract class ThreadPoolQueuedSink extends QueuedSink {
             log.error("Interrupted: " + e.getMessage());
         }
     }
+
+    @Override
+    public long getNumOfPendingMessages() {
+        long messagesInQueue = super.getNumOfPendingMessages();
+        if (messagesInQueue == 0) {
+            return getJobQueueSize() + senders.getActiveCount();
+        } else {
+            return messagesInQueue;
+        }
+    }
 }
