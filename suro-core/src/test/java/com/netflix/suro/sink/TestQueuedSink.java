@@ -1,6 +1,7 @@
 package com.netflix.suro.sink;
 
 import com.netflix.suro.message.Message;
+import com.netflix.suro.queue.BlockingQueue4Sink;
 import com.netflix.suro.queue.FileQueue4Sink;
 import com.netflix.suro.queue.MemoryQueue4Sink;
 import org.junit.Rule;
@@ -13,9 +14,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class TestQueuedSink {
     @Rule
@@ -155,4 +158,53 @@ public class TestQueuedSink {
         assertEquals(sink.droppedMessagesCount.get(), msgCount - queueCapacity - unsentMessageList.size());
     }
 
+    @Test
+    public void shouldReturnPendingTasks() throws InterruptedException {
+        int jobPoolSize = 100;
+        int queueSize = 1;
+        final CountDownLatch waitingLatch = new CountDownLatch(1);
+        final CountDownLatch goLatch = new CountDownLatch(jobPoolSize);
+
+        ThreadPoolQueuedSink sink = new ThreadPoolQueuedSink(jobPoolSize, 1, 1, Long.MAX_VALUE, "testqueuedsink") {
+            @Override
+            protected void beforePolling() throws IOException {
+
+            }
+
+            @Override
+            protected void write(List<Message> msgList) throws IOException {
+                senders.execute(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        try {
+                            waitingLatch.await(10, TimeUnit.SECONDS);
+                            goLatch.countDown();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+            }
+        };
+
+        sink.initialize(new BlockingQueue4Sink(queueSize), 1, Integer.MAX_VALUE);
+        sink.start();
+        for (int i = 0; i < jobPoolSize; ++i) {
+            sink.enqueue(new Message("routingKey", ("message" + i).getBytes()));
+        }
+
+        for (int i = 0; i < 10 && !sink.queue4Sink.isEmpty(); ++i) {
+            Thread.sleep(1000);
+        }
+        assertEquals(sink.getJobQueueSize(), jobPoolSize - 1);
+        assertEquals(sink.getNumOfPendingMessages(), jobPoolSize);
+
+        waitingLatch.countDown();
+        goLatch.await(10, TimeUnit.SECONDS);
+
+        assertEquals(sink.getJobQueueSize(), 0);
+        assertEquals(sink.getNumOfPendingMessages(), 0);
+        assertTrue(sink.queue4Sink.isEmpty());
+    }
 }
