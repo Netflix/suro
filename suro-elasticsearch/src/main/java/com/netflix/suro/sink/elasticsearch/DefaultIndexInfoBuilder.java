@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.netflix.suro.message.Message;
+import com.netflix.suro.sink.DataConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
