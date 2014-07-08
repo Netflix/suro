@@ -26,6 +26,9 @@ allprojects {
         name 'github.release.repo'
         url 'https://raw.github.com/bulldog2011/bulldog-repo/master/repo/releases/'
       }
+      maven {
+        url "https://metamx.artifactoryonline.com/metamx/pub-libs-releases-local"
+      }
       maven{
         name 'sonatype'
         url 'https://oss.sonatype.org/content/groups/public/'
@@ -110,6 +113,7 @@ project(':suro-server') {
     compile project(':suro-localfile')
     compile project(':suro-s3')
     compile project(':suro-elasticsearch')
+    compile project(':suro-tranquility')
 
     compile 'org.eclipse.jetty:jetty-servlet:7.6.7.v20120910'
     compile 'com.sun.jersey.contribs:jersey-guice:1.11'
@@ -205,5 +209,21 @@ project(':suro-elasticsearch') {
         compile 'org.elasticsearch:elasticsearch:0.90.12'
 
         testCompile project(':suro-client')
+    }
+}
+
+project(':suro-tranquility') {
+    dependencies {
+        compile project(':suro-core')
+        compile ('com.metamx:tranquility:0.1.21') {
+          exclude module: 'sigar'
+        }
+
+        runtime 'org.eintr.loglady:loglady_2.9.2:1.1.0'
+
+        testCompile project(':suro-client')
+        testCompile project(':suro-kafka').sourceSets.test.output
+        testCompile 'com.101tec:zkclient:0.3'
+        testCompile 'org.apache.curator:curator-test:2.4.2'
     }
 }

@@ -94,7 +94,8 @@ public class DefaultObjectMapper extends ObjectMapper {
                 }
             });
         }
-        
+
+        configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         configure(MapperFeature.AUTO_DETECT_GETTERS, false);
         configure(MapperFeature.AUTO_DETECT_CREATORS, false);

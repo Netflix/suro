@@ -1,4 +1,4 @@
-package com.netflix.suro.sink.elasticsearch;
+package com.netflix.suro.sink;
 
 import java.util.Map;
 
