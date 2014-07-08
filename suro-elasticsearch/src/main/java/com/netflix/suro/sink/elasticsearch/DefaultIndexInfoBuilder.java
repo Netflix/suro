@@ -26,7 +26,7 @@ public class DefaultIndexInfoBuilder implements IndexInfoBuilder {
     private final List<String> idFields;
     private final TimestampField timestampField;
     private final IndexSuffixFormatter indexSuffixFormatter;
-    private final DataConverter dataConveter;
+    private final DataConverter dataConverter;
 
     @JsonCreator
     public DefaultIndexInfoBuilder(
@@ -58,15 +58,15 @@ public class DefaultIndexInfoBuilder implements IndexInfoBuilder {
                 indexSuffixFormatter == null ? new IndexSuffixFormatter(null, null) : indexSuffixFormatter;
         this.jsonMapper = jsonMapper;
         this.timestampField = timestampField;
-        this.dataConveter = dataConverter;
+        this.dataConverter = dataConverter;
     }
 
     @Override
     public IndexInfo create(final Message msg) {
         try {
             final Map<String, Object> msgMap;
-            if (dataConveter != null) {
-                msgMap = dataConveter.convert((Map<String, Object>) jsonMapper.readValue(msg.getPayload(), type));
+            if (dataConverter != null) {
+                msgMap = dataConverter.convert((Map<String, Object>) jsonMapper.readValue(msg.getPayload(), type));
             } else {
                 msgMap = jsonMapper.readValue(msg.getPayload(), type);
             }
@@ -91,7 +91,7 @@ public class DefaultIndexInfoBuilder implements IndexInfoBuilder {
 
                 @Override
                 public byte[] getSource() {
-                    if (dataConveter != null) {
+                    if (dataConverter != null) {
                         try {
                             return jsonMapper.writeValueAsBytes(msgMap);
                         } catch (JsonProcessingException e) {

@@ -2,6 +2,7 @@ package com.netflix.suro;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
+import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import io.druid.jackson.AggregatorsModule;
@@ -10,14 +11,17 @@ import io.druid.jackson.QueryGranularityModule;
 import io.druid.jackson.SegmentsModule;
 
 public class ObjectMapperProvider implements Provider<ObjectMapper> {
-    private static final ObjectMapper jsonMapper = new DefaultObjectMapper();
+    private final ObjectMapper jsonMapper;
 
-    static {
-        jsonMapper.registerModule(new DruidDefaultSerializersModule());
-        jsonMapper.registerModule(new GuavaModule());
-        jsonMapper.registerModule(new QueryGranularityModule());
-        jsonMapper.registerModule(new AggregatorsModule());
-        jsonMapper.registerModule(new SegmentsModule());
+    @Inject
+    public ObjectMapperProvider(DefaultObjectMapper jsonMapper) {
+        this.jsonMapper = jsonMapper;
+
+        this.jsonMapper.registerModule(new DruidDefaultSerializersModule());
+        this.jsonMapper.registerModule(new GuavaModule());
+        this.jsonMapper.registerModule(new QueryGranularityModule());
+        this.jsonMapper.registerModule(new AggregatorsModule());
+        this.jsonMapper.registerModule(new SegmentsModule());
     }
 
     @Override

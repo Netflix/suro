@@ -16,10 +16,12 @@ import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.queue.MemoryQueue4Sink;
 import com.netflix.suro.queue.MessageQueue4Sink;
+import com.netflix.suro.sink.DataConverter;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.ThreadPoolQueuedSink;
 import com.twitter.finagle.Service;
 import io.druid.curator.PotentiallyGzippedCompressionProvider;
+import io.druid.data.input.impl.TimestampSpec;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -39,12 +41,14 @@ import java.util.Map;
 public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
     private static Logger log = LoggerFactory.getLogger(TranquilitySink.class);
 
+    private final static TypeReference<Map<String, Object>> type = new TypeReference<Map<String, Object>>() {};
+
     public static final String TYPE = "tranquility";
 
     private Service<List<Map<String, Object>>, Integer> druidService;
     private final String dataSource;
     private final String discoveryPath;
-    private final String timestampField;
+    private final TimestampSpec timestampSpec;
     private final String indexServiceName;
     private final String firehosePattern;
     private final List<String> dimensions;
@@ -58,6 +62,7 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
 
     private final CuratorFramework curator;
     private final ObjectMapper jsonMapper;
+    private final DataConverter dataConverter;
 
     @JsonCreator
     public TranquilitySink(
@@ -70,7 +75,7 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
             @JsonProperty("jobTimeout") long jobTimeout,
             @JsonProperty("dataSource") String dataSource,
             @JsonProperty("discoveryPath") String discoveryPath,
-            @JsonProperty("timestamp") String timestampField,
+            @JsonProperty("timestampSpec") TimestampSpec timestampSpec,
             @JsonProperty("indexServiceName") String indexServiceName,
             @JsonProperty("firehosePattern") String firehosePattern,
             @JsonProperty("dimensions") List<String> dimensions,
@@ -81,22 +86,23 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
             @JsonProperty("windowPeriod") Period windowPeriod,
             @JsonProperty("partitions") int partitions,
             @JsonProperty("replicants") int replicants,
-            @JsonProperty("druid.zk.service.host") String zkServiceHost,
+            @JsonProperty("druid.zk.service.host") @JacksonInject("druid.zk.service.host") String zkServiceHost,
             @JsonProperty("druid.zk.service.sessionTimeoutMs") int zkSessionTimeoutMs,
             @JsonProperty("druid.curator.compress") boolean zkCompress,
-            @JacksonInject CuratorFramework curator,
-            @JacksonInject ObjectMapper jsonMapper) {
+            @JacksonInject ObjectMapper jsonMapper,
+            @JacksonInject DataConverter dataConverter) {
         super(jobQueueSize, corePoolSize, maxPoolSize, jobTimeout, TranquilitySink.class.getSimpleName() + "-" + dataSource);
 
         Preconditions.checkNotNull(dataSource);
         Preconditions.checkNotNull(dimensions);
         Preconditions.checkNotNull(jsonMapper);
+        Preconditions.checkNotNull(zkServiceHost);
 
         this.dataSource = dataSource;
         this.discoveryPath = discoveryPath == null ? "/druid/discovery" : discoveryPath;
-        this.timestampField = timestampField == null ? "ts" : timestampField;
+        this.timestampSpec = timestampSpec == null ? new TimestampSpec("ts", "millis") : timestampSpec;
         this.indexServiceName = indexServiceName == null ? "druid:overlord" : indexServiceName;
-        this.firehosePattern = firehosePattern == null ? "druid:firehose-%s" : firehosePattern;
+        this.firehosePattern = firehosePattern == null ? "druid:firehose:%s" : firehosePattern;
         this.dimensions = dimensions;
         this.aggregators = aggregators == null ? getDefaultAggregators() : aggregators;
         this.indexGranularity = indexGranularity == null ? QueryGranularity.MINUTE : indexGranularity;
@@ -106,8 +112,9 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
         this.partitions = partitions == 0 ? 1 : partitions;
         this.replicants = replicants == 0 ? 1 : replicants;
 
-        this.curator = curator == null ? createCurator(zkServiceHost, zkSessionTimeoutMs, zkCompress) : curator;
+        this.curator = createCurator(zkServiceHost, zkSessionTimeoutMs, zkCompress);
         this.jsonMapper = jsonMapper;
+        this.dataConverter = dataConverter;
 
         initialize(queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
     }
@@ -115,18 +122,19 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
     private CuratorFramework createCurator(String zkServiceHost, int zkSessionTimeoutMs, boolean zkCompress) {
         Preconditions.checkNotNull(zkServiceHost);
 
-        return CuratorFrameworkFactory.builder()
+        CuratorFramework curator = CuratorFrameworkFactory.builder()
                 .connectString(zkServiceHost)
                 .sessionTimeoutMs(zkSessionTimeoutMs == 0 ? 30000 : zkSessionTimeoutMs)
                 .retryPolicy(new BoundedExponentialBackoffRetry(1000, 45000, 30))
                 .compressionProvider(new PotentiallyGzippedCompressionProvider(zkCompress))
                 .build();
+        curator.start();
+
+        return curator;
     }
 
     @Override
     protected void beforePolling() throws IOException {}
-
-    private static final TypeReference<Map<String, Object>> typeRef = new TypeReference<Map<String, Object>>(){};
 
     @Override
     protected void write(List<Message> msgList) throws IOException {
@@ -134,7 +142,13 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
 
         for (Message m : msgList) {
             try {
-                msgMapList.add((Map<String, Object>) jsonMapper.readValue(m.getPayload(), typeRef));
+                final Map<String, Object> msgMap;
+                if (dataConverter != null) {
+                    msgMap = dataConverter.convert((Map<String, Object>) jsonMapper.readValue(m.getPayload(), type));
+                } else {
+                    msgMap = jsonMapper.readValue(m.getPayload(), type);
+                }
+                msgMapList.add(msgMap);
             } catch (Exception e) {
                 log.error("Parsing failed", e);
             }
@@ -160,7 +174,7 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
                         new Timestamper<Map<String, Object>>() {
                             @Override
                             public DateTime timestamp(Map<String, Object> theMap) {
-                                return new DateTime(theMap.get(timestampField));
+                                return new DateTime(theMap.get(timestampSpec.getTimestampColumn()));
                             }
                         }
                 )
@@ -176,9 +190,12 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
                 )
                 .rollup(DruidRollup.create(DruidDimensions.specific(dimensions), aggregators, indexGranularity))
                 .tuning(ClusteredBeamTuning.create(segmentGranularity, warmingPeriod, windowPeriod, partitions, replicants))
+                .timestampSpec(timestampSpec)
                 .buildJavaService();
 
         Monitors.registerObject(dataSource, this);
+
+        start();
     }
 
     @Override
