@@ -22,7 +22,6 @@ import com.google.inject.AbstractModule;
 import com.netflix.suro.aws.PropertyAWSCredentialsProvider;
 import com.netflix.suro.input.thrift.MessageSetProcessor;
 import com.netflix.suro.input.thrift.ServerConfig;
-import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.routing.RoutingMap;
 import com.netflix.suro.server.StatusServer;
 import com.netflix.suro.sink.SinkManager;
@@ -37,7 +36,7 @@ import com.netflix.suro.sink.SinkManager;
 public class SuroModule extends AbstractModule {
     @Override
     protected void configure() {
-        bind(ObjectMapper.class).to(DefaultObjectMapper.class).asEagerSingleton();
+        bind(ObjectMapper.class).toProvider(ObjectMapperProvider.class).asEagerSingleton();
         bind(AWSCredentialsProvider.class).to(PropertyAWSCredentialsProvider.class);
         bind(SuroService.class).asEagerSingleton();
         bind(StatusServer.class).asEagerSingleton();
