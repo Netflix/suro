@@ -116,17 +116,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         if (client == null) {
             client = new TransportClient(settings);
             if (discoveryClient != null) {
-                for (String address : addressList) {
-                    String[] host_port = address.split(":");
-
-                    List<InstanceInfo> listOfinstanceInfo = discoveryClient.getInstancesByVipAddress(host_port[0], false);
-                    for (InstanceInfo ii : listOfinstanceInfo) {
-                        if (ii.getStatus().equals(InstanceInfo.InstanceStatus.UP)) {
-                            ((TransportClient)client).addTransportAddress(
-                                    new InetSocketTransportAddress(ii.getHostName(), Integer.parseInt(host_port[1])));
-                        }
-                    }
-                }
+                getServerListFromDiscovery(addressList, discoveryClient, client);
             } else {
                 for (String address : addressList) {
                     String[] host_port = address.split(":");
@@ -138,6 +128,20 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
 
         setName(ElasticSearchSink.class.getSimpleName() + "-" + settings.get("cluster.name"));
         start();
+    }
+
+    protected void getServerListFromDiscovery(List<String> addressList, DiscoveryClient discoveryClient, Client client) {
+        for (String address : addressList) {
+            String[] host_port = address.split(":");
+
+            List<InstanceInfo> listOfinstanceInfo = discoveryClient.getInstancesByVipAddress(host_port[0], false);
+            for (InstanceInfo ii : listOfinstanceInfo) {
+                if (ii.getStatus().equals(InstanceInfo.InstanceStatus.UP)) {
+                    ((TransportClient)client).addTransportAddress(
+                            new InetSocketTransportAddress(ii.getHostName(), Integer.parseInt(host_port[1])));
+                }
+            }
+        }
     }
 
     @Override

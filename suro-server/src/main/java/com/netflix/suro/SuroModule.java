@@ -25,6 +25,7 @@ import com.netflix.suro.input.thrift.ServerConfig;
 import com.netflix.suro.routing.RoutingMap;
 import com.netflix.suro.server.StatusServer;
 import com.netflix.suro.sink.SinkManager;
+import com.netflix.suro.sink.tranquility.ObjectMapperProvider;
 
 /**
  * Guice module for binding {@link AWSCredentialsProvider},
