@@ -30,7 +30,8 @@ public abstract class QueuedSink extends Thread {
     protected volatile boolean isRunning = false;
     private volatile boolean isStopped = false;
 
-    private MessageQueue4Sink queue4Sink;
+    @VisibleForTesting
+    protected MessageQueue4Sink queue4Sink;
     private int batchSize;
     private int batchTimeout;
 

@@ -95,7 +95,7 @@ public class ConnectionPool {
         try {
             populationLatch.await(populationLatch.getCount() * config.getConnectionTimeout(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
-            logger.error("Exception on CountDownLatch awaitin: " + e.getMessage(), e);
+            logger.error("Exception on CountDownLatch awaiting: " + e.getMessage(), e);
         }
         logger.info("ConnectionPool population finished with the size: " + getPoolSize()
                 + ", will continue up to: " + lb.getServerList(true).size());
