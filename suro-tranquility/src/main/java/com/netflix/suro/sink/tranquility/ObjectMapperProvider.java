@@ -1,4 +1,4 @@
-package com.netflix.suro;
+package com.netflix.suro.sink.tranquility;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
