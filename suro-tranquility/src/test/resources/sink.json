@@ -1,0 +1,24 @@
+{
+    "type": "tranqulity",
+    "queue4Sink": {
+        "type": "blocking",
+        "capacity": 100
+    },
+    "dataSource": "test_dataSource",
+    "discoverySource": "/DRUID/discovery",
+    "indexServiceName": "DRUID-overlord",
+    "dimensions": ["f1", "f2", "f3"],
+    "druid.zk.service.host": "%ZK_HOST%",
+    "aggregators":[
+        {
+            "type": "count",
+            "name": "count"
+        }
+    ],
+    "indexGranularity": "second",
+    "segmentGranularity": "six_hour",
+    "warmingPeriod": "PT10m",
+    "windowPeriod": "PT70m",
+    "partitions" : 10,
+    "replicants": 2
+}
