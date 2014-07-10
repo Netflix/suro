@@ -23,7 +23,7 @@ public class DefaultIndexInfoBuilder implements IndexInfoBuilder {
     private final ObjectMapper jsonMapper;
     private final Map<String, String> indexMap;
     private final Map<String, String> typeMap;
-    private final List<String> idFields;
+    private final Map<String, List<String>> idFieldsMap;
     private final TimestampField timestampField;
     private final IndexSuffixFormatter indexSuffixFormatter;
     private final DataConverter dataConverter;
@@ -31,7 +31,7 @@ public class DefaultIndexInfoBuilder implements IndexInfoBuilder {
     @JsonCreator
     public DefaultIndexInfoBuilder(
             @JsonProperty("indexTypeMap") Map<String, String> indexTypeMap,
-            @JsonProperty("idFields") List<String> idFields,
+            @JsonProperty("idFields") Map<String, List<String>> idFieldsMap,
             @JsonProperty("timestamp") TimestampField timestampField,
             @JsonProperty("indexSuffixFormatter") IndexSuffixFormatter indexSuffixFormatter,
             @JacksonInject DataConverter dataConverter,
@@ -53,7 +53,7 @@ public class DefaultIndexInfoBuilder implements IndexInfoBuilder {
             this.typeMap = Maps.newHashMap();
         }
 
-        this.idFields = idFields;
+        this.idFieldsMap = idFieldsMap;
         this.indexSuffixFormatter =
                 indexSuffixFormatter == null ? new IndexSuffixFormatter(null, null) : indexSuffixFormatter;
         this.jsonMapper = jsonMapper;
@@ -105,11 +105,11 @@ public class DefaultIndexInfoBuilder implements IndexInfoBuilder {
 
                 @Override
                 public String getId() {
-                    if (idFields == null || idFields.isEmpty()) {
+                    if (idFieldsMap == null || !idFieldsMap.containsKey(msg.getRoutingKey())) {
                         return null;
                     } else {
                         StringBuilder sb = new StringBuilder();
-                        for (String id : idFields) {
+                        for (String id : idFieldsMap.get(msg.getRoutingKey())) {
                             if (id.startsWith("ts_")) {
                                 sb.append(TimestampSlice.valueOf(id).get(getTimestamp()));
                             } else {

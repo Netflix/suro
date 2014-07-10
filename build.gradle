@@ -215,7 +215,7 @@ project(':suro-elasticsearch') {
 project(':suro-tranquility') {
     dependencies {
         compile project(':suro-core')
-        compile ('com.metamx:tranquility:0.1.21') {
+        compile ('com.metamx:tranquility_2.9.1:0.2.5') {
           exclude module: 'sigar'
         }
 

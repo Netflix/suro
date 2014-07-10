@@ -157,7 +157,7 @@ public class TestElasticSearchSink {
                 "        \"indexInfo\":{\n" +
                 "            \"type\": \"default\",\n" +
                 "            \"indexTypeMap\":{\"routingkey1\":\"index1:type1\", \"routingkey2\":\"index2:type2\"},\n" +
-                "            \"idFields\":[\"f1\", \"f2\"],\n" +
+                "            \"idFields\":{\"index\":[\"f1\", \"f2\"]},\n" +
                 "            \"timestamp\": {\"field\":\"ts\"},\n" +
                 "            \"indexSuffixFormatter\":{\"type\": \"date\", \"properties\":{\"dateFormat\":\"YYYYMMdd\"}}\n" +
                 "        }\n" +

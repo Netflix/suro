@@ -11,6 +11,8 @@ import com.metamx.common.Granularity;
 import com.metamx.tranquility.beam.ClusteredBeamTuning;
 import com.metamx.tranquility.druid.*;
 import com.metamx.tranquility.typeclass.Timestamper;
+import com.netflix.servo.annotations.DataSourceType;
+import com.netflix.servo.annotations.Monitor;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
@@ -37,6 +39,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
     private static Logger log = LoggerFactory.getLogger(TranquilitySink.class);
@@ -63,6 +66,9 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
     private final CuratorFramework curator;
     private final ObjectMapper jsonMapper;
     private final DataConverter dataConverter;
+
+    @Monitor(name = "sentMessages", type = DataSourceType.COUNTER)
+    private AtomicLong sentMessages = new AtomicLong(0);
 
     @JsonCreator
     public TranquilitySink(
@@ -157,7 +163,7 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
         senders.submit(new Runnable() {
             @Override
             public void run() {
-                druidService.apply(msgMapList).get();
+                sentMessages.addAndGet(druidService.apply(msgMapList).get());
             }
         });
     }
@@ -193,7 +199,7 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
                 .timestampSpec(timestampSpec)
                 .buildJavaService();
 
-        Monitors.registerObject(dataSource, this);
+        Monitors.registerObject(TranquilitySink.class.getSimpleName() + "-" + dataSource, this);
 
         start();
     }
@@ -203,7 +209,7 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
 
     @Override
     public String getStat() {
-        return null;
+        return sentMessages.get() + " sent";
     }
 
     @Override
