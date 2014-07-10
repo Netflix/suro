@@ -16,7 +16,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -175,7 +175,7 @@ public class TestDefaultIndexInfoBuilder {
 
         builder = new DefaultIndexInfoBuilder(
                 null,
-                new ArrayList<String>(),
+                new ImmutableMap.Builder<String, List<String>>().build(),
                 null,
                 null,
                 null,
@@ -194,7 +194,7 @@ public class TestDefaultIndexInfoBuilder {
 
         DefaultIndexInfoBuilder builder = new DefaultIndexInfoBuilder(
                 null,
-                Lists.newArrayList("f1", "f2"),
+                new ImmutableMap.Builder<String, List<String>>().put("routingkey", Lists.newArrayList("f1", "f2")).build(),
                 null,
                 null,
                 null,
@@ -216,7 +216,7 @@ public class TestDefaultIndexInfoBuilder {
 
         DefaultIndexInfoBuilder builder = new DefaultIndexInfoBuilder(
                 null,
-                Lists.newArrayList("f1", "f2", "ts_minute"),
+                new ImmutableMap.Builder<String, List<String>>().put("routingkey", Lists.newArrayList("f1", "f2", "ts_minute")).build(),
                 new TimestampField("ts", null),
                 null,
                 null,
@@ -230,7 +230,7 @@ public class TestDefaultIndexInfoBuilder {
         String desc = "{\n" +
                 "    \"type\": \"default\",\n" +
                 "    \"indexTypeMap\":{\"routingkey1\":\"index1:type1\", \"routingkey2\":\"index2:type2\"},\n" +
-                "    \"idFields\":[\"f1\", \"f2\", \"ts_minute\"],\n" +
+                "    \"idFields\":{\"routingkey\": [\"f1\", \"f2\", \"ts_minute\"]},\n" +
                 "    \"timestamp\": {\"field\":\"ts\"},\n" +
                 "    \"indexSuffixFormatter\":{\"type\": \"date\", \"properties\":{\"dateFormat\":\"YYYYMMdd\"}}\n" +
                 "}";
