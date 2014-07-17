@@ -173,11 +173,7 @@ project(':suro-kafka') {
       exclude module: 'zookeeper'
     }
 
-<<<<<<< HEAD
-    testCompile 'org.scalatest:scalatest:1.2'
-=======
     testCompile 'org.apache.curator:curator-test:2.4.2'
->>>>>>> d5ab5d678d966e536af6d270b6d987faa213ff80
     testCompile project(':suro-client')
   }
 }
