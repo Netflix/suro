@@ -159,6 +159,7 @@ public class SuroServer {
         return result;
       }
     }
+
   }
 
   public static class process_args implements org.apache.thrift.TBase<process_args, process_args._Fields>, java.io.Serializable, Cloneable   {

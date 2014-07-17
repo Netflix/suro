@@ -372,6 +372,7 @@ public class SuroService {
         return result;
       }
     }
+
   }
 
   public static class shutdown_args implements org.apache.thrift.TBase<shutdown_args, shutdown_args._Fields>, java.io.Serializable, Cloneable   {
