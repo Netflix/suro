@@ -16,30 +16,16 @@
 
 package com.netflix.suro;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.io.Closeables;
-import com.google.inject.Injector;
-import com.netflix.governator.configuration.PropertiesConfigurationProvider;
-import com.netflix.governator.guice.BootstrapBinder;
-import com.netflix.governator.guice.BootstrapModule;
-import com.netflix.governator.guice.LifecycleInjector;
-import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.client.SuroClient;
+import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
-import com.netflix.suro.routing.RoutingMap;
-import com.netflix.suro.routing.RoutingPlugin;
 import com.netflix.suro.routing.TestMessageRouter;
-import com.netflix.suro.server.ServerConfig;
-import com.netflix.suro.server.StatusServer;
-import com.netflix.suro.sink.Sink;
-import com.netflix.suro.sink.SinkManager;
-import com.netflix.suro.sink.TestSinkManager;
-import org.junit.After;
-import org.junit.Before;
+import com.netflix.suro.server.SuroServerExternalResource;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.List;
@@ -49,7 +35,11 @@ import java.util.Properties;
 import static org.junit.Assert.assertTrue;
 
 public class TestSuroServer {
-    private static final Properties properties = new Properties();
+    private static final String inputConfig = "[\n" +
+            "    {\n" +
+            "        \"type\": \"thrift\"\n" +
+            "    }\n" +
+            "]";
     private static final String sinkDesc = "{\n" +
             "    \"default\": {\n" +
             "        \"type\": \"TestSink\",\n" +
@@ -86,59 +76,18 @@ public class TestSuroServer {
             "    }\n" +
             "}";
 
-    @Before
-    public void setup() {
-        properties.setProperty(ServerConfig.MESSAGE_ROUTER_THREADS, "1");
-    }
-
-    @After
-    public void tearDown() {
-        properties.clear();
-    }
+    @Rule
+    public SuroServerExternalResource suroServer = new SuroServerExternalResource(inputConfig, sinkDesc, mapDesc);
 
     @Test
     public void test() throws Exception {
-        LifecycleManager manager = null;
+        ObjectMapper jsonMapper = new DefaultObjectMapper();
 
         try {
-            // Create the injector
-            Injector injector = LifecycleInjector.builder()
-                    .withBootstrapModule(
-                        new BootstrapModule() {
-                            @Override
-                            public void configure(BootstrapBinder binder) {
-                                binder.bindConfigurationProvider().toInstance(
-                                      new PropertiesConfigurationProvider(properties));
-                            }
-                        }
-                     )
-                    .withModules(
-                        new RoutingPlugin(),
-                        new SuroModule(),
-                        new SuroPlugin() {
-                            @Override
-                            protected void configure() {
-                                this.addSinkType("TestSink", TestMessageRouter.TestSink.class);
-                            }
-                        },
-                        StatusServer.createJerseyServletModule()
-                     )
-                    .createInjector();
-    
-            manager = injector.getInstance(LifecycleManager.class);
-            manager.start();
-            
-            SinkManager  sinkManager = injector.getInstance(SinkManager.class);
-            RoutingMap   routes      = injector.getInstance(RoutingMap.class);
-            ObjectMapper mapper      = injector.getInstance(ObjectMapper.class);
-            
-            sinkManager.set((Map<String, Sink>)mapper.readValue(sinkDesc, new TypeReference<Map<String, Sink>>(){}));
-            routes     .set((Map<String, RoutingMap.RoutingInfo>)mapper.readValue(mapDesc, new TypeReference<Map<String, RoutingMap.RoutingInfo>>(){}));
-
             // create the client
             final Properties clientProperties = new Properties();
             clientProperties.setProperty(ClientConfig.LB_TYPE, "static");
-            clientProperties.setProperty(ClientConfig.LB_SERVER, "localhost:7101");
+            clientProperties.setProperty(ClientConfig.LB_SERVER, "localhost:" + suroServer.getServerPort());
             clientProperties.setProperty(ClientConfig.CLIENT_TYPE, "sync");
 
             SuroClient client = new SuroClient(clientProperties);
@@ -155,7 +104,7 @@ public class TestSuroServer {
 
             for(int i = 0; i < 30; ++i) {
                 Map<String, Object> message = makeMessage("foo/bar", "value"+i);
-                client.send(new Message("topic4", mapper.writeValueAsBytes(message)));
+                client.send(new Message("topic4", jsonMapper.writeValueAsBytes(message)));
             }
 
             int count = 10;
@@ -170,8 +119,6 @@ public class TestSuroServer {
         } catch (Exception e) {
             System.err.println("SuroServer startup failed: " + e.getMessage());
             System.exit(-1);
-        } finally {
-            Closeables.close(manager, true);
         }
     }
 

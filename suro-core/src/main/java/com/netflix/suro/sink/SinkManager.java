@@ -18,9 +18,11 @@ package com.netflix.suro.sink;
 
 import com.google.common.collect.Maps;
 import com.google.inject.Singleton;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.PreDestroy;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
@@ -31,9 +33,26 @@ import java.util.concurrent.ConcurrentMap;
  */
 @Singleton
 public class SinkManager {
-    private static final Logger log = Logger.getLogger(SinkManager.class);
+    private static final Logger log = LoggerFactory.getLogger(SinkManager.class);
 
     private final ConcurrentMap<String, Sink> sinkMap = Maps.newConcurrentMap();
+
+    public void initialStart() {
+        for (Sink sink : sinkMap.values()) {
+            sink.open();
+        }
+    }
+
+    public void initialSet(Map<String, Sink> newSinkMap) {
+        if (!sinkMap.isEmpty()) {
+            throw new RuntimeException("sinkMap is not empty");
+        }
+
+        for (Map.Entry<String, Sink> sink : newSinkMap.entrySet()) {
+            log.info(String.format("Adding sink '%s'", sink.getKey()));
+            sinkMap.put(sink.getKey(), sink.getValue());
+        }
+    }
 
     public void set(Map<String, Sink> newSinkMap) {
         try {
@@ -78,6 +97,10 @@ public class SinkManager {
         }
 
         return sb.toString();
+    }
+
+    public Collection<Sink> getSinks() {
+        return sinkMap.values();
     }
 
     @PreDestroy

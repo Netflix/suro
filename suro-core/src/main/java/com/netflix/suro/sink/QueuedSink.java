@@ -30,7 +30,8 @@ public abstract class QueuedSink extends Thread {
     protected volatile boolean isRunning = false;
     private volatile boolean isStopped = false;
 
-    private MessageQueue4Sink queue4Sink;
+    @VisibleForTesting
+    protected MessageQueue4Sink queue4Sink;
     private int batchSize;
     private int batchTimeout;
 
@@ -38,11 +39,6 @@ public abstract class QueuedSink extends Thread {
         this.queue4Sink = queue4Sink;
         this.batchSize = batchSize == 0 ? 1000 : batchSize;
         this.batchTimeout = batchTimeout == 0 ? 1000 : batchTimeout;
-    }
-
-    @Monitor(name = "queueSize", type = DataSourceType.GAUGE)
-    public long getQueueSize() {
-        return queue4Sink.size();
     }
 
     @Monitor(name = "droppedMessages", type = DataSourceType.COUNTER)
@@ -150,4 +146,9 @@ public abstract class QueuedSink extends Thread {
      * @throws IOException
      */
     abstract protected void innerClose() throws IOException;
+
+    @Monitor(name = "numOfPendingMessages", type = DataSourceType.GAUGE)
+    public long getNumOfPendingMessages() {
+        return queue4Sink.size();
+    }
 }

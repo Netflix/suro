@@ -16,6 +16,7 @@
 
 package com.netflix.suro.connection;
 
+import com.google.inject.AbstractModule;
 import com.google.inject.Injector;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
@@ -35,9 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 public class TestConnectionOutPool {
     private Injector injector;
@@ -46,21 +45,27 @@ public class TestConnectionOutPool {
 
     @Test
     public void testOutPool() throws Exception {
-        props.put(ClientConfig.LB_SERVER, "localhost:8900");
+        servers = TestConnectionPool.startServers(1);
+
+        props.put(ClientConfig.LB_SERVER, TestConnectionPool.createConnectionString(servers));
         props.setProperty(ClientConfig.MINIMUM_RECONNECT_TIME_INTERVAL, "0");
         props.setProperty(ClientConfig.RECONNECT_INTERVAL, "0");
         props.setProperty(ClientConfig.RECONNECT_TIME_INTERVAL, "0");
-
-        servers = TestConnectionPool.startServers(1, 8900);
 
         injector = LifecycleInjector.builder()
                 .withBootstrapModule(new BootstrapModule() {
                     @Override
                     public void configure(BootstrapBinder binder) {
                         binder.bindConfigurationProvider().toInstance(new PropertiesConfigurationProvider(props));
-                        binder.bind(ILoadBalancer.class).to(StaticLoadBalancer.class);
                     }
-                }).build().createInjector();
+                })
+                .withAdditionalModules(new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(ILoadBalancer.class).to(StaticLoadBalancer.class);
+                    }
+                })
+                .build().createInjector();
         injector.getInstance(LifecycleManager.class).start();
 
         final ConnectionPool pool = injector.getInstance(ConnectionPool.class);

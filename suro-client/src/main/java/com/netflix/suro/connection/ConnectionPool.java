@@ -16,6 +16,7 @@
 
 package com.netflix.suro.connection;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
@@ -89,12 +90,12 @@ public class ConnectionPool {
             @Override
             public void run() {
                 populateClients();
-            };
+            }
         });
         try {
-            populationLatch.await();
+            populationLatch.await(populationLatch.getCount() * config.getConnectionTimeout(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
-            logger.error("Exception on CountDownLatch awaitin: " + e.getMessage(), e);
+            logger.error("Exception on CountDownLatch awaiting: " + e.getMessage(), e);
         }
         logger.info("ConnectionPool population finished with the size: " + getPoolSize()
                 + ", will continue up to: " + lb.getServerList(true).size());
@@ -156,7 +157,8 @@ public class ConnectionPool {
                 TimeUnit.SECONDS);
     }
 
-    private void addConnection(Server server, SuroConnection connection, boolean inPool) {
+    @VisibleForTesting
+    protected void addConnection(Server server, SuroConnection connection, boolean inPool) {
         if (inPool) {
             connectionPool.put(server, connection);
             if (populationLatch.getCount() > 0) {
@@ -364,9 +366,10 @@ public class ConnectionPool {
         public void disconnect() {
             try {
                 transport.flush();
-                transport.close();
             } catch (TTransportException e) {
                 logger.error("Exception on disconnect: " + e.getMessage(), e);
+            } finally {
+                transport.close();
             }
         }
 

@@ -1,7 +1,6 @@
 package com.netflix.suro.message;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.reflect.TypeToken;
 
 /**
  * Wrapper for a message with caching for deserialization

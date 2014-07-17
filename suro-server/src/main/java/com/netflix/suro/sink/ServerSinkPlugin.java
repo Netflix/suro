@@ -1,7 +1,10 @@
 package com.netflix.suro.sink;
 
 import com.netflix.suro.SuroPlugin;
+import com.netflix.suro.message.Message;
+import com.netflix.suro.sink.elasticsearch.ElasticSearchSink;
 import com.netflix.suro.sink.kafka.KafkaSink;
+import com.netflix.suro.sink.kafka.SuroKeyedMessage;
 import com.netflix.suro.sink.localfile.LocalFileSink;
 import com.netflix.suro.sink.notice.LogNotice;
 import com.netflix.suro.sink.notice.NoNotice;
@@ -10,8 +13,8 @@ import com.netflix.suro.sink.notice.SQSNotice;
 import com.netflix.suro.sink.remotefile.HdfsFileSink;
 import com.netflix.suro.sink.remotefile.S3FileSink;
 import com.netflix.suro.sink.remotefile.formatter.DateRegionStackFormatter;
-import com.netflix.suro.sink.remotefile.formatter.SimpleDateFormatter;
-import com.netflix.suro.sink.remotefile.formatter.StaticPrefixFormatter;
+import com.netflix.suro.sink.remotefile.formatter.DynamicRemotePrefixFormatter;
+import com.netflix.suro.sink.tranquility.TranquilitySink;
 
 /**
  *
@@ -22,13 +25,16 @@ public class ServerSinkPlugin extends SuroPlugin {
     protected void configure() {
         this.addSinkType(LocalFileSink.TYPE, LocalFileSink.class);
 
+        this.addSinkType(ElasticSearchSink.TYPE, ElasticSearchSink.class);
+        this.addSinkType(TranquilitySink.TYPE, TranquilitySink.class);
+
         this.addSinkType(KafkaSink.TYPE, KafkaSink.class);
+        Message.classMap.put((byte) 1, SuroKeyedMessage.class);
 
         this.addSinkType(S3FileSink.TYPE, S3FileSink.class);
         this.addSinkType(HdfsFileSink.TYPE, HdfsFileSink.class);
         this.addRemotePrefixFormatterType(DateRegionStackFormatter.TYPE, DateRegionStackFormatter.class);
-        this.addRemotePrefixFormatterType(SimpleDateFormatter.TYPE, SimpleDateFormatter.class);
-        this.addRemotePrefixFormatterType(StaticPrefixFormatter.TYPE, StaticPrefixFormatter.class);
+        this.addRemotePrefixFormatterType(DynamicRemotePrefixFormatter.TYPE, DynamicRemotePrefixFormatter.class);
 
         this.addSinkType(SuroSink.TYPE, SuroSink.class);
 

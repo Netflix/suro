@@ -22,6 +22,7 @@ import com.google.inject.Singleton;
 import com.google.inject.servlet.GuiceFilter;
 import com.google.inject.servlet.GuiceServletContextListener;
 import com.google.inject.servlet.ServletModule;
+import com.netflix.suro.input.thrift.ServerConfig;
 import com.sun.jersey.guice.spi.container.servlet.GuiceContainer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.DefaultServlet;
@@ -29,7 +30,9 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Embedded Jetty for status page
@@ -53,13 +56,18 @@ public class StatusServer {
     }
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private final ServerConfig    config;
+    private final ServerConfig config;
     private final Injector        injector;
+    private final CountDownLatch  startLatch = new CountDownLatch(1);
 
     @Inject
     public StatusServer(ServerConfig config, Injector injector) {
         this.injector = injector;
         this.config = config;
+    }
+
+    public void waitUntilStarted() throws InterruptedException {
+        startLatch.await();
     }
 
     public void start() {
@@ -94,6 +102,7 @@ public class StatusServer {
                 // Start the server
                 try {
                     server.start();
+                    startLatch.countDown();
                     server.join();
                 } catch (InterruptedException ie) {
                     log.info("Interrupted to shutdown status server:");

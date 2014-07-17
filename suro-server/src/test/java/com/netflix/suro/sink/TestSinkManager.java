@@ -16,23 +16,21 @@
 
 package com.netflix.suro.sink;
 
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
-import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.suro.SuroPlugin;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.MessageContainer;
-
 import org.junit.Test;
+
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
 
@@ -83,6 +81,11 @@ public class TestSinkManager {
         @Override
         public String getStat() {
             return message + " " + status;
+        }
+
+        @Override
+        public long getNumOfPendingMessages() {
+            return 0;
         }
     }
 
@@ -161,7 +164,8 @@ public class TestSinkManager {
         assertEquals(sinkManager.getSink("topic2").getStat(), "topic2TestSink open");
         assertTrue(
                 sinkManager.reportSinkStat().equals("default:defaultTestSink open\n\ntopic2:topic2TestSink open\n\n") ||
-                        sinkManager.reportSinkStat().equals("topic2:topic2TestSink open\n\ndefault:defaultTestSink open\n\n"));
+                        sinkManager.reportSinkStat().equals("topic2:topic2TestSink open\n\ndefault:defaultTestSink open\n\n")
+        );
         assertEquals(TestSink.getNumOfSinks(), 2);
 
         // test exception - nothing changed
@@ -181,7 +185,8 @@ public class TestSinkManager {
         assertEquals(sinkManager.getSink("topic2").getStat(), "topic2TestSink open");
         assertTrue(
                 sinkManager.reportSinkStat().equals("default:defaultTestSink open\n\ntopic2:topic2TestSink open\n\n") ||
-                        sinkManager.reportSinkStat().equals("topic2:topic2TestSink open\n\ndefault:defaultTestSink open\n\n"));
+                        sinkManager.reportSinkStat().equals("topic2:topic2TestSink open\n\ndefault:defaultTestSink open\n\n")
+        );
         assertEquals(TestSink.getNumOfSinks(), 2);
 
         // test destroy

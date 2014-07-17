@@ -16,9 +16,13 @@
 
 package com.netflix.suro.routing;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.inject.Inject;
-import com.netflix.governator.guice.lazy.LazySingleton;
+import com.google.inject.Singleton;
 import com.netflix.servo.monitor.Monitors;
+import com.netflix.suro.message.DefaultMessageContainer;
+import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.routing.RoutingMap.Route;
 import com.netflix.suro.sink.SinkManager;
@@ -32,19 +36,22 @@ import java.util.List;
  *
  * @author jbae
  */
-@LazySingleton
+@Singleton
 public class MessageRouter {
     private static final Logger log = LoggerFactory.getLogger(MessageRouter.class);
 
     private final RoutingMap routingMap;
     private final SinkManager sinkManager;
+    private final ObjectMapper jsonMapper;
 
     @Inject
     public MessageRouter(
             RoutingMap routingMap,
-            SinkManager sinkManager) {
+            SinkManager sinkManager,
+            ObjectMapper jsonMapper) {
         this.routingMap = routingMap;
         this.sinkManager = sinkManager;
+        this.jsonMapper = jsonMapper;
 
         Monitors.registerObject(this);
     }
@@ -58,7 +65,13 @@ public class MessageRouter {
             List<Route> routes = info.getWhere();
             for (Route route : routes) {
                 if (route.doFilter(msg)) {
-                    sinkManager.getSink(route.getSink()).writeTo(msg);
+                    if (!Strings.isNullOrEmpty(route.getAlias())) {
+                        sinkManager.getSink(route.getSink()).writeTo(
+                                new DefaultMessageContainer(
+                                        new Message(route.getAlias(), msg.getMessage().getPayload()), jsonMapper));
+                    } else {
+                        sinkManager.getSink(route.getSink()).writeTo(msg);
+                    }
                 }
             }
         }

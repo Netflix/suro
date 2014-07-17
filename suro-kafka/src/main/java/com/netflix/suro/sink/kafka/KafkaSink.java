@@ -5,12 +5,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.queue.MemoryQueue4Sink;
 import com.netflix.suro.queue.MessageQueue4Sink;
-import com.netflix.suro.sink.QueuedSink;
 import com.netflix.suro.sink.Sink;
+import com.netflix.suro.sink.ThreadPoolQueuedSink;
 import kafka.javaapi.producer.Producer;
 import kafka.metrics.KafkaMetricsReporter$;
 import kafka.producer.*;
@@ -29,7 +30,7 @@ import java.util.Properties;
  *
  * @author jbae
  */
-public class KafkaSink extends QueuedSink implements Sink {
+public class KafkaSink extends ThreadPoolQueuedSink implements Sink {
     public final static String TYPE = "Kafka";
 
     private String clientId;
@@ -52,8 +53,15 @@ public class KafkaSink extends QueuedSink implements Sink {
             @JsonProperty("message.send.max.retries") int maxRetries,
             @JsonProperty("retry.backoff.ms") int retryBackoff,
             @JsonProperty("kafka.etc") Properties etcProps,
-            @JsonProperty("keyTopicMap") Map<String, String> keyTopicMap
+            @JsonProperty("keyTopicMap") Map<String, String> keyTopicMap,
+            @JsonProperty("jobQueueSize") int jobQueueSize,
+            @JsonProperty("corePoolSize") int corePoolSize,
+            @JsonProperty("maxPoolSize") int maxPoolSize,
+            @JsonProperty("jobTimeout") long jobTimeout
     ) {
+        super(jobQueueSize, corePoolSize, maxPoolSize, jobTimeout,
+                KafkaSink.class.getSimpleName() + "-" + clientId);
+
         Preconditions.checkNotNull(brokerList);
         Preconditions.checkNotNull(acks);
         Preconditions.checkNotNull(clientId);
@@ -93,6 +101,8 @@ public class KafkaSink extends QueuedSink implements Sink {
 
         producer = new Producer<Long, byte[]>(new ProducerConfig(props));
         KafkaMetricsReporter$.MODULE$.startReporters(new VerifiableProperties(props));
+
+        Monitors.registerObject(KafkaSink.class.getSimpleName() + "-" + clientId, this);
     }
 
     @Override
@@ -124,11 +134,27 @@ public class KafkaSink extends QueuedSink implements Sink {
 
     @Override
     protected void write(List<Message> msgList) {
-        send(msgList);
+        final List<KeyedMessage<Long, byte[]>> kafkaMsgList = new ArrayList<KeyedMessage<Long, byte[]>>();
+        for (Message m : msgList) {
+            SuroKeyedMessage keyedMessage = (SuroKeyedMessage) m;
+            kafkaMsgList.add(new KeyedMessage<Long, byte[]>(
+                    keyedMessage.getRoutingKey(),
+                    keyedMessage.getKey(),
+                    keyedMessage.getPayload()));
+        }
+
+        senders.submit(new Runnable() {
+            @Override
+            public void run() {
+                producer.send(kafkaMsgList);
+            }
+        });
     }
 
     @Override
-    protected void innerClose() throws IOException {
+    protected void innerClose() {
+        super.innerClose();
+
         producer.close();
     }
 
@@ -151,19 +177,5 @@ public class KafkaSink extends QueuedSink implements Sink {
         sb.append("dropped message rate: " ).append(topicStats.getProducerAllTopicsStats().droppedMessageRate().count()).append('\n');
 
         return sb.toString();
-    }
-
-    private List<KeyedMessage<Long, byte[]>> kafkaMsgList = new ArrayList<KeyedMessage<Long, byte[]>>();
-    protected void send(List<Message> msgList) {
-        for (Message m : msgList) {
-            SuroKeyedMessage keyedMessage = (SuroKeyedMessage) m;
-            kafkaMsgList.add(new KeyedMessage<Long, byte[]>(
-                    keyedMessage.getRoutingKey(),
-                    keyedMessage.getKey(),
-                    keyedMessage.getPayload()));
-        }
-
-        producer.send(kafkaMsgList);
-        kafkaMsgList.clear();
     }
 }

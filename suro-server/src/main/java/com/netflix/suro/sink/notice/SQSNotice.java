@@ -74,8 +74,8 @@ public class SQSNotice implements Notice<String> {
             @JsonProperty("socketTimeout") int socketTimeout,
             @JsonProperty("maxRetries") int maxRetries,
             @JsonProperty("enableBase64Encoding") boolean enableBase64Encoding,
-            @JacksonInject("sqsClient") AmazonSQSClient sqsClient,
-            @JacksonInject("credentials") AWSCredentialsProvider credentialsProvider) {
+            @JacksonInject AmazonSQSClient sqsClient,
+            @JacksonInject AWSCredentialsProvider credentialsProvider) {
         this.queues = queues;
         this.region = region;
 

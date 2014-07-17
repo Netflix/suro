@@ -16,8 +16,7 @@
 
 package com.netflix.suro.connection;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Joiner;
 import com.google.inject.Injector;
 import com.netflix.governator.configuration.PropertiesConfigurationProvider;
 import com.netflix.governator.guice.BootstrapBinder;
@@ -28,7 +27,6 @@ import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.loadbalancer.Server;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.SuroServer4Test;
-import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Compression;
 import com.netflix.suro.message.MessageSetBuilder;
 import com.netflix.suro.thrift.TMessageSet;
@@ -37,14 +35,21 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.*;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.*;
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -55,11 +60,11 @@ public class TestConnectionPool {
 
     @Before
     public void setup() throws Exception {
-        servers = startServers(3, 8300);
+        servers = startServers(3);
     }
 
     private void createInjector() throws Exception {
-        props.put(ClientConfig.LB_SERVER, "localhost:8300,localhost:8301,localhost:8302");
+        props.put(ClientConfig.LB_SERVER, createConnectionString(servers));
 
         injector = LifecycleInjector.builder()
                 .withBootstrapModule(new BootstrapModule() {
@@ -81,15 +86,31 @@ public class TestConnectionPool {
         props.clear();
     }
 
-    public static List<SuroServer4Test> startServers(int count, int startPort) throws Exception {
+    public static List<SuroServer4Test> startServers(int count) throws Exception {
         List<SuroServer4Test> collectors = new LinkedList<SuroServer4Test>();
         for (int i = 0; i < count; ++i) {
-            SuroServer4Test c = new SuroServer4Test(startPort + i);
+            SuroServer4Test c = new SuroServer4Test(pickPort());
             c.start();
             collectors.add(c);
         }
 
         return collectors;
+    }
+
+    public static int pickPort() throws IOException {
+        ServerSocket s = new ServerSocket(0);
+        int port = s.getLocalPort();
+        s.close();
+        return port;
+    }
+
+    public static String createConnectionString(List<SuroServer4Test> servers) {
+        List<String> addrList = new ArrayList<String>();
+        for (SuroServer4Test c : servers) {
+            addrList.add("localhost:" + c.getPort());
+        }
+
+        return Joiner.on(',').join(addrList);
     }
 
     public static void shutdownServers(List<SuroServer4Test> servers) {
@@ -102,21 +123,10 @@ public class TestConnectionPool {
         MessageSetBuilder builder = new MessageSetBuilder(new ClientConfig())
                 .withCompression(Compression.LZF);
 
-        Map<String, Object> message = new HashMap<String, Object>();
-        ObjectMapper jsonMapper = new DefaultObjectMapper();
-
         for(int i = 0; i < messageCount; ++i) {
-            message.put("testMessage", i);
-            message.put("app", "testapp");
-            message.put("hostname", "testhost");
-            message.put("ts", System.currentTimeMillis());
-            try {
-                builder.withMessage(
-                        "routingKey",
-                        jsonMapper.writeValueAsString(message).getBytes());
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
-            }
+            builder.withMessage(
+                    "routingKey",
+                    ("testMessage" +i).getBytes());
         }
 
         return builder.build();
@@ -285,20 +295,20 @@ public class TestConnectionPool {
     }
 
     @Test
-    public void testPopulation() throws Exception {
+    public void shouldBePopulatedWithNumberOfServersOnLessSenderThreads() throws Exception {
         props.setProperty(ClientConfig.ASYNC_SENDER_THREADS, "1");
 
         createInjector();
 
         ILoadBalancer lb = mock(ILoadBalancer.class);
         List<Server> servers = new LinkedList<Server>();
-        servers.add(new Server("localhost", 8300));
-        servers.add(new Server("localhost", 8301));
-        servers.add(new Server("localhost", 8302));
+        for (SuroServer4Test suroServer4Test : this.servers) {
+            servers.add(new Server("localhost", suroServer4Test.getPort()));
+        }
         when(lb.getServerList(true)).thenReturn(servers);
 
         ConnectionPool pool = new ConnectionPool(injector.getInstance(ClientConfig.class), lb);
-        assertEquals(pool.getPoolSize(), 1);
+        assertTrue(pool.getPoolSize() >= 1);
         for (int i = 0; i < 10; ++i) {
             if (pool.getPoolSize() != 3) {
                 Thread.sleep(1000);
@@ -308,19 +318,46 @@ public class TestConnectionPool {
     }
 
     @Test
-    public void testPopulation2() throws Exception {
+    public void shouldBePopulatedWithNumberOfServersOnMoreSenderThreads() throws Exception {
         props.setProperty(ClientConfig.ASYNC_SENDER_THREADS, "10");
 
         createInjector();
 
         ILoadBalancer lb = mock(ILoadBalancer.class);
         List<Server> servers = new LinkedList<Server>();
-        servers.add(new Server("localhost", 8300));
-        servers.add(new Server("localhost", 8301));
-        servers.add(new Server("localhost", 8302));
+        for (SuroServer4Test suroServer4Test : this.servers) {
+            servers.add(new Server("localhost", suroServer4Test.getPort()));
+        }
         when(lb.getServerList(true)).thenReturn(servers);
 
         ConnectionPool pool = new ConnectionPool(injector.getInstance(ClientConfig.class), lb);
         assertEquals(pool.getPoolSize(), 3);
+    }
+
+    @Test
+    public void shouldPopulationFinishedOnTimeout() throws Exception {
+        shutdownServers(servers);
+
+        createInjector();
+
+        final ILoadBalancer lb = mock(ILoadBalancer.class);
+        List<Server> servers = new LinkedList<Server>();
+        for (SuroServer4Test suroServer4Test : this.servers) {
+            servers.add(new Server("localhost", suroServer4Test.getPort()));
+        }
+        when(lb.getServerList(true)).thenReturn(servers);
+
+        final AtomicBoolean passed = new AtomicBoolean(false);
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                ConnectionPool pool = new ConnectionPool(injector.getInstance(ClientConfig.class), lb);
+                assertEquals(pool.getPoolSize(), 0);
+                passed.set(true);
+            }
+        });
+        t.start();
+        t.join((servers.size() + 1) * injector.getInstance(ClientConfig.class).getConnectionTimeout());
+        assertTrue(passed.get());
     }
 }

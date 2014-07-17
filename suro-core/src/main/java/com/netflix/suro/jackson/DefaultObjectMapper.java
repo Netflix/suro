@@ -84,13 +84,18 @@ public class DefaultObjectMapper extends ObjectMapper {
                     try {
                         return injector.getInstance(Key.get(forProperty.getType().getRawClass(), Names.named((String)valueId)));
                     } catch (Exception e) {
-                        LOG.info("No implementation found, returning null");
+                        try {
+                            return injector.getInstance(forProperty.getType().getRawClass());
+                        } catch (Exception ex) {
+                            LOG.info("No implementation found, returning null");
+                        }
                         return null;
                     }
                 }
             });
         }
-        
+
+        configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         configure(MapperFeature.AUTO_DETECT_GETTERS, false);
         configure(MapperFeature.AUTO_DETECT_CREATORS, false);

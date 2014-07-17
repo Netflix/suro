@@ -46,10 +46,10 @@ public class TestAsyncSuroSender {
 
     @Before
     public void setup() throws Exception {
-        servers = TestConnectionPool.startServers(3, 8200);
+        servers = TestConnectionPool.startServers(3);
 
         final Properties props = new Properties();
-        props.setProperty(ClientConfig.LB_SERVER, "localhost:8200,localhost:8201,localhost:8202");
+        props.setProperty(ClientConfig.LB_SERVER, TestConnectionPool.createConnectionString(servers));
         props.setProperty(ClientConfig.MINIMUM_RECONNECT_TIME_INTERVAL, "1");
         props.setProperty(ClientConfig.RECONNECT_INTERVAL, "1");
         props.setProperty(ClientConfig.RECONNECT_TIME_INTERVAL, "1");

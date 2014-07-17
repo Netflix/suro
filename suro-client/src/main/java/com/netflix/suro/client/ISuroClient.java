@@ -28,4 +28,6 @@ public interface ISuroClient {
     long getSentMessageCount();
 
     long getLostMessageCount();
+
+    long getNumOfPendingMessages();
 }

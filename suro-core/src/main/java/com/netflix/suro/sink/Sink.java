@@ -45,4 +45,6 @@ public interface Sink  {
     
     String recvNotice();
     String getStat();
+
+    long getNumOfPendingMessages();
 }

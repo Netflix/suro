@@ -16,32 +16,27 @@
 
 package com.netflix.suro.sink.notice;
 
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.*;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.BeanProperty;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
-import com.google.common.collect.Maps;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.Provider;
 import com.netflix.suro.SuroPlugin;
+import com.netflix.suro.aws.PropertyAWSCredentialsProvider;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.sink.TestSinkManager.TestSink;
-import com.netflix.suro.sink.notice.NoNotice;
-import com.netflix.suro.sink.notice.QueueNotice;
-import com.netflix.suro.sink.notice.SQSNotice;
-import com.netflix.suro.sink.notice.Notice;
+import com.netflix.suro.sink.TestSinkManager;
 import org.apache.commons.codec.binary.Base64;
+import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Map;
 
 import static junit.framework.Assert.assertNull;
 import static junit.framework.TestCase.assertEquals;
@@ -49,25 +44,49 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
 public class TestNotice {
-    private static Injector injector = Guice.createInjector(
-            new SuroPlugin() {
-                @Override
-                protected void configure() {
-                    this.addSinkType("TestSink", TestSink.class);
+    private Injector injector;
 
-                    this.addNoticeType(NoNotice.TYPE, NoNotice.class);
-                    this.addNoticeType(QueueNotice.TYPE, QueueNotice.class);
-                    this.addNoticeType(SQSNotice.TYPE, SQSNotice.class);
+    @Before
+    public void setup() {
+        injector = Guice.createInjector(
+                new SuroPlugin() {
+                    @Override
+                    protected void configure() {
+                        this.addSinkType("TestSink", TestSinkManager.TestSink.class);
+
+                        this.addNoticeType(NoNotice.TYPE, NoNotice.class);
+                        this.addNoticeType(QueueNotice.TYPE, QueueNotice.class);
+                        this.addNoticeType(SQSNotice.TYPE, SQSNotice.class);
+                    }
+                },
+                new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(ObjectMapper.class).to(DefaultObjectMapper.class);
+                        bind(AWSCredentialsProvider.class).to(PropertyAWSCredentialsProvider.class);
+
+                        bind(AmazonSQSClient.class).toProvider(AmazonSQSClientProvider.class).asEagerSingleton();
+                    }
                 }
-            },
-            new AbstractModule() {
-                @Override
-                protected void configure() {
-                    bind(ObjectMapper.class).to(DefaultObjectMapper.class);
-                }
-            }
         );
-    
+    }
+
+    public static class AmazonSQSClientProvider implements Provider<AmazonSQSClient> {
+
+        @Override
+        public AmazonSQSClient get() {
+            AmazonSQSClient client = mock(AmazonSQSClient.class);
+            doReturn(new SendMessageResult()).when(client).sendMessage(any(SendMessageRequest.class));
+
+            ReceiveMessageResult result = new ReceiveMessageResult();
+            result.setMessages(Arrays.asList(new Message[]{new Message().withBody("receivedMessage")}));
+            doReturn(result).when(client).receiveMessage(any(ReceiveMessageRequest.class));
+            doReturn(new GetQueueUrlResult().withQueueUrl("queueURL")).when(client).getQueueUrl(any(GetQueueUrlRequest.class));
+
+            return client;
+        }
+    }
+
     @Test
     public void testQueue() throws IOException {
         String desc = "{\n" +
@@ -151,28 +170,9 @@ public class TestNotice {
 
         public SqsTest invoke() throws IOException {
             ObjectMapper mapper = injector.getInstance(DefaultObjectMapper.class);
+            AmazonSQSClient client = injector.getInstance(AmazonSQSClient.class);
 
-            AmazonSQSClient client = mock(AmazonSQSClient.class);
-            doReturn(new SendMessageResult()).when(client).sendMessage(any(SendMessageRequest.class));
-
-            ReceiveMessageResult result = new ReceiveMessageResult();
-            result.setMessages(Arrays.asList(new Message[]{new Message().withBody("receivedMessage")}));
-            doReturn(result).when(client).receiveMessage(any(ReceiveMessageRequest.class));
-            doReturn(new GetQueueUrlResult().withQueueUrl("queueURL")).when(client).getQueueUrl(any(GetQueueUrlRequest.class));
-
-            final Map<String, Object> injectables = Maps.newHashMap();
-            injectables.put("sqsClient", client);
-            mapper.setInjectableValues(new InjectableValues() {
-                @Override
-                public Object findInjectableValue(
-                        Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance
-                ) {
-                    return injectables.get(valueId);
-                }
-            });
-
-            queueNotice = mapper.readValue(desc, new TypeReference<Notice>() {
-            });
+            queueNotice = mapper.readValue(desc, new TypeReference<Notice>() {});
             queueNotice.init();
             queueNotice.send("message");
             captor = ArgumentCaptor.forClass(SendMessageRequest.class);

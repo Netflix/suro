@@ -8,12 +8,26 @@ buildscript {
     apply from: file('gradle/buildscript.gradle'), to: buildscript 
 }
 
+if (JavaVersion.current().isJava8Compatible()) {
+    allprojects {
+        //noinspection SpellCheckingInspection
+        tasks.withType(Javadoc) {
+            // disable the crazy super-strict doclint tool in Java 8
+            //noinspection SpellCheckingInspection
+            options.addStringOption('Xdoclint:none', '-quiet')
+        }
+    }
+}
+
 allprojects {
     repositories { 
       mavenCentral()
       maven{
         name 'github.release.repo'
         url 'https://raw.github.com/bulldog2011/bulldog-repo/master/repo/releases/'
+      }
+      maven {
+        url "https://metamx.artifactoryonline.com/metamx/pub-libs-releases-local"
       }
       maven{
         name 'sonatype'
@@ -51,7 +65,7 @@ subprojects {
       compile 'org.apache.thrift:libthrift:0.7.0'
       compile 'org.slf4j:slf4j-api:1.6.4'
       compile 'com.google.guava:guava:11.0.2'
-      compile 'joda-time:joda-time:2.1'
+      compile 'joda-time:joda-time:2.3'
       compile 'com.fasterxml.jackson.core:jackson-databind:2.1.4'
       compile 'com.fasterxml.jackson.core:jackson-annotations:2.1.4'
       compile 'com.fasterxml.jackson.core:jackson-core:2.1.4'
@@ -61,15 +75,10 @@ subprojects {
       compile 'com.leansoft:bigqueue:0.7.0'
       compile 'commons-io:commons-io:2.4'
 
-        compile (
-          [group: 'org.apache.hadoop', name: 'hadoop-core', version: '0.20.205.0', transitive: false]
-      )
+      runtime 'com.netflix.netflix-commons:netflix-commons-util:0.1.1'
 
-        runtime 'com.netflix.netflix-commons:netflix-commons-util:0.1.1'
-
-        testCompile 'org.mockito:mockito-core:1.9.5'
-        testCompile 'junit:junit:4.+'
-
+      testCompile 'org.mockito:mockito-core:1.9.5'
+      testCompile 'junit:junit:4.11'
     }
 
     test {
@@ -88,9 +97,9 @@ project(':suro-core') {
 project(':suro-client') {
   dependencies {
     compile project(':suro-core')
-    compile project(':suro-kafka')
 
     testCompile project(':suro-core').sourceSets.test.output
+    testCompile project(':suro-kafka')
   }
 }
 
@@ -101,17 +110,22 @@ project(':suro-server') {
     compile project(':suro-core')
     compile project(':suro-client')
     compile project(':suro-kafka')
-
-    compile 'net.java.dev.jets3t:jets3t:0.9.0'
+    compile project(':suro-localfile')
+    compile project(':suro-s3')
+    compile project(':suro-elasticsearch')
+    compile project(':suro-tranquility')
 
     compile 'org.eclipse.jetty:jetty-servlet:7.6.7.v20120910'
     compile 'com.sun.jersey.contribs:jersey-guice:1.11'
     compile 'com.sun.jersey:jersey-bundle:1.11'
+    compile 'javax.servlet:servlet-api:2.5'
     compile 'com.amazonaws:aws-java-sdk:1.4.7'
 
     compile 'commons-cli:commons-cli:1.2'
     
+    testCompile 'org.apache.curator:curator-test:2.4.2'
     testCompile project(':suro-client').sourceSets.test.output
+    testCompile project(':suro-kafka').sourceSets.test.output
   }
 
   mainClassName = "com.netflix.suro.SuroServer"
@@ -119,7 +133,7 @@ project(':suro-server') {
     main = "com.netflix.suro.SuroServer"
     classpath = sourceSets.main.runtimeClasspath
     classpath += sourceSets.main.compileClasspath
-    args = ['-m', 'conf/routingmap.json', '-s', 'conf/sink.json']
+    args = ['-m', 'conf/routingmap.json', '-s', 'conf/sink.json', '-i', 'conf/input.json']
   }
   installApp {
     into('build/install/'+applicationName + '-' + version){
@@ -152,14 +166,68 @@ project(':suro-kafka') {
   dependencies {
     compile project(':suro-core')
 
-    compile('org.apache.kafka:kafka_2.8.2:0.8.1') {
+    compile('org.apache.kafka:kafka_2.9.2:0.8.1.1') {
       exclude module: 'jms'
       exclude module: 'jmxtools'
       exclude module: 'jmxri'
+      exclude module: 'zookeeper'
     }
 
+<<<<<<< HEAD
     testCompile 'org.scalatest:scalatest:1.2'
+=======
+    testCompile 'org.apache.curator:curator-test:2.4.2'
+>>>>>>> d5ab5d678d966e536af6d270b6d987faa213ff80
     testCompile project(':suro-client')
   }
 }
 
+project(':suro-s3') {
+    dependencies {
+        compile project(':suro-core')
+        compile project(':suro-localfile')
+
+        compile 'net.java.dev.jets3t:jets3t:0.9.0'
+        compile 'com.amazonaws:aws-java-sdk:1.4.7'
+
+        testCompile project(':suro-client').sourceSets.test.output
+    }
+}
+
+project(':suro-localfile') {
+    dependencies {
+        compile project(':suro-core')
+        compile project(':suro-client')
+
+        compile (
+          [group: 'org.apache.hadoop', name: 'hadoop-core', version: '0.20.205.0', transitive: false]
+        )
+
+        testCompile project(':suro-client').sourceSets.test.output
+    }
+}
+
+project(':suro-elasticsearch') {
+    dependencies {
+        compile project(':suro-core')
+        compile 'org.elasticsearch:elasticsearch:1.1.0'
+
+        testCompile project(':suro-client')
+    }
+}
+
+project(':suro-tranquility') {
+    dependencies {
+        compile project(':suro-core')
+        compile ('com.metamx:tranquility_2.9.1:0.2.5') {
+          exclude module: 'sigar'
+        }
+
+        runtime 'org.eintr.loglady:loglady_2.9.2:1.1.0'
+
+        testCompile project(':suro-client')
+        testCompile project(':suro-kafka').sourceSets.test.output
+        testCompile 'com.101tec:zkclient:0.3'
+        testCompile 'org.apache.curator:curator-test:2.4.2'
+    }
+}

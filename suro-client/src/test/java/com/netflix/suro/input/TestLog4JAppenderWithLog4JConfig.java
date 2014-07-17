@@ -30,40 +30,40 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /**
  *
  */
 public class TestLog4JAppenderWithLog4JConfig {
-    private final static Logger LOG = Logger.getLogger(TestLog4JAppenderWithLog4JConfig.class.getName());
-    public static final int SURO_PORT = 8500;
+    private final static Logger LOG = Logger.getLogger(TestLog4JAppenderWithLog4JConfig.class);
     public static final int DEFAULT_WAIT_INTERVAL = 20;
 
-
-    private List<SuroServer4Test> collectors;
-
+    private List<SuroServer4Test> servers;
 
     @Before
     public void setup() throws Exception {
-        collectors = TestConnectionPool.startServers(1, SURO_PORT);
+        servers = TestConnectionPool.startServers(1);
 
-        // Note the log4j properties file can't be log4j.properties, or log4j will load it before Server4Test is started.
-        PropertyConfigurator.configure(this.getClass().getResource("/log4j-test.properties"));
+        String log4jConfig = "log4j.logger.com.netflix.suro.input=WARN,SURO\n" +
+            "log4j.appender.stdout.layout.ConversionPattern=%5p [%t] (%F:%L) - %m%n\n" +
+            "log4j.appender.SURO=com.netflix.suro.input.Log4jAppender\n" +
+            "log4j.appender.SURO.app=ajjainApp\n" +
+            "log4j.appender.SURO.routingKey=ajjainroutingkey\n" +
+            "log4j.appender.SURO.loadBalancerType=static\n" +
+            "log4j.appender.SURO.loadBalancerServer=" + TestConnectionPool.createConnectionString(servers) + "\n" +
+            "log4j.appender.SURO.compression=0\n" +
+            "log4j.appender.SURO.clientType=sync";
+
+        PropertyConfigurator.configure(new ByteArrayInputStream(log4jConfig.getBytes()));
     }
 
     @After
     public void tearDown() throws Exception {
-        TestConnectionPool.shutdownServers(collectors);
+        TestConnectionPool.shutdownServers(servers);
     }
 
     @Test
     public void testAllMessagesWillBeDeliveredInSeparatedMessageSet() {
-        Logger root = Logger.getRootLogger();
-        if (!root.getAllAppenders().hasMoreElements()) {
-            fail("No log4j appender is instantiated!");
-        }
-
         Map<String, String> message = new HashMap<String, String>();
         message.put(TagKey.ROUTING_KEY, "routing_key_1");
         message.put("data", "test");
@@ -77,8 +77,8 @@ public class TestLog4JAppenderWithLog4JConfig {
         waitAndVerify(5000, new Runnable() {
             @Override
             public void run() {
-                assertEquals(messageCount, collectors.get(0).getMessageSetCount());
-                assertEquals(messageCount, collectors.get(0).getMessageCount());
+                assertEquals(messageCount, servers.get(0).getMessageSetCount());
+                assertEquals(messageCount, servers.get(0).getMessageCount());
             }
 
         });
