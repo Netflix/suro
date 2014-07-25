@@ -12,6 +12,7 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.sink.Sink;
+import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.count.CountResponse;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
@@ -23,6 +24,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -182,5 +185,50 @@ public class TestElasticSearchSink {
 
         Sink esSink = jsonMapper.readValue(desc, new TypeReference<Sink>(){});
         assertTrue(esSink instanceof ElasticSearchSink);
+    }
+
+    @Test
+    public void testRecover() throws JsonProcessingException {
+        ObjectMapper jsonMapper = new DefaultObjectMapper();
+        ElasticSearchSink sink = new ElasticSearchSink(
+                null,
+                10,
+                1000,
+                null,
+                true,
+                "1s",
+                "1s",
+                null,
+                null,
+                0,0,0,0,
+                null,
+                jsonMapper,
+                node.client()
+        );
+
+        DateTime dt = new DateTime("2014-10-12T12:12:12.000Z");
+
+        Map<String, Object> msg = new ImmutableMap.Builder<String, Object>()
+                .put("f1", "v1")
+                .put("f2", "v2")
+                .put("f3", "v3")
+                .put("ts", dt.getMillis())
+                .build();
+        String routingKey = "topicrecover";
+        String index = "topicrecover";
+        List<Message> msgList = new ArrayList<Message>();
+        int msgCount = 100;
+        for (int i = 0; i < msgCount; ++i) {
+            msgList.add(new Message(routingKey, jsonMapper.writeValueAsBytes(msg)));
+        }
+
+        BulkRequest request = sink.createBulkRequest(msgList);
+        for (int i = 0; i < msgCount; ++i) {
+            sink.recover(i, request);
+        }
+
+        node.client().admin().indices().prepareRefresh(index).execute().actionGet();
+        CountResponse response = node.client().prepareCount(index).execute().actionGet();
+        assertEquals(response.getCount(), 100);
     }
 }
