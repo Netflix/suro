@@ -25,6 +25,7 @@ import com.netflix.suro.queue.MessageQueue4Sink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -44,13 +45,32 @@ public class Queue4Client {
             queue = new MemoryQueue4Sink(config.getAsyncMemoryQueueCapacity());
         } else {
             try {
+                createQueuePathIfNeeded(config.getAsyncFileQueuePath());
                 queue = new FileQueue4Sink(
                         config.getAsyncFileQueuePath(),
                         config.getAsyncFileQueueName(),
                         config.getAsyncFileQueueGCPeriod());
             } catch (IOException e) {
-                logger.error("Exception on initializing Queue4Client: " + e.getMessage(), e);
+                throw new IllegalStateException("Exception on initializing Queue4Client: " + e.getMessage(), e);
             }
+        }
+    }
+
+    private void createQueuePathIfNeeded(String queueDir) {
+        File f = new File(queueDir);
+        if(f.exists() && f.isDirectory()) {
+            return;
+        }
+
+        if(f.exists() && f.isFile()) {
+            throw new IllegalStateException(String.format("The given file queue location %s is not a directory. ", queueDir));
+        }
+
+        boolean created = f.mkdirs();
+        if(!created) {
+            throw new IllegalStateException("Failed to create the queue dir " + queueDir);
+        }else {
+            logger.info("The queue directory {} did not exist but is created", queueDir);
         }
     }
 
