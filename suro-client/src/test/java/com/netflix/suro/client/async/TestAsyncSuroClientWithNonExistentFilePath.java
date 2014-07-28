@@ -31,13 +31,9 @@ import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.message.Message;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Properties;
 
