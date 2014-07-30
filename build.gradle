@@ -222,7 +222,6 @@ project(':suro-tranquility') {
         runtime 'org.eintr.loglady:loglady_2.9.2:1.1.0'
 
         testCompile project(':suro-client')
-        testCompile project(':suro-kafka').sourceSets.test.output
         testCompile 'com.101tec:zkclient:0.3'
         testCompile 'org.apache.curator:curator-test:2.4.2'
     }
