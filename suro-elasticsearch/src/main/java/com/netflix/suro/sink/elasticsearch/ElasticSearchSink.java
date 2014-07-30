@@ -42,6 +42,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private final IndexInfoBuilder indexInfo;
     private final DiscoveryClient discoveryClient;
     private final Settings settings;
+    private final String clusterName;
 
     @Monitor(name = "indexedRowCount", type = DataSourceType.COUNTER)
     private long indexedRowCount = 0;
@@ -103,8 +104,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         this.settings = settingsBuilder.build();
         this.discoveryClient = discoveryClient;
         this.addressList = addressList;
-
-        Monitors.registerObject(clusterName, this);
+        this.clusterName = clusterName;
     }
 
     @Override
@@ -114,6 +114,8 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
 
     @Override
     public void open() {
+        Monitors.registerObject(clusterName, this);
+
         if (client == null) {
             client = new TransportClient(settings);
             if (discoveryClient != null) {

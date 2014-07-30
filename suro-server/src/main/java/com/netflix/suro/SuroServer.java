@@ -99,7 +99,7 @@ public class SuroServer {
             });
 
             waitForShutdown(getControlPort(options));
-        } catch (Exception e) {
+        } catch (Throwable e) {
             System.err.println("SuroServer startup failed: " + e.getMessage());
             System.exit(-1);
         } finally {
