@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.name.Names;
 import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
@@ -54,9 +53,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class TestS3FileSink {
     @Rule
@@ -294,7 +291,6 @@ public class TestS3FileSink {
                     protected void configure() {
                         bind(ObjectMapper.class).to(DefaultObjectMapper.class);
                         bind(AWSCredentialsProvider.class)
-                            .annotatedWith(Names.named("credentials"))
                             .toInstance(new AWSCredentialsProvider() {
                                 @Override
                                 public AWSCredentials getCredentials() {
@@ -330,18 +326,12 @@ public class TestS3FileSink {
                                 any(List.class),
                                 any(S3ServiceEventListener.class));
 
-                            bind(MultipartUtils.class)
-                                .annotatedWith(Names.named("multipartUtils"))
-                                .toInstance(mpUtils);
+                            bind(MultipartUtils.class).toInstance(mpUtils);
                         } catch (Exception e) {
                             Assert.fail(e.getMessage());
                         }
-                        bind(TrafficController.class)
-                            .annotatedWith(Names.named("queueManager"))
-                            .toInstance(mock(TrafficController.class));
-                        bind(SpaceChecker.class)
-                            .annotatedWith(Names.named("spaceChecker"))
-                            .toInstance(mock(SpaceChecker.class));
+                        bind(TrafficController.class).toInstance(mock(TrafficController.class));
+                        bind(SpaceChecker.class).toInstance(mock(SpaceChecker.class));
                     }
             }
         );

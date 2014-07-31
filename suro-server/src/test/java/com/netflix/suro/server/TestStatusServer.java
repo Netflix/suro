@@ -16,11 +16,14 @@
 
 package com.netflix.suro.server;
 
+import com.netflix.suro.input.InputManager;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.junit.ClassRule;
+import org.junit.FixMethodOrder;
 import org.junit.Test;
+import org.junit.runners.MethodSorters;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -29,19 +32,18 @@ import java.io.InputStreamReader;
 
 import static org.junit.Assert.assertEquals;
 
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class TestStatusServer {
     @ClassRule
     public static SuroServerExternalResource suroServer = new SuroServerExternalResource();
 
     @Test
-    public void connectionFailureShouldBeDetected() throws Exception {
-        suroServer.getInjector().getInstance(ThriftServer.class).shutdown();
+    public void _2_connectionFailureShouldBeDetected() throws Exception {
+        suroServer.getInjector().getInstance(InputManager.class).getInput("thrift").shutdown();
 
         HttpResponse response = runQuery("surohealthcheck");
 
         assertEquals(500, response.getStatusLine().getStatusCode());
-
-        suroServer.getInjector().getInstance(ThriftServer.class).start();
     }
 
     private HttpResponse runQuery(String path) throws IOException {
@@ -56,13 +58,13 @@ public class TestStatusServer {
     }
 
     @Test
-    public void healthcheckShouldPassForHealthyServer() throws Exception {
+    public void _0_healthcheckShouldPassForHealthyServer() throws Exception {
         HttpResponse response = runQuery("surohealthcheck");
         assertEquals(200, response.getStatusLine().getStatusCode());
     }
 
     @Test
-    public void testSinkStat() throws IOException {
+    public void _1_testSinkStat() throws IOException {
         HttpResponse response = runQuery("surosinkstat");
         InputStream data = response.getEntity().getContent();
         BufferedReader br = new BufferedReader(new InputStreamReader(data));

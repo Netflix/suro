@@ -28,7 +28,6 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.routing.RoutingMap.Route;
 import com.netflix.suro.routing.RoutingMap.RoutingInfo;
-import com.netflix.suro.routing.filter.MessageFilterCompiler;
 import com.netflix.suro.sink.TestSinkManager.TestSink;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -38,9 +37,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class TestRoutingMap {
     
@@ -72,12 +69,14 @@ public class TestRoutingMap {
             ImmutableList.<Route>of(
                 new Route(
                     "sink2",
-                    new XPathFilter("xpath(\"//customerInfo/country\") =~ \"(?i)^US\"", new JsonMapConverter())
+                    new XPathFilter("xpath(\"//customerInfo/country\") =~ \"(?i)^US\"", new JsonMapConverter()),
+                    null
                 ),
 
                 new Route(
                     "sink3",
-                    new XPathFilter("xpath(\"//responseInfo/status\") >= 400", new JsonMapConverter())
+                    new XPathFilter("xpath(\"//responseInfo/status\") >= 400", new JsonMapConverter()),
+                    null
                 )
             ),
             null

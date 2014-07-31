@@ -22,6 +22,7 @@ import com.google.inject.Singleton;
 import com.google.inject.servlet.GuiceFilter;
 import com.google.inject.servlet.GuiceServletContextListener;
 import com.google.inject.servlet.ServletModule;
+import com.netflix.suro.input.thrift.ServerConfig;
 import com.sun.jersey.guice.spi.container.servlet.GuiceContainer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.DefaultServlet;
@@ -55,7 +56,7 @@ public class StatusServer {
     }
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private final ServerConfig    config;
+    private final ServerConfig config;
     private final Injector        injector;
     private final CountDownLatch  startLatch = new CountDownLatch(1);
 

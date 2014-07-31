@@ -26,6 +26,9 @@ allprojects {
         name 'github.release.repo'
         url 'https://raw.github.com/bulldog2011/bulldog-repo/master/repo/releases/'
       }
+      maven {
+        url "https://metamx.artifactoryonline.com/metamx/pub-libs-releases-local"
+      }
       maven{
         name 'sonatype'
         url 'https://oss.sonatype.org/content/groups/public/'
@@ -55,14 +58,14 @@ subprojects {
       compile 'com.netflix.servo:servo-core:0.4.32'
       compile 'com.netflix.governator:governator:1.2.3'
       compile 'com.netflix.eureka:eureka-client:1.1.109'
-      compile 'com.netflix.ribbon:ribbon-core:0.2.1'
+      compile 'com.netflix.ribbon:ribbon:2.0-RC3'
       compile 'com.netflix.ribbon:ribbon-eureka:0.2.1'
       compile 'log4j:log4j:1.2.17'
 
       compile 'org.apache.thrift:libthrift:0.7.0'
       compile 'org.slf4j:slf4j-api:1.6.4'
       compile 'com.google.guava:guava:11.0.2'
-      compile 'joda-time:joda-time:2.1'
+      compile 'joda-time:joda-time:2.3'
       compile 'com.fasterxml.jackson.core:jackson-databind:2.1.4'
       compile 'com.fasterxml.jackson.core:jackson-annotations:2.1.4'
       compile 'com.fasterxml.jackson.core:jackson-core:2.1.4'
@@ -75,7 +78,7 @@ subprojects {
       runtime 'com.netflix.netflix-commons:netflix-commons-util:0.1.1'
 
       testCompile 'org.mockito:mockito-core:1.9.5'
-      testCompile 'junit:junit:4.+'
+      testCompile 'junit:junit:4.11'
     }
 
     test {
@@ -100,61 +103,6 @@ project(':suro-client') {
   }
 }
 
-project(':suro-server') {
-  apply plugin: 'application'
-	
-  dependencies {
-    compile project(':suro-core')
-    compile project(':suro-client')
-    compile project(':suro-kafka')
-    compile project(':suro-localfile')
-    compile project(':suro-s3')
-
-    compile 'org.eclipse.jetty:jetty-servlet:7.6.7.v20120910'
-    compile 'com.sun.jersey.contribs:jersey-guice:1.11'
-    compile 'com.sun.jersey:jersey-bundle:1.11'
-    compile 'javax.servlet:servlet-api:2.5'
-    compile 'com.amazonaws:aws-java-sdk:1.4.7'
-
-    compile 'commons-cli:commons-cli:1.2'
-    
-    testCompile project(':suro-client').sourceSets.test.output
-  }
-
-  mainClassName = "com.netflix.suro.SuroServer"
-  task (runServer, type: JavaExec, dependsOn: jar) {
-    main = "com.netflix.suro.SuroServer"
-    classpath = sourceSets.main.runtimeClasspath
-    classpath += sourceSets.main.compileClasspath
-    args = ['-m', 'conf/routingmap.json', '-s', 'conf/sink.json']
-  }
-  installApp {
-    into('build/install/'+applicationName + '-' + version){
-      from ('conf').into '/conf'
-    }
-  }
-  distZip {
-    into(applicationName){
-      from ('conf').into applicationName + '-' + version + '/conf'
-    }	
-  }
-  distTar {
-    into(applicationName){
-      from ('conf').into applicationName + '-' + version + '/conf'
-    }	
-  }
-}
-
-project(':suro-integration-test') {
-  dependencies {
-    testCompile project(':suro-core')
-    testCompile project(':suro-client')
-    testCompile project(':suro-server')
-    testCompile project(':suro-client').sourceSets.test.output
-    testCompile project(':suro-server').sourceSets.test.output
-  }
-}
-
 project(':suro-kafka') {
   dependencies {
     compile project(':suro-core')
@@ -169,31 +117,4 @@ project(':suro-kafka') {
     testCompile 'org.apache.curator:curator-test:2.4.2'
     testCompile project(':suro-client')
   }
-}
-
-project(':suro-s3') {
-    dependencies {
-        compile project(':suro-core')
-        compile project(':suro-localfile')
-
-        compile 'net.java.dev.jets3t:jets3t:0.9.0'
-        compile 'com.amazonaws:aws-java-sdk:1.4.7'
-
-        testCompile project(':suro-client').sourceSets.test.output
-    }
-}
-
-project(':suro-localfile') {
-    dependencies {
-        compile project(':suro-core')
-
-        compile project(':suro-client')
-
-        compile (
-          [group: 'org.apache.hadoop', name: 'hadoop-core', version: '0.20.205.0', transitive: false]
-        )
-
-
-        testCompile project(':suro-client').sourceSets.test.output
-    }
 }

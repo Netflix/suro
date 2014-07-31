@@ -32,9 +32,9 @@ import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.message.MessageSetBuilder;
 import com.netflix.suro.message.SerDe;
 import com.netflix.suro.message.StringSerDe;
-import com.netflix.suro.queue.MessageSetProcessor;
+import com.netflix.suro.input.thrift.MessageSetProcessor;
 import com.netflix.suro.routing.RoutingMap.RoutingInfo;
-import com.netflix.suro.server.ServerConfig;
+import com.netflix.suro.input.thrift.ServerConfig;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
 import org.junit.Assert;
@@ -170,8 +170,14 @@ public class TestMessageRouter {
         // sink1: 5
         queue.process(builder.build());
 
-        for (int i = 0; i < 20; ++i) {
+        for (int i = 0; i < 15; ++i) {
             builder.withMessage("topic3", Integer.toString(i).getBytes());
+        }
+        queue.process(builder.build());
+        // sink3: 15 with topic3_alias
+
+        for (int i = 0; i < 20; ++i) {
+            builder.withMessage("topic4", Integer.toString(i).getBytes());
         }
         // default: 20
         queue.process(builder.build());
@@ -192,18 +198,33 @@ public class TestMessageRouter {
         String mapDesc = "{\n" +
                 "    \"topic1\": {\n" +
                 "        \"where\": [\n" +
-                "            { \"sink\" : \"sink1\" },\n" +
-                "            { \"sink\" : \"default\" }\n" +
+                "            {\n" +
+                "                \"sink\": \"sink1\"\n" +
+                "            },\n" +
+                "            {\n" +
+                "                \"sink\": \"default\"\n" +
+                "            }\n" +
                 "        ]\n" +
                 "    },\n" +
                 "    \"topic2\": {\n" +
                 "        \"where\": [\n" +
-                "            { \"sink\" : \"sink1\" },\n" +
-                "            { \"sink\" : \"sink2\",\n" + 
-                "              \"filter\" : {" +
-                "                \"type\"  : \"regex\",\n" +
-                "                \"regex\" : \"1\"\n" +
-                "                }" +
+                "            {\n" +
+                "                \"sink\": \"sink1\"\n" +
+                "            },\n" +
+                "            {\n" +
+                "                \"sink\": \"sink2\",\n" +
+                "                \"filter\": {\n" +
+                "                    \"type\": \"regex\",\n" +
+                "                    \"regex\": \"1\"\n" +
+                "                }\n" +
+                "            }\n" +
+                "        ]\n" +
+                "    },\n" +
+                "    \"topic3\": {\n" +
+                "        \"where\": [\n" +
+                "            {\n" +
+                "                \"sink\": \"sink3\",\n" +
+                "                \"alias\": \"topic3_alias\"\n" +
                 "            }\n" +
                 "        ]\n" +
                 "    }\n" +
@@ -228,6 +249,10 @@ public class TestMessageRouter {
                 "    \"sink2\": {\n" +
                 "        \"type\": \"TestSink\",\n" +
                 "        \"message\": \"sink2\"\n" +
+                "    },\n" +
+                "    \"sink3\": {\n" +
+                "        \"type\": \"TestSink\",\n" +
+                "        \"message\": \"sink3\"\n" +
                 "    }\n" +
                 "}";
         SinkManager sinkManager = injector.getInstance(SinkManager.class);
@@ -240,7 +265,8 @@ public class TestMessageRouter {
     private boolean answer() {
         Integer sink1 = messageCount.get("sink1");
         Integer sink2 = messageCount.get("sink2");
+        Integer sink3 = messageCount.get("sink3");
         Integer defaultV = messageCount.get("default");
-        return sink1 != null && sink1 == 15 && defaultV != null && defaultV == 30 && sink2 == 1;
+        return sink1 != null && sink1 == 15 && defaultV != null && defaultV == 30 && sink2 == 1 && sink3 != null && sink3 == 15;
     }
 }

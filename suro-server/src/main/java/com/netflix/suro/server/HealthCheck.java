@@ -18,6 +18,7 @@ package com.netflix.suro.server;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.netflix.suro.input.thrift.ServerConfig;
 import com.netflix.suro.thrift.ServiceStatus;
 import com.netflix.suro.thrift.SuroServer;
 import org.apache.thrift.protocol.TBinaryProtocol;

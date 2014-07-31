@@ -35,7 +35,11 @@ import java.util.Properties;
 import static org.junit.Assert.assertTrue;
 
 public class TestSuroServer {
-    private static final Properties properties = new Properties();
+    private static final String inputConfig = "[\n" +
+            "    {\n" +
+            "        \"type\": \"thrift\"\n" +
+            "    }\n" +
+            "]";
     private static final String sinkDesc = "{\n" +
             "    \"default\": {\n" +
             "        \"type\": \"TestSink\",\n" +
@@ -73,7 +77,7 @@ public class TestSuroServer {
             "}";
 
     @Rule
-    public SuroServerExternalResource suroServer = new SuroServerExternalResource(sinkDesc, mapDesc);
+    public SuroServerExternalResource suroServer = new SuroServerExternalResource(inputConfig, sinkDesc, mapDesc);
 
     @Test
     public void test() throws Exception {

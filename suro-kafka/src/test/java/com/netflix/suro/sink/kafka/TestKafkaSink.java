@@ -33,6 +33,7 @@ import scala.Option;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.*;
 
 import static org.junit.Assert.*;
 
@@ -69,7 +70,7 @@ public class TestKafkaSink {
         jsonMapper.registerSubtypes(new NamedType(KafkaSink.class, "kafka"));
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
-        Iterator<Message> msgIterator = new MessageSetReader(createMessageSet(2)).iterator();
+        Iterator<Message> msgIterator = new MessageSetReader(createMessageSet(TOPIC_NAME, 2)).iterator();
         while (msgIterator.hasNext()) {
             sink.writeTo(new StringMessage(msgIterator.next()));
         }
@@ -234,6 +235,54 @@ public class TestKafkaSink {
         }
     }
 
+    @Test
+    public void testBlockingThreadPoolExecutor() {
+        int jobQueueSize = 5;
+        int corePoolSize = 3;
+        int maxPoolSize = 3;
+
+        try {
+            testQueue(corePoolSize, maxPoolSize, new ArrayBlockingQueue<Runnable>(jobQueueSize));
+            fail("RejectedExecutionException should be thrown");
+        } catch (RejectedExecutionException e) {
+            // good to go
+        }
+
+        BlockingQueue<Runnable> jobQueue = new ArrayBlockingQueue<Runnable>(jobQueueSize) {
+            @Override
+            public boolean offer(Runnable runnable) {
+                try {
+                    put(runnable); // not to reject the task, slowing down
+                } catch (InterruptedException e) {
+                    // do nothing
+                }
+                return true;
+            }
+        };
+        testQueue(corePoolSize, maxPoolSize, jobQueue);
+    }
+
+    private void testQueue(int corePoolSize, int maxPoolSize, BlockingQueue<Runnable> jobQueue) {
+        ThreadPoolExecutor senders = new ThreadPoolExecutor(
+                corePoolSize,
+                maxPoolSize,
+                10, TimeUnit.SECONDS,
+                jobQueue);
+
+        for (int i = 0; i < 100; ++i) {
+            senders.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        fail();
+                    }
+                }
+            });
+        }
+    }
+
     private static ConsumerConfig createConsumerConfig(String a_zookeeper, String a_groupId) {
         Properties props = new Properties();
         props.put("zookeeper.connect", a_zookeeper);
@@ -253,10 +302,10 @@ public class TestKafkaSink {
         return bytes;
     }
 
-    public static TMessageSet createMessageSet(int numMsgs) {
+    public static TMessageSet createMessageSet(String topic, int numMsgs) {
         MessageSetBuilder builder = new MessageSetBuilder(new ClientConfig()).withCompression(Compression.LZF);
         for (int i = 0; i < numMsgs; ++i) {
-            builder.withMessage(TOPIC_NAME, ("testMessage" + i).getBytes());
+            builder.withMessage(topic, ("testMessage" + i).getBytes());
         }
 
         return builder.build();
