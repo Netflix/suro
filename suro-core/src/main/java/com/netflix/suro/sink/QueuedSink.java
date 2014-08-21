@@ -83,6 +83,8 @@ public abstract class QueuedSink extends Thread {
                 }
             } catch (Exception e) {
                 log.error("Exception on running: " + e.getMessage(), e);
+                droppedMessagesCount.addAndGet(msgList.size());
+                msgList.clear(); // drop messages, otherwise, it will retry forever
             }
         }
         log.info("Shutdown request exit loop ..., queue.size at exit time: " + queue4Sink.size());

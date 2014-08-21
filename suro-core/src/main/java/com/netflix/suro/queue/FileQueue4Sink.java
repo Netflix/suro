@@ -50,7 +50,7 @@ public class FileQueue4Sink implements MessageQueue4Sink {
         queue = new FileBlockingQueue<Message>(
                 path,
                 name,
-                new Period(gcPeriod == null ? "PT1h" : gcPeriod).toStandardSeconds().getSeconds(),
+                new Period(gcPeriod == null ? "PT1m" : gcPeriod).toStandardSeconds().getSeconds(),
                 new MessageSerDe(),
                 true); // auto-commit needed because of message copy
     }
