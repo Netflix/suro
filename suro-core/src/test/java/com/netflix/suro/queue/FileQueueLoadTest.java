@@ -1,6 +1,7 @@
 package com.netflix.suro.queue;
 
-import com.netflix.suro.message.StringSerDe;
+import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageSerDe;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -23,7 +24,7 @@ import static org.junit.Assert.*;
 public class FileQueueLoadTest {
     @Rule
     public TemporaryFolder tempDir = new TemporaryFolder();
-    private static FileBlockingQueue<String> bigQueue;
+    private static FileBlockingQueue<Message> bigQueue;
 
     // configurable parameters
     //////////////////////////////////////////////////////////////////
@@ -79,7 +80,7 @@ public class FileQueueLoadTest {
                     if(count > totalItemCount) break;
                     String item = rndString + count;
                     itemSet.add(item);
-                    bigQueue.put(item);
+                    bigQueue.put(new Message("routing", item.getBytes()));
                 }
                 result.status = Status.SUCCESS;
             } catch (Exception e) {
@@ -109,9 +110,9 @@ public class FileQueueLoadTest {
                     int index = consumingItemCount.getAndIncrement();
                     if (index >= totalItemCount) break;
 
-                    String item = bigQueue.take();
+                    Message item = bigQueue.take();
                     assertNotNull(item);
-                    assertTrue(itemSet.remove(item));
+                    assertTrue(itemSet.remove(new String(item.getPayload())));
                 }
                 result.status = Status.SUCCESS;
             } catch (Exception e) {
@@ -152,7 +153,7 @@ public class FileQueueLoadTest {
     }
 
     private void createQueue() throws IOException {
-        bigQueue = new FileBlockingQueue<String>(tempDir.newFolder().getAbsolutePath(), "load_test", 1, new StringSerDe(), true);
+        bigQueue = new FileBlockingQueue<Message>(tempDir.newFolder().getAbsolutePath(), "load_test", 1, new MessageSerDe(), true);
     }
 
     public void doRunProduceThenConsume() throws Exception {

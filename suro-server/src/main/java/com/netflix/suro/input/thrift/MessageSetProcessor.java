@@ -146,8 +146,14 @@ public class MessageSetProcessor implements SuroServer.Iface {
                 return result;
             }
 
+//            if (messageSet.getApp().equals(HealthCheck.APP_NAME)) {
+//                result.setMessage("OK");
+//                result.setResultCode(ResultCode.OK);
+//                return result;
+//            }
+
             MessageSetReader reader = new MessageSetReader(messageSet);
-            if ( !reader.checkCRC()) {
+            if (!reader.checkCRC()) {
                 DynamicCounter.increment(dataCorruptionCountMetrics, TagKey.APP, messageSet.getApp());
 
                 result.setMessage("data corrupted");
