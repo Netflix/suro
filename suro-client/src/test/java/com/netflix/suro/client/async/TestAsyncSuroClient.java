@@ -66,8 +66,6 @@ public class TestAsyncSuroClient {
     }
 
     private void setupFile(final Properties props) throws Exception {
-        servers = TestConnectionPool.startServers(3);
-
         props.put(ClientConfig.LB_SERVER, TestConnectionPool.createConnectionString(servers));
         props.put(ClientConfig.ASYNC_FILEQUEUE_PATH, tempDir.newFolder().getAbsolutePath());
         props.put(ClientConfig.ASYNC_QUEUE_TYPE, "file");
@@ -186,5 +184,28 @@ public class TestAsyncSuroClient {
 
         long duration = System.currentTimeMillis() - start;
         assertTrue(duration >= 5000);
+    }
+
+    @Test
+    public void shouldBeBlockedOnJobQueueFull() throws Exception {
+        for (SuroServer4Test c : servers) {
+            c.setHoldConnection();
+        }
+        Properties props = new Properties();
+        props.setProperty(ClientConfig.ASYNC_JOBQUEUE_CAPACITY, "1");
+        props.setProperty(ClientConfig.ASYNC_SENDER_THREADS, "1");
+        props.setProperty(ClientConfig.CONNECTION_TIMEOUT, Integer.toString(Integer.MAX_VALUE));
+
+        setupFile(props);
+
+        AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
+
+        for (int i = 0; i < 3000; ++i) {
+            client.send(new Message("routingKey", "testMessage".getBytes()));
+        }
+        client.shutdown();
+
+        assertEquals(client.queuedMessageSetCount, 2);
+
     }
 }
