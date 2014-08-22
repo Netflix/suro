@@ -25,6 +25,7 @@ import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.SuroServer4Test;
+import com.netflix.suro.connection.ConnectionPool;
 import com.netflix.suro.connection.StaticLoadBalancer;
 import com.netflix.suro.connection.TestConnectionPool;
 import org.junit.After;
@@ -164,9 +165,13 @@ public class TestAsyncSuroSender {
         for (SuroServer4Test c : servers) {
             c.cancelTryLater();
         }
+        injector.getInstance(ConnectionPool.class).populateClients();
 
         // wait until client restored
-        Thread.sleep(1000);
+        while (client.getSentMessageCount() < 600) {
+            System.out.println("sent: " + client.getSentMessageCount());
+            Thread.sleep(1000);
+        }
         client.shutdown();
         TestConnectionPool.checkMessageCount(servers, 600);
     }
