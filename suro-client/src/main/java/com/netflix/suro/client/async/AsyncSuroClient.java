@@ -16,6 +16,7 @@
 
 package com.netflix.suro.client.async;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import com.netflix.config.DynamicIntProperty;
@@ -112,7 +113,19 @@ public class AsyncSuroClient implements ISuroClient {
 
         poller.execute(createPoller());
 
-        jobQueue = new ArrayBlockingQueue<Runnable>(config.getAsyncJobQueueCapacity());
+        jobQueue = new ArrayBlockingQueue<Runnable>(config.getAsyncJobQueueCapacity())
+        {
+            @Override
+            public boolean offer(Runnable runnable) {
+                try {
+                    put(runnable); // not to reject the task, slowing down
+                } catch (InterruptedException e) {
+                    // do nothing
+                }
+                return true;
+            }
+        }
+        ;
 
         senders = new ThreadPoolExecutor(
                 config.getAsyncSenderThreads(), config.getAsyncSenderThreads(),
@@ -154,6 +167,9 @@ public class AsyncSuroClient implements ISuroClient {
         send(message);
     }
 
+    @VisibleForTesting
+    protected long queuedMessageSetCount = 0;
+
     private boolean running;
 
     private long lastBatch;
@@ -181,6 +197,7 @@ public class AsyncSuroClient implements ISuroClient {
                             lastBatch = System.currentTimeMillis();
                             rateLimiter.pause(builder.size());
                             senders.execute(new AsyncSuroSender(builder.build(), client, config));
+                            ++queuedMessageSetCount;
                         } else if (builder.size() == 0) {
                             Thread.sleep(config.getAsyncTimeout());
                         }
@@ -192,6 +209,7 @@ public class AsyncSuroClient implements ISuroClient {
                 builder.drainFrom(messageQueue, (int) messageQueue.size());
                 if (builder.size() > 0) {
                     senders.execute(new AsyncSuroSender(builder.build(), client, config));
+                    ++queuedMessageSetCount;
                 }
             }
         };
@@ -205,13 +223,11 @@ public class AsyncSuroClient implements ISuroClient {
             poller.awaitTermination(5000 + config.getAsyncTimeout(), TimeUnit.MILLISECONDS);
             if (!poller.isTerminated()) {
                 log.error("AsyncSuroClient.poller didn't terminate gracefully within {} seconds", (5 + config.getAsyncTimeout()/1000));
-                poller.shutdownNow();
             }
             senders.shutdown();
             senders.awaitTermination(5000 + config.getAsyncTimeout(), TimeUnit.MILLISECONDS);
             if (!senders.isTerminated()) {
                 log.error("AsyncSuroClient.senders didn't terminate gracefully within {} seconds", (5 + config.getAsyncTimeout()/1000));
-                senders.shutdownNow();
             }
         } catch (InterruptedException e) {
             // ignore exceptions while shutting down
