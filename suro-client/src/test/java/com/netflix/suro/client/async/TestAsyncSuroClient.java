@@ -25,6 +25,7 @@ import com.netflix.governator.lifecycle.LifecycleManager;
 import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.SuroServer4Test;
+import com.netflix.suro.connection.ConnectionPool;
 import com.netflix.suro.connection.StaticLoadBalancer;
 import com.netflix.suro.connection.TestConnectionPool;
 import com.netflix.suro.message.Message;
@@ -126,7 +127,9 @@ public class TestAsyncSuroClient {
 
     @Test
     public void testRestore() throws Exception {
-        setupFile(new Properties());
+        Properties props = new Properties();
+        props.setProperty(ClientConfig.ASYNC_JOBQUEUE_CAPACITY, "3");
+        setupFile(props);
 
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
 
@@ -134,29 +137,33 @@ public class TestAsyncSuroClient {
             c.setTryLater();
         }
 
-        for (int i = 0; i < 3000; ++i) {
+        int messageCount = 300;
+        for (int i = 0; i < messageCount; ++i) {
             client.send(new Message("routingKey", "testMessage".getBytes()));
         }
 
         // wait until some messages are restored
-        while (client.getRestoredMessageCount() < 1000) {
-            Thread.sleep(10);
+        while (client.getRestoredMessageCount() < messageCount / 3) {
+            System.out.println("restored: " + client.getRestoredMessageCount());
+            Thread.sleep(1000);
         }
 
         for (SuroServer4Test c : servers) {
             c.cancelTryLater();
         }
+        injector.getInstance(ConnectionPool.class).populateClients();
 
         // wait until alll messages are sent
-        while (client.getSentMessageCount() < 3000) {
-            Thread.sleep(10);
+        while (client.getSentMessageCount() < messageCount) {
+            System.out.println("sent: " + client.getSentMessageCount());
+            Thread.sleep(1000);
         }
 
         client.shutdown();
         assertEquals(client.getLostMessageCount(), 0);
-        assertEquals(client.getSentMessageCount(), 3000);
+        assertEquals(client.getSentMessageCount(), messageCount);
 
-        TestConnectionPool.checkMessageCount(servers, 3000);
+        TestConnectionPool.checkMessageCount(servers, messageCount);
     }
 
     @Test

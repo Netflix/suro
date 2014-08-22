@@ -30,6 +30,11 @@ public class ClientConfig {
         return connectionTimeout;
     }
 
+    public static final String ENABLE_OUTPOOL = "SuroClient.enableOutPool";
+    @Configuration(ENABLE_OUTPOOL)
+    private boolean enableOutPool = false;
+    public boolean getEnableOutPool() { return enableOutPool; }
+
     public static final String CONNECTION_SWEEP_INTERVAL = "SuroClient.connectionSweepInterval";
     @Configuration(CONNECTION_SWEEP_INTERVAL)
     private int connectionSweepInterval = 3600; // second
