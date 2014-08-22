@@ -80,7 +80,8 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         this.indexInfo =
                 indexInfo == null ? new DefaultIndexInfoBuilder(null, null, null, null, null, jsonMapper) : indexInfo;
 
-        initialize(queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+        initialize("es_" + clusterName, queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+
 
         ImmutableSettings.Builder settingsBuilder = ImmutableSettings.settingsBuilder();
         if (clusterName != null) {
