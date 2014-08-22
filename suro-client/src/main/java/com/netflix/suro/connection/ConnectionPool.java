@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.PreDestroy;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Pooling for thrift connection to suro-server
@@ -123,16 +122,16 @@ public class ConnectionPool {
     }
 
     @Monitor(name = "OutPoolSize", type = DataSourceType.GAUGE)
-    private AtomicInteger outPoolSize = new AtomicInteger(0);
+    private int outPoolSize = 0;
 
     /**
      * @return number of connections created out of the pool
      */
     public int getOutPoolSize() {
-        return outPoolSize.get();
+        return outPoolSize;
     }
 
-    private void populateClients() {
+    public void populateClients() {
         for (Server server : lb.getServerList(true)) {
             SuroConnection connection = new SuroConnection(server, config, true);
             try {
@@ -204,18 +203,22 @@ public class ConnectionPool {
             connection = chooseFromPool();
         }
 
-        for (int i = 0; i < config.getRetryCount() && connection == null; ++i) {
-            Server server = lb.chooseServer(null);
-            if (server != null) {
-                connection = new SuroConnection(server, config, false);
-                try {
-                    connection.connect();
-                    outPoolSize.incrementAndGet();
-                    logger.info(connection + " is created out of the pool");
-                    break;
-                } catch (Exception e) {
-                    logger.error("Error in connecting to " + connection + " message: " + e.getMessage(), e);
-                    lb.markServerDown(server);
+        if (config.getEnableOutPool()) {
+            synchronized (this) {
+                for (int i = 0; i < config.getRetryCount() && connection == null; ++i) {
+                    Server server = lb.chooseServer(null);
+                    if (server != null) {
+                        connection = new SuroConnection(server, config, false);
+                        try {
+                            connection.connect();
+                            ++outPoolSize;
+                            logger.info(connection + " is created out of the pool");
+                            break;
+                        } catch (Exception e) {
+                            logger.error("Error in connecting to " + connection + " message: " + e.getMessage(), e);
+                            lb.markServerDown(server);
+                        }
+                    }
                 }
             }
         }

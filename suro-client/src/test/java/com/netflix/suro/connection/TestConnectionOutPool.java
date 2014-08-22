@@ -27,11 +27,14 @@ import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.SuroServer4Test;
 import com.netflix.suro.thrift.ResultCode;
+import com.netflix.suro.thrift.TMessageSet;
 import org.apache.thrift.TException;
+import org.junit.After;
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -42,34 +45,12 @@ public class TestConnectionOutPool {
     private Injector injector;
     private List<SuroServer4Test> servers;
     private Properties props = new Properties();
+    private ConnectionPool pool;
 
     @Test
     public void testOutPool() throws Exception {
-        servers = TestConnectionPool.startServers(1);
-
-        props.put(ClientConfig.LB_SERVER, TestConnectionPool.createConnectionString(servers));
-        props.setProperty(ClientConfig.MINIMUM_RECONNECT_TIME_INTERVAL, "0");
-        props.setProperty(ClientConfig.RECONNECT_INTERVAL, "0");
-        props.setProperty(ClientConfig.RECONNECT_TIME_INTERVAL, "0");
-
-        injector = LifecycleInjector.builder()
-                .withBootstrapModule(new BootstrapModule() {
-                    @Override
-                    public void configure(BootstrapBinder binder) {
-                        binder.bindConfigurationProvider().toInstance(new PropertiesConfigurationProvider(props));
-                    }
-                })
-                .withAdditionalModules(new AbstractModule() {
-                    @Override
-                    protected void configure() {
-                        bind(ILoadBalancer.class).to(StaticLoadBalancer.class);
-                    }
-                })
-                .build().createInjector();
-        injector.getInstance(LifecycleManager.class).start();
-
-        final ConnectionPool pool = injector.getInstance(ConnectionPool.class);
-        assertEquals(pool.getPoolSize(), 1);
+        props.put(ClientConfig.ENABLE_OUTPOOL, "true");
+        setup();
 
         ExecutorService executors = Executors.newFixedThreadPool(10);
         for (int i = 0; i < 10; ++i) {
@@ -95,6 +76,98 @@ public class TestConnectionOutPool {
         try { Thread.sleep(1000); } catch (Exception e) { e.printStackTrace(); }
         TestConnectionPool.checkMessageSetCount(servers, 50, false);
 
+    }
+
+    public void setup() throws Exception {
+        servers = TestConnectionPool.startServers(1);
+
+        props.put(ClientConfig.LB_SERVER, TestConnectionPool.createConnectionString(servers));
+        props.put(ClientConfig.CONNECTION_TIMEOUT, Integer.toString(Integer.MAX_VALUE));
+
+        injector = LifecycleInjector.builder()
+                .withBootstrapModule(new BootstrapModule() {
+                    @Override
+                    public void configure(BootstrapBinder binder) {
+                        binder.bindConfigurationProvider().toInstance(new PropertiesConfigurationProvider(props));
+                    }
+                })
+                .withAdditionalModules(new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(ILoadBalancer.class).to(StaticLoadBalancer.class);
+                    }
+                })
+                .build().createInjector();
+        injector.getInstance(LifecycleManager.class).start();
+
+        pool = injector.getInstance(ConnectionPool.class);
+        assertEquals(pool.getPoolSize(), 1);
+    }
+
+    @After
+    public void after() {
         TestConnectionPool.shutdownServers(servers);
+    }
+
+    @Test
+    public void shouldConnectionOutPoolStopGrowing() throws Exception {
+        setup();
+
+        for (SuroServer4Test server : servers) {
+            server.setHoldConnection();
+        }
+
+        int numThreads = 10;
+        final CountDownLatch latch = new CountDownLatch(numThreads);
+
+        ExecutorService executors = Executors.newFixedThreadPool(numThreads);
+        for (int i = 0; i < numThreads; ++i) {
+            executors.execute(new Runnable() {
+                @Override
+                public void run() {
+                    TMessageSet messageSet = TestConnectionPool.createMessageSet(100);
+                    boolean set = true;
+                    while (true) {
+                        ConnectionPool.SuroConnection connection = pool.chooseConnection();
+                        if (set) {
+                            latch.countDown();
+                            set = false;
+                        }
+                        if (connection == null) {
+                            continue;
+                        }
+                        try {
+                            ResultCode result = connection.send(messageSet).getResultCode();
+                            System.out.println("result code: " + result);
+                            if (result == ResultCode.OK) {
+                                break;
+                            }
+                        } catch (Exception e) {
+                        } finally {
+                            pool.endConnection(connection);
+                            try {
+                                Thread.sleep(100);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                    System.out.println("finished");
+                }
+            });
+        }
+        latch.await();
+
+        assertEquals(pool.getOutPoolSize(), 0);
+
+        for (SuroServer4Test server : servers) {
+            server.cancelHoldConnection();
+        }
+
+        executors.shutdown();
+        executors.awaitTermination(60, TimeUnit.SECONDS);
+
+        try { Thread.sleep(1000); } catch (Exception e) { e.printStackTrace(); }
+        TestConnectionPool.checkMessageSetCount(servers, numThreads, false);
     }
 }
