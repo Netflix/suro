@@ -18,6 +18,9 @@ package com.netflix.suro.message;
 
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteStreams;
+import com.netflix.servo.monitor.DynamicCounter;
+import com.netflix.servo.monitor.MonitorConfig;
+import com.netflix.suro.TagKey;
 import com.netflix.suro.thrift.TMessageSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,6 +72,10 @@ public class MessageSetReader implements Iterable<Message> {
                         return m;
                     } catch (Exception e) {
                         log.error("Exception while iterating MessageSet:" + e.getMessage(), e);
+                        DynamicCounter.increment(
+                                MonitorConfig.builder(TagKey.DROPPED_COUNT)
+                                        .withTag("reason", "MessageSetReaderError").build(),
+                                messageCount);
                         messageCount = 0; // discard further messages
                         return null;
                     }

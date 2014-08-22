@@ -108,13 +108,14 @@ public class LocalFileSink extends QueuedSink implements Sink {
         this.writer = writer == null ? new TextFileWriter(null) : writer;
         this.maxFileSize = maxFileSize == 0 ? 200 * 1024 * 1024 : maxFileSize;
         this.rotationPeriod = new Period(rotationPeriod == null ? "PT2m" : rotationPeriod);
-        this.minPercentFreeDisk = minPercentFreeDisk == 0 ? 85 : minPercentFreeDisk;
+        this.minPercentFreeDisk = minPercentFreeDisk == 0 ? 15 : minPercentFreeDisk;
         this.notice = notice == null ? new QueueNotice<String>() : notice;
         this.trafficController = trafficController;
         this.spaceChecker = spaceChecker;
 
-        Monitors.registerObject(LocalFileSink.class.getSimpleName() + "-" + outputDir.replace('/', '_'), this);
-        initialize(queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+        Monitors.registerObject(outputDir.replace('/', '_'), this);
+        initialize("localfile_" + outputDir.replace('/', '_'),
+                queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
     }
 
     public String getOutputDir() {

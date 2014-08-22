@@ -21,7 +21,9 @@ import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.netflix.servo.monitor.DynamicCounter;
+import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.servo.monitor.Monitors;
+import com.netflix.suro.TagKey;
 import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
@@ -55,7 +57,8 @@ public class MessageRouter {
 
     public void process(MessageContainer msg) throws Exception {
         if (Strings.isNullOrEmpty(msg.getRoutingKey())) {
-            DynamicCounter.increment("emptyRoutingKeyCount");
+            DynamicCounter.increment(
+                    MonitorConfig.builder(TagKey.DROPPED_COUNT).withTag("reason", "emptyRoutingKey").build());
             return; // discard message
         }
 

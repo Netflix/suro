@@ -122,7 +122,7 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
         this.jsonMapper = jsonMapper;
         this.dataConverter = dataConverter;
 
-        initialize(queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+        initialize("tranq_" + dataSource, queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
     }
 
     private CuratorFramework createCurator(String zkServiceHost, int zkSessionTimeoutMs, boolean zkCompress) {
@@ -199,7 +199,7 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
                 .timestampSpec(timestampSpec)
                 .buildJavaService();
 
-        Monitors.registerObject(TranquilitySink.class.getSimpleName() + "-" + dataSource, this);
+        Monitors.registerObject(dataSource, this);
 
         start();
     }

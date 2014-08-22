@@ -13,7 +13,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -62,7 +61,6 @@ public class TestQueuedSink {
     public void shouldIncrementDroppedCounter() {
         final int queueCapacity = 200;
         final MemoryQueue4Sink queue = new MemoryQueue4Sink(queueCapacity);
-        final AtomicInteger enqueuedCount = new AtomicInteger(0);
 
         QueuedSink sink = new QueuedSink() {
             @Override
@@ -71,9 +69,7 @@ public class TestQueuedSink {
 
             @Override
             protected void write(List<Message> msgList) throws IOException {
-                if (enqueuedCount.addAndGet(msgList.size()) > queueCapacity) {
-                    throw new RuntimeException("prevent to drain the queue");
-                }
+                throw new RuntimeException("prevent to drain the queue");
             }
 
             @Override
@@ -87,8 +83,9 @@ public class TestQueuedSink {
         for (int i = 0; i < msgCount; ++i) {
             sink.enqueue(new Message("routingKey", ("message" + i).getBytes()));
         }
+        sink.close();
 
-        assertEquals(sink.droppedMessagesCount.get(), msgCount - queueCapacity);
+        assertEquals(sink.droppedMessagesCount.get(), msgCount);
     }
 
     @Test
