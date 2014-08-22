@@ -26,12 +26,14 @@ import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TFramedTransport;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
+import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import java.net.SocketException;
 
 /**
  * Healthcheck page for suro server
@@ -45,48 +47,42 @@ public class HealthCheck {
     private static final Logger log = LoggerFactory.getLogger(HealthCheck.class);
 
     private final ServerConfig config;
+    private SuroServer.Client client;
 
     @Inject
-    public HealthCheck(ServerConfig config) {
+    public HealthCheck(ServerConfig config) throws SocketException, TTransportException {
         this.config = config;
     }
 
     @GET
     @Produces("text/plain")
-    public String get() {
-        checkConnection("localhost", config.getPort(), 5000);
-
-        return "SuroServer - OK";
-    }
-
-    public static void checkConnection(String host, int port, int timeout) {
-        TTransport transport = null;
+    public synchronized String get() {
         try {
-            TSocket socket = new TSocket(host, port, timeout);
-            socket.getSocket().setTcpNoDelay(true);
-            socket.getSocket().setKeepAlive(true);
-            socket.getSocket().setSoLinger(true, 0);
-            transport = new TFramedTransport(socket);
-            transport.open();
+            if (client == null) {
+                client = getClient("localhost", config.getPort(), 5000);
+            }
 
-            TProtocol protocol = new TBinaryProtocol(transport);
-
-            SuroServer.Client client = new SuroServer.Client(protocol);
             ServiceStatus status = client.getStatus();
             if (status != ServiceStatus.ALIVE) {
                 throw new RuntimeException("NOT ALIVE!!!");
             }
+
+            return "SuroServer - OK";
         } catch (Exception e) {
-            throw new RuntimeException("NOT ALIVE with Exception: " + e.getMessage());
-        } finally {
-            if (transport != null) {
-                try {
-                    transport.flush();
-                    transport.close();
-                } catch (Exception ex) {
-                    log.error("ignoring an exception on checkConnection");
-                }
-            }
+            throw new RuntimeException("NOT ALIVE!!!");
         }
+    }
+
+    private SuroServer.Client getClient(String host, int port, int timeout) throws SocketException, TTransportException {
+        TSocket socket = new TSocket(host, port, timeout);
+        socket.getSocket().setTcpNoDelay(true);
+        socket.getSocket().setKeepAlive(true);
+        socket.getSocket().setSoLinger(true, 0);
+        TTransport transport = new TFramedTransport(socket);
+        transport.open();
+
+        TProtocol protocol = new TBinaryProtocol(transport);
+
+        return new SuroServer.Client(protocol);
     }
 }

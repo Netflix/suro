@@ -128,7 +128,7 @@ public class SuroServer {
                         StatusServer.createJerseyServletModule()
                 )
                 .withAdditionalModules(modules)
-                .createInjector());
+                .build().createInjector());
     }
 
     private static void waitForShutdown(int port) throws IOException {

@@ -160,7 +160,7 @@ public class ClientConfig {
 
     public static final String FILEQUEUE_GC_PERIOD = "SuroClient.asyncFileQueueGCPeriod";
     @Configuration(FILEQUEUE_GC_PERIOD)
-    private String fileQueueGCPeriod = "PT1h";
+    private String fileQueueGCPeriod = "PT1m";
     public String getAsyncFileQueueGCPeriod() {
         return fileQueueGCPeriod;
     }

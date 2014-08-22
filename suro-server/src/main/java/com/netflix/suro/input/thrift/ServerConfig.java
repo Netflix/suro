@@ -112,7 +112,7 @@ public class ServerConfig {
 
     public static final String FILEQUEUE_GC_PERIOD = "SuroServer.fileQueueGCPeriod";
     @Configuration(FILEQUEUE_GC_PERIOD)
-    private String fileQueueGCPeriod = "PT1h";
+    private String fileQueueGCPeriod = "PT1m";
     public String getFileQueueGCPeriod() {
         return fileQueueGCPeriod;
     }

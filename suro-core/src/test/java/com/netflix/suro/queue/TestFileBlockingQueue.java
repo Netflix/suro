@@ -16,6 +16,8 @@
 
 package com.netflix.suro.queue;
 
+import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageSerDe;
 import com.netflix.suro.message.StringSerDe;
 import org.junit.Rule;
 import org.junit.Test;
@@ -23,6 +25,8 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Random;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -127,5 +131,60 @@ public class TestFileBlockingQueue {
         for (int i = 0; i < count; ++i) {
             assertTrue(queue.offer("testString" + i));
         }
+    }
+
+    @Test
+    public void testMultithreaded() throws IOException, InterruptedException {
+        final FileBlockingQueue<Message> queue = new FileBlockingQueue<Message>(
+                tempDir.newFolder().getAbsolutePath(), "default", 3600, new MessageSerDe(), true);
+
+        final int threadCount = 10;
+        ExecutorService executors = Executors.newFixedThreadPool(threadCount);
+        final CountDownLatch latch = new CountDownLatch(threadCount + 1);
+        final CountDownLatch startLatch = new CountDownLatch(1);
+        for (int i = 0; i < threadCount; ++i) {
+            executors.execute(new Runnable() {
+
+                @Override
+                public void run() {
+                    try {
+                        startLatch.await();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    for (int j = 0; j < 10000; ++j) {
+                        String str = generateRandomString();
+                        Message msg = new Message("testRoutingKey", str.getBytes());
+                        queue.offer(msg);
+                    }
+
+                    latch.countDown();
+                }
+            });
+        }
+        executors.execute(new Runnable() {
+
+            @Override
+            public void run() {
+                for (int i = 0; i < threadCount * 10000; ++i) {
+                    Message msg = queue.poll();
+                    assertEquals(msg.getRoutingKey(), "testRoutingKey");
+                    assertEquals(new String(msg.getPayload()).length(), 4096);
+                }
+                latch.countDown();
+            }
+        });
+        startLatch.countDown();
+        latch.await();
+    }
+
+    public String generateRandomString() {
+        Random rand = new Random();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 4096; ++i) {
+            sb.append((char) (rand.nextInt(95) + 32));
+        }
+
+        return sb.toString();
     }
 }
