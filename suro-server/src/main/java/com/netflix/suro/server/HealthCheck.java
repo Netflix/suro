@@ -47,18 +47,21 @@ public class HealthCheck {
     private static final Logger log = LoggerFactory.getLogger(HealthCheck.class);
 
     private final ServerConfig config;
-    private final SuroServer.Client client;
+    private SuroServer.Client client;
 
     @Inject
     public HealthCheck(ServerConfig config) throws SocketException, TTransportException {
         this.config = config;
-        this.client = getClient("localhost", config.getPort(), 5000);
     }
 
     @GET
     @Produces("text/plain")
     public synchronized String get() {
         try {
+            if (client == null) {
+                client = getClient("localhost", config.getPort(), 5000);
+            }
+
             ServiceStatus status = client.getStatus();
             if (status != ServiceStatus.ALIVE) {
                 throw new RuntimeException("NOT ALIVE!!!");
