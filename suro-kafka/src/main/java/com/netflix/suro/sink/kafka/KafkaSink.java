@@ -67,7 +67,7 @@ public class KafkaSink extends ThreadPoolQueuedSink implements Sink {
         Preconditions.checkNotNull(clientId);
 
         this.clientId = clientId;
-        initialize(queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+        initialize("kafka_" + clientId, queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
 
         Properties props = new Properties();
         props.put("client.id", clientId);
@@ -102,7 +102,7 @@ public class KafkaSink extends ThreadPoolQueuedSink implements Sink {
         producer = new Producer<Long, byte[]>(new ProducerConfig(props));
         KafkaMetricsReporter$.MODULE$.startReporters(new VerifiableProperties(props));
 
-        Monitors.registerObject(KafkaSink.class.getSimpleName() + "-" + clientId, this);
+        Monitors.registerObject(clientId, this);
     }
 
     @Override

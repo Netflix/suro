@@ -22,6 +22,7 @@ public class TagKey {
     public static final String SENT_COUNT = "sentMessageCount";
     public static final String RECV_COUNT = "receivedMessageCount";
     public static final String LOST_COUNT = "lostMessageCount";
+    public static final String DROPPED_COUNT = "droppedMessageCount";
     public static final String RESTORED_COUNT = "restoredMessageCount";
     public static final String RETRIED_COUNT = "retriedCount";
     public static final String ROUTING_KEY = "routingKey";

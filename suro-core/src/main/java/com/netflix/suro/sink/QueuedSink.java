@@ -3,6 +3,9 @@ package com.netflix.suro.sink;
 import com.google.common.annotations.VisibleForTesting;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
+import com.netflix.servo.monitor.DynamicCounter;
+import com.netflix.servo.monitor.MonitorConfig;
+import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.queue.MessageQueue4Sink;
 import org.slf4j.Logger;
@@ -34,20 +37,33 @@ public abstract class QueuedSink extends Thread {
     protected MessageQueue4Sink queue4Sink;
     private int batchSize;
     private int batchTimeout;
+    private String sinkId;
 
-    protected void initialize(MessageQueue4Sink queue4Sink, int batchSize, int batchTimeout) {
+    protected void initialize(String sinkId, MessageQueue4Sink queue4Sink, int batchSize, int batchTimeout) {
+        this.sinkId = sinkId;
         this.queue4Sink = queue4Sink;
         this.batchSize = batchSize == 0 ? 1000 : batchSize;
         this.batchTimeout = batchTimeout == 0 ? 1000 : batchTimeout;
     }
 
-    @Monitor(name = "droppedMessages", type = DataSourceType.COUNTER)
+    protected void initialize(MessageQueue4Sink queue4Sink, int batchSize, int batchTimeout) {
+        this.sinkId = "empty_sink_id";
+        this.queue4Sink = queue4Sink;
+        this.batchSize = batchSize == 0 ? 1000 : batchSize;
+        this.batchTimeout = batchTimeout == 0 ? 1000 : batchTimeout;
+    }
+
     @VisibleForTesting
     protected AtomicLong droppedMessagesCount = new AtomicLong(0);
 
     protected void enqueue(Message message) {
         if (!queue4Sink.offer(message)) {
             droppedMessagesCount.incrementAndGet();
+            DynamicCounter.increment(
+                    MonitorConfig.builder(TagKey.DROPPED_COUNT)
+                            .withTag("reason", "queueFull")
+                            .withTag("sink", sinkId)
+                            .build());
         }
     }
 
@@ -83,6 +99,14 @@ public abstract class QueuedSink extends Thread {
                 }
             } catch (Exception e) {
                 log.error("Exception on running: " + e.getMessage(), e);
+                droppedMessagesCount.addAndGet(msgList.size());
+                DynamicCounter.increment(
+                        MonitorConfig.builder(TagKey.DROPPED_COUNT)
+                                .withTag("reason", "sinkException")
+                                .withTag("sink", sinkId)
+                                .build(),
+                        msgList.size());
+                msgList.clear(); // drop messages, otherwise, it will retry forever
             }
         }
         log.info("Shutdown request exit loop ..., queue.size at exit time: " + queue4Sink.size());
