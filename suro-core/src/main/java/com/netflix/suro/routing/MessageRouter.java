@@ -20,14 +20,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.netflix.servo.monitor.DynamicCounter;
+import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.servo.monitor.Monitors;
+import com.netflix.suro.TagKey;
 import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.routing.RoutingMap.Route;
 import com.netflix.suro.sink.SinkManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -38,8 +39,6 @@ import java.util.List;
  */
 @Singleton
 public class MessageRouter {
-    private static final Logger log = LoggerFactory.getLogger(MessageRouter.class);
-
     private final RoutingMap routingMap;
     private final SinkManager sinkManager;
     private final ObjectMapper jsonMapper;
@@ -57,6 +56,12 @@ public class MessageRouter {
     }
 
     public void process(MessageContainer msg) throws Exception {
+        if (Strings.isNullOrEmpty(msg.getRoutingKey())) {
+            DynamicCounter.increment(
+                    MonitorConfig.builder(TagKey.DROPPED_COUNT).withTag("reason", "emptyRoutingKey").build());
+            return; // discard message
+        }
+
         RoutingMap.RoutingInfo info = routingMap.getRoutingInfo(msg.getRoutingKey());
 
         if (info == null) {

@@ -29,6 +29,7 @@ import com.netflix.suro.message.Compression;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetBuilder;
 import com.netflix.suro.message.MessageSetReader;
+import com.netflix.suro.thrift.Result;
 import com.netflix.suro.thrift.ResultCode;
 import com.netflix.suro.thrift.TMessageSet;
 import org.slf4j.Logger;
@@ -104,16 +105,20 @@ public class SyncSuroClient implements ISuroClient {
                 continue;
             }
             try {
-                if (connection.send(messageSet).getResultCode() == ResultCode.OK) {
+                Result result = connection.send(messageSet);
+                if (result != null && result.getResultCode() == ResultCode.OK && result.isSetMessage()) {
                     sent = true;
                     connectionPool.endConnection(connection);
                     retried = i > 0;
                     break;
+                } else {
+                    log.error("Server is not stable: " + connection.getServer().toString());
+                    connectionPool.markServerDown(connection);
+                    try { Thread.sleep(Math.min(i + 1, 5) * 100); } catch (InterruptedException e) {} // ignore an exception
                 }
             } catch (Exception e) {
                 log.error("Exception in send: " + e.getMessage(), e);
                 connectionPool.markServerDown(connection);
-                senderExceptionCount.incrementAndGet();
             }
         }
 

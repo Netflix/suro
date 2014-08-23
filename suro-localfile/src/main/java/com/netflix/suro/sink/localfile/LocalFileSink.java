@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -57,8 +58,9 @@ import java.util.List;
  * @author jbae
  */
 public class LocalFileSink extends QueuedSink implements Sink {
-    static Logger log = LoggerFactory.getLogger(LocalFileSink.class);
+    private static final Logger log = LoggerFactory.getLogger(LocalFileSink.class);
 
+    public static final String EMPTY_ROUTING_KEY_REPLACEMENT = "_empty_routing_key";
     public static final String TYPE = "local";
 
     public static final String suffix = ".suro";
@@ -77,12 +79,10 @@ public class LocalFileSink extends QueuedSink implements Sink {
     private String filePath;
     private long nextRotation;
 
-    @Monitor(name = "writtenMessages", type = DataSourceType.COUNTER)
     private long writtenMessages;
-    @Monitor(name = "writtenBytes", type = DataSourceType.COUNTER)
     private long writtenBytes;
-    @Monitor(name = "errorClosedFiles", type = DataSourceType.COUNTER)
     private long errorClosedFiles;
+    private long emptyRoutingKeyCount;
 
     private boolean messageWrittenInRotation = false;
 
@@ -108,13 +108,14 @@ public class LocalFileSink extends QueuedSink implements Sink {
         this.writer = writer == null ? new TextFileWriter(null) : writer;
         this.maxFileSize = maxFileSize == 0 ? 200 * 1024 * 1024 : maxFileSize;
         this.rotationPeriod = new Period(rotationPeriod == null ? "PT2m" : rotationPeriod);
-        this.minPercentFreeDisk = minPercentFreeDisk == 0 ? 85 : minPercentFreeDisk;
+        this.minPercentFreeDisk = minPercentFreeDisk == 0 ? 15 : minPercentFreeDisk;
         this.notice = notice == null ? new QueueNotice<String>() : notice;
         this.trafficController = trafficController;
         this.spaceChecker = spaceChecker;
 
-        Monitors.registerObject(LocalFileSink.class.getSimpleName() + "-" + outputDir.replace('/', '_'), this);
-        initialize(queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+        Monitors.registerObject(outputDir.replace('/', '_'), this);
+        initialize("localfile_" + outputDir.replace('/', '_'),
+                queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
     }
 
     public String getOutputDir() {
@@ -224,14 +225,17 @@ public class LocalFileSink extends QueuedSink implements Sink {
     protected void write(List<Message> msgList) throws IOException {
         for (Message msg : msgList) {
             writer.writeTo(msg);
+
+            String routingKey = normalizeRoutingKey(msg);
+
             DynamicCounter.increment(
                     MonitorConfig.builder("writtenMessages")
-                            .withTag(TagKey.DATA_SOURCE, msg.getRoutingKey())
+                            .withTag(TagKey.DATA_SOURCE, routingKey)
                             .build());
             ++writtenMessages;
             DynamicCounter.increment(
                     MonitorConfig.builder("writtenBytes")
-                            .withTag(TagKey.DATA_SOURCE, msg.getRoutingKey())
+                            .withTag(TagKey.DATA_SOURCE, routingKey)
                             .build(), msg.getPayload().length);
             writtenBytes += msg.getPayload().length;
 
@@ -239,6 +243,20 @@ public class LocalFileSink extends QueuedSink implements Sink {
         }
 
         writer.sync();
+    }
+
+    private String normalizeRoutingKey(Message msg) {
+        String routingKey = msg.getRoutingKey();
+        if(routingKey == null || routingKey.trim().length() == 0) {
+            emptyRoutingKeyCount += 1;
+            DynamicCounter.increment("emptyRoutingKeyCount");
+            if(log.isDebugEnabled()) {
+                log.debug("Message {} with empty routing key", Arrays.asList(msg.getPayload()));
+            }
+            return EMPTY_ROUTING_KEY_REPLACEMENT;
+        }
+
+        return routingKey;
     }
 
     @Override
@@ -308,6 +326,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
                                 new DateTime().minus(rotationPeriod).minus(rotationPeriod).getMillis();
                         if (file.getModificationTime() < lastPeriod) {
                             ++errorClosedFiles;
+                            DynamicCounter.increment("closedFileError");
                             log.error(dir + fileName + " is not closed properly!!!");
                             String doneFile = fileName.replace(fileExt, done);
                             writer.setDone(dir + fileName, dir + doneFile);
@@ -345,9 +364,12 @@ public class LocalFileSink extends QueuedSink implements Sink {
     @Override
     public String getStat() {
         return String.format(
-                "%d msgs, %s written",
-                writtenMessages,
-                FileUtils.byteCountToDisplaySize(writtenBytes));
+            "%d msgs, %s written, %s have empty routing key. %s failures of closing files",
+            writtenMessages,
+            FileUtils.byteCountToDisplaySize(writtenBytes),
+            emptyRoutingKeyCount,
+            errorClosedFiles
+        );
     }
 
     private static final int deleteFileRetryCount = 5;

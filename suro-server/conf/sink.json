@@ -2,6 +2,7 @@
     "default": {
         "type": "local",
         "outputDir": "/tmp/suroserver",
+        "minPercentFreeDisk": 10,
         "writer": {
             "type": "text"
         }

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.client.repackaged.com.google.common.base.Preconditions;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.metamx.common.Granularity;
 import com.metamx.tranquility.beam.ClusteredBeamTuning;
@@ -122,7 +122,7 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
         this.jsonMapper = jsonMapper;
         this.dataConverter = dataConverter;
 
-        initialize(queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+        initialize("tranq_" + dataSource, queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
     }
 
     private CuratorFramework createCurator(String zkServiceHost, int zkSessionTimeoutMs, boolean zkCompress) {
@@ -199,7 +199,7 @@ public class TranquilitySink extends ThreadPoolQueuedSink implements Sink {
                 .timestampSpec(timestampSpec)
                 .buildJavaService();
 
-        Monitors.registerObject(TranquilitySink.class.getSimpleName() + "-" + dataSource, this);
+        Monitors.registerObject(dataSource, this);
 
         start();
     }

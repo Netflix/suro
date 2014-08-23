@@ -38,7 +38,7 @@ public class KafkaConsumer implements SuroInput {
     private ExecutorService executor = Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder().setNameFormat("KafkaConsumer-%d").build());
     private Future<?> runner = null;
-    private boolean running = false;
+    private volatile boolean running = false;
 
     @JsonCreator
     public KafkaConsumer(

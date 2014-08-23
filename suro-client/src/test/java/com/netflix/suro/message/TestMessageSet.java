@@ -18,8 +18,7 @@ package com.netflix.suro.message;
 
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.thrift.TMessageSet;
-import org.junit.Before; 
-import org.junit.Ignore;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -27,6 +26,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class TestMessageSet {
@@ -103,6 +103,32 @@ public class TestMessageSet {
             ++i;
         }
         assertEquals(i, 10);
+    }
+
+    @Test
+    public void testReaderException() throws IOException {
+        MessageSetBuilder builder = new MessageSetBuilder(new ClientConfig()).withCompression(Compression.NO);
+        for (Message message : messageList) {
+            builder.withMessage(message.getRoutingKey(), message.getPayload());
+        }
+        TMessageSet messageSet = builder.build();
+        byte[] b = messageSet.getMessages();
+        // corrup the data
+        b[0] = (byte) 0xff;
+        b[1] = (byte) 0xff;
+        b[2] = (byte) 0xff;
+        b[3] = (byte) 0xff;
+
+        MessageSetReader reader = new MessageSetReader(messageSet);
+        //assertTrue(reader.checkCRC());
+
+        SerDe<String> serde = new StringSerDe();
+
+        int i = 0;
+        for (Message message : reader) {
+            assertNull(message);
+        }
+        assertEquals(i, 0);
     }
 
 }

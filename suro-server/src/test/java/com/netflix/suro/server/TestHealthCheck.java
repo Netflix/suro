@@ -16,11 +16,16 @@
 
 package com.netflix.suro.server;
 
+import com.netflix.suro.input.InputManager;
+import com.netflix.suro.input.thrift.ServerConfig;
 import org.apache.thrift.transport.TTransportException;
 import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class TestHealthCheck {
     @Rule
@@ -28,6 +33,22 @@ public class TestHealthCheck {
 
     @Test
     public void test() throws TTransportException, IOException {
-        HealthCheck.checkConnection("localhost", suroServer.getServerPort(), 5000);
+        HealthCheck healthCheck = new HealthCheck(new ServerConfig() {
+            @Override
+            public int getPort() {
+                return suroServer.getServerPort();
+            }
+        });
+        healthCheck.get();
+
+        suroServer.getInjector().getInstance(InputManager.class).getInput("thrift").shutdown();
+
+        try {
+            healthCheck.get();
+            fail("exception should be thrown");
+        } catch (RuntimeException e) {
+            assertEquals(e.getMessage(), "NOT ALIVE!!!");
+        }
+
     }
 }

@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.sink.Sink;
-import com.netflix.suro.sink.kafka.ZkExternalResource;
 import io.druid.jackson.AggregatorsModule;
 import io.druid.jackson.DruidDefaultSerializersModule;
 import io.druid.jackson.QueryGranularityModule;

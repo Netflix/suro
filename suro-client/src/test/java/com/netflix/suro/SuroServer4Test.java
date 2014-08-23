@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class SuroServer4Test implements SuroServer.Iface {
@@ -54,28 +55,55 @@ public class SuroServer4Test implements SuroServer.Iface {
         tryLater = false;
     }
 
+    private boolean holdConnection = false;
+
+    public void setHoldConnection() {
+        holdConnection = true;
+    }
+
+    public void cancelHoldConnection() {
+        holdConnection = false;
+        latch.countDown();
+    }
+
     public int getPort() {
         return port;
     }
 
+    private CountDownLatch latch = new CountDownLatch(1);
     public Result process(TMessageSet messageSet) throws TException {
         Result result = new Result();
         if (tryLater) {
             result.setResultCode(ResultCode.QUEUE_FULL);
         } else {
-            System.out.println(this + "=====================>>>>>>>>>>>>>>>>>>>>     getting a new messageSet" + counters.get("messageSetCount").get());
-            messageSetList.add(messageSet);
-            counters.get("messageSetCount").incrementAndGet();
-            int count = 0;
-            for (Message m : new MessageSetReader(messageSet)) {
-                counters.get("messageCount").incrementAndGet();
-                ++count;
+            if (!holdConnection) {
+                handleMessages(messageSet, result);
+            } else {
+                try {
+                    latch.await();
+                    handleMessages(messageSet, result);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
-            System.out.println(this + "=====================>>>>>>>>>>>>>>>>>>>>     getting a new messageSet: " + count);
-            result.setMessage("my message");
-            result.setResultCode(ResultCode.OK);
         }
         return result;
+    }
+
+    private void handleMessages(TMessageSet messageSet, Result result) {
+        System.out.println(this + "=====================>>>>>>>>>>>>>>>>>>>>     getting a new messageSet" + counters.get("messageSetCount").getAndIncrement());
+//        for (StackTraceElement e : Thread.currentThread().getStackTrace()) {
+//            System.out.println(e);
+//        }
+        messageSetList.add(messageSet);
+        int count = 0;
+        for (Message m : new MessageSetReader(messageSet)) {
+            counters.get("messageCount").incrementAndGet();
+            ++count;
+        }
+        System.out.println(this + "=====================>>>>>>>>>>>>>>>>>>>>     getting a new messageSet: " + count);
+        result.setMessage("my message");
+        result.setResultCode(ResultCode.OK);
     }
 
     public TMessageSet getMessageSet(int index) {
@@ -111,7 +139,7 @@ public class SuroServer4Test implements SuroServer.Iface {
         serverArgs.workerThreads(2);
 
         server = new THsHaServer(serverArgs);
-        System.out.println("Server started on port:" + transport);
+        System.out.println("Server started on port:" + port);
 
         Thread t = new Thread() {
 

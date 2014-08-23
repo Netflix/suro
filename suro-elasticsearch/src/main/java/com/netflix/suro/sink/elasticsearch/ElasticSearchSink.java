@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.netflix.appinfo.InstanceInfo;
 import com.netflix.discovery.DiscoveryClient;
 import com.netflix.servo.annotations.DataSourceType;
@@ -41,6 +42,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private final IndexInfoBuilder indexInfo;
     private final DiscoveryClient discoveryClient;
     private final Settings settings;
+    private final String clusterName;
 
     @Monitor(name = "indexedRowCount", type = DataSourceType.COUNTER)
     private long indexedRowCount = 0;
@@ -78,7 +80,8 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         this.indexInfo =
                 indexInfo == null ? new DefaultIndexInfoBuilder(null, null, null, null, null, jsonMapper) : indexInfo;
 
-        initialize(queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+        initialize("es_" + clusterName, queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+
 
         ImmutableSettings.Builder settingsBuilder = ImmutableSettings.settingsBuilder();
         if (clusterName != null) {
@@ -102,8 +105,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         this.settings = settingsBuilder.build();
         this.discoveryClient = discoveryClient;
         this.addressList = addressList;
-
-        Monitors.registerObject(clusterName, this);
+        this.clusterName = clusterName;
     }
 
     @Override
@@ -113,6 +115,8 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
 
     @Override
     public void open() {
+        Monitors.registerObject(clusterName, this);
+
         if (client == null) {
             client = new TransportClient(settings);
             if (discoveryClient != null) {
@@ -156,24 +160,37 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     @Override
     protected void beforePolling() throws IOException {}
 
+    private IndexRequest createIndexRequest(Message m) {
+        IndexInfo info = indexInfo.create(m);
+        if (info == null) {
+            ++parsingFailedRowCount;
+            return null;
+        } else {
+            return Requests.indexRequest(info.getIndex())
+                            .type(info.getType())
+                            .source(info.getSource())
+                            .id(info.getId())
+                            .opType(IndexRequest.OpType.CREATE);
+        }
+    }
+
     @Override
     protected void write(List<Message> msgList) throws IOException {
-        final BulkRequest request = new BulkRequest();
-        for (Message m : msgList) {
-            IndexInfo info = indexInfo.create(m);
-            if (info == null) {
-                ++parsingFailedRowCount;
-            } else {
-                request.add(Requests.indexRequest(info.getIndex())
-                        .type(info.getType())
-                        .source(info.getSource())
-                        .id(info.getId())
-                        .opType(IndexRequest.OpType.CREATE),
-                        m);
-            }
-        }
+        final BulkRequest request = createBulkRequest(msgList);
 
         senders.execute(createRunnable(request));
+    }
+
+    @VisibleForTesting
+    protected BulkRequest createBulkRequest(List<Message> msgList) {
+        final BulkRequest request = new BulkRequest();
+        for (Message m : msgList) {
+            IndexRequest indexRequest = createIndexRequest(m);
+            if (indexRequest != null) {
+                request.add(indexRequest, m);
+            }
+        }
+        return request;
     }
 
     private Runnable createRunnable(final BulkRequest request) {
@@ -188,7 +205,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                             log.error("Failed with: " + r.getFailureMessage());
                             ++rejectedCount;
 
-                            enqueue((Message) request.payloads().get(r.getItemId()));
+                            recover(r.getItemId(), request);
                         }
                     }
                     rejectedRowCount += rejectedCount;
@@ -200,6 +217,11 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                 indexDelay = System.currentTimeMillis() - indexInfo.create((Message) request.payloads().get(0)).getTimestamp();
             }
         };
+    }
+
+    @VisibleForTesting
+    protected void recover(int itemId, BulkRequest request) {
+        client.index(createIndexRequest((Message) request.payloads().get(itemId))).actionGet();
     }
 
     @Override

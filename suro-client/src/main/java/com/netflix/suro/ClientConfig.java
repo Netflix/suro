@@ -30,6 +30,11 @@ public class ClientConfig {
         return connectionTimeout;
     }
 
+    public static final String ENABLE_OUTPOOL = "SuroClient.enableOutPool";
+    @Configuration(ENABLE_OUTPOOL)
+    private boolean enableOutPool = false;
+    public boolean getEnableOutPool() { return enableOutPool; }
+
     public static final String CONNECTION_SWEEP_INTERVAL = "SuroClient.connectionSweepInterval";
     @Configuration(CONNECTION_SWEEP_INTERVAL)
     private int connectionSweepInterval = 3600; // second
@@ -155,7 +160,7 @@ public class ClientConfig {
 
     public static final String FILEQUEUE_GC_PERIOD = "SuroClient.asyncFileQueueGCPeriod";
     @Configuration(FILEQUEUE_GC_PERIOD)
-    private String fileQueueGCPeriod = "PT1h";
+    private String fileQueueGCPeriod = "PT1m";
     public String getAsyncFileQueueGCPeriod() {
         return fileQueueGCPeriod;
     }
