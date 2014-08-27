@@ -78,15 +78,22 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
     IMappedPageFactory queueFrontIndexPageFactory;
 
     private final SerDe<E> serDe;
-    private long consumedIndex;
-    private final boolean autoCommit;
+    private final long sizeLimit;
+
+    public FileBlockingQueue(
+            String path,
+            String name,
+            int gcPeriodInSec,
+            SerDe<E> serDe) throws IOException {
+        this(path, name, gcPeriodInSec, serDe, Long.MAX_VALUE);
+    }
 
     public FileBlockingQueue(
             String path,
             String name,
             int gcPeriodInSec,
             SerDe<E> serDe,
-            boolean autoCommit) throws IOException {
+            long sizeLimit) throws IOException {
         innerArray = new BigArrayImpl(path, name);
         // the ttl does not matter here since queue front index page is always cached
         this.queueFrontIndexPageFactory = new MappedPageFactoryImpl(QUEUE_FRONT_INDEX_PAGE_SIZE,
@@ -95,10 +102,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
         IMappedPage queueFrontIndexPage = this.queueFrontIndexPageFactory.acquirePage(QUEUE_FRONT_PAGE_INDEX);
 
         ByteBuffer queueFrontIndexBuffer = queueFrontIndexPage.getLocal(0);
-        long front = queueFrontIndexBuffer.getLong();
-        queueFrontIndex.set(front);
-
-        consumedIndex = front;
+        queueFrontIndex.set(queueFrontIndexBuffer.getLong());
 
         Executors.newScheduledThreadPool(1).scheduleAtFixedRate(new Runnable() {
             @Override
@@ -112,52 +116,47 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
         }, gcPeriodInSec, gcPeriodInSec, TimeUnit.SECONDS);
 
         this.serDe = serDe;
-        this.autoCommit = autoCommit;
+        this.sizeLimit = sizeLimit;
     }
 
-    private void gc() throws IOException {
-        long beforeIndex = this.queueFrontIndex.get();
+    public void gc() throws IOException {
+        long beforeIndex = queueFrontIndex.get();
         if (beforeIndex > 0L) { // wrap
             beforeIndex--;
             try {
-                this.innerArray.removeBeforeIndex(beforeIndex);
+                innerArray.removeBeforeIndex(beforeIndex);
             } catch (IndexOutOfBoundsException e) {
-                log.error("Exception on gc: " + e.getMessage(), e);
+                // do nothing
             }
         }
-    }
 
-    public void commit() {
         try {
-            lock.lock();
-            commitInternal(true);
-        } catch (IOException e) {
-            log.error("IOException on commit: " + e.getMessage(), e);
-        } finally {
-            lock.unlock();
+            innerArray.limitBackFileSize(sizeLimit);
+            if (innerArray.getTailIndex() > queueFrontIndex.get()) {
+                queueFrontIndex.set(innerArray.getTailIndex());
+            }
+        } catch (IndexOutOfBoundsException e) {
+            // do nothing
         }
     }
 
-    private void commitInternal(boolean doCommit) throws IOException {
-        if (!doCommit) return;
-
-        this.queueFrontIndex.set(consumedIndex);
+    private void commitInternal() throws IOException {
         // persist the queue front
         IMappedPage queueFrontIndexPage = null;
         queueFrontIndexPage = this.queueFrontIndexPageFactory.acquirePage(QUEUE_FRONT_PAGE_INDEX);
         ByteBuffer queueFrontIndexBuffer = queueFrontIndexPage.getLocal(0);
-        queueFrontIndexBuffer.putLong(consumedIndex);
+        queueFrontIndexBuffer.putLong(queueFrontIndex.get());
         queueFrontIndexPage.setDirty(true);
     }
 
     public void close() {
         try {
             gc();
-            if (this.queueFrontIndexPageFactory != null) {
-                this.queueFrontIndexPageFactory.releaseCachedPages();
+            if (queueFrontIndexPageFactory != null) {
+                queueFrontIndexPageFactory.releaseCachedPages();
             }
 
-            this.innerArray.close();
+            innerArray.close();
         } catch(IOException e) {
             log.error("IOException while closing: " + e.getMessage(), e);
         }
@@ -246,10 +245,8 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
 
     private E consumeElement() throws IOException {
         // restore consumedIndex if not committed
-        consumedIndex = this.queueFrontIndex.get();
-        E x = serDe.deserialize(innerArray.get(consumedIndex));
-        ++consumedIndex;
-        commitInternal(autoCommit);
+        E x = serDe.deserialize(innerArray.get(queueFrontIndex.getAndIncrement()));
+        commitInternal();
         return x;
     }
 
@@ -294,17 +291,15 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
 
         lock.lock();
         // restore consumedIndex if not committed
-        consumedIndex = this.queueFrontIndex.get();
         try {
             int n = Math.min(maxElements, size());
             // count.get provides visibility to first n Nodes
             int i = 0;
-            while (i < n && consumedIndex < innerArray.getHeadIndex()) {
-                c.add(serDe.deserialize(innerArray.get(consumedIndex)));
-                ++consumedIndex;
+            while (i < n && queueFrontIndex.get() < innerArray.getHeadIndex()) {
+                c.add(serDe.deserialize(innerArray.get(queueFrontIndex.getAndIncrement())));
                 ++i;
             }
-            commitInternal(autoCommit);
+            commitInternal();
             return n;
         } catch (Exception e) {
             throw new RuntimeException(e);

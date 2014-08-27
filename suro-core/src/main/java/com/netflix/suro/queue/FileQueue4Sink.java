@@ -51,8 +51,7 @@ public class FileQueue4Sink implements MessageQueue4Sink {
                 path,
                 name,
                 new Period(gcPeriod == null ? "PT1m" : gcPeriod).toStandardSeconds().getSeconds(),
-                new MessageSerDe(),
-                true); // auto-commit needed because of message copy
+                new MessageSerDe());
     }
 
     @Override
