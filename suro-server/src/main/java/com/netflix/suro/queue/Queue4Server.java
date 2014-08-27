@@ -53,9 +53,7 @@ public class Queue4Server {
                         config.getFileQueuePath(),
                         config.getFileQueueName(),
                         new Period(config.getFileQueueGCPeriod()).toStandardSeconds().getSeconds(),
-                        new MessageSetSerDe(),
-                        true); // auto-commit needed due to MessageSet consumers
-                               // are multi-threaded
+                        new MessageSetSerDe());
             } catch (IOException e) {
                 logger.error("Exception on initializing Queue4Server: " + e.getMessage(), e);
             }
