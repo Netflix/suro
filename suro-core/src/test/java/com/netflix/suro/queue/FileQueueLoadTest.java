@@ -153,7 +153,7 @@ public class FileQueueLoadTest {
     }
 
     private void createQueue() throws IOException {
-        bigQueue = new FileBlockingQueue<Message>(tempDir.newFolder().getAbsolutePath(), "load_test", 1, new MessageSerDe(), true);
+        bigQueue = new FileBlockingQueue<Message>(tempDir.newFolder().getAbsolutePath(), "load_test", 1, new MessageSerDe());
     }
 
     public void doRunProduceThenConsume() throws Exception {
