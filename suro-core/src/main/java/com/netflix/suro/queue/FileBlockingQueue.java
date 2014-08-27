@@ -126,7 +126,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
             try {
                 innerArray.removeBeforeIndex(beforeIndex);
             } catch (IndexOutOfBoundsException e) {
-                log.error("Exception on gc: " + e.getMessage(), e);
+                // do nothing
             }
         }
 
@@ -136,7 +136,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
                 queueFrontIndex.set(innerArray.getTailIndex());
             }
         } catch (IndexOutOfBoundsException e) {
-            log.error("Exception on gc limitBackFileSize: " + e.getMessage(), e);
+            // do nothing
         }
     }
 
