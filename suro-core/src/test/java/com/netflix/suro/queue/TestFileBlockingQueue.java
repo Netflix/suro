@@ -59,7 +59,7 @@ public class TestFileBlockingQueue {
 
     private FileBlockingQueue<String> getFileBlockingQueue() throws IOException {
         return new FileBlockingQueue<String>(
-                    tempDir.newFolder().getAbsolutePath(), "default", 3600, new StringSerDe(), true);
+                    tempDir.newFolder().getAbsolutePath(), "default", 3600, new StringSerDe());
     }
 
     @Test
@@ -136,7 +136,7 @@ public class TestFileBlockingQueue {
     @Test
     public void testMultithreaded() throws IOException, InterruptedException {
         final FileBlockingQueue<Message> queue = new FileBlockingQueue<Message>(
-                tempDir.newFolder().getAbsolutePath(), "default", 3600, new MessageSerDe(), true);
+                tempDir.newFolder().getAbsolutePath(), "default", 3600, new MessageSerDe());
 
         final int threadCount = 10;
         ExecutorService executors = Executors.newFixedThreadPool(threadCount);
