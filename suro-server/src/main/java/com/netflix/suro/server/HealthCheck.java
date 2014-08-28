@@ -18,6 +18,7 @@ package com.netflix.suro.server;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.netflix.suro.input.InputManager;
 import com.netflix.suro.input.thrift.ServerConfig;
 import com.netflix.suro.thrift.ServiceStatus;
 import com.netflix.suro.thrift.SuroServer;
@@ -47,24 +48,28 @@ public class HealthCheck {
     private static final Logger log = LoggerFactory.getLogger(HealthCheck.class);
 
     private final ServerConfig config;
+    private final InputManager inputManager;
     private SuroServer.Client client;
 
     @Inject
-    public HealthCheck(ServerConfig config) throws SocketException, TTransportException {
+    public HealthCheck(ServerConfig config, InputManager inputManager) throws SocketException, TTransportException {
         this.config = config;
+        this.inputManager = inputManager;
     }
 
     @GET
     @Produces("text/plain")
     public synchronized String get() {
         try {
-            if (client == null) {
-                client = getClient("localhost", config.getPort(), 5000);
-            }
+            if (inputManager.getInput("thrift") != null) {
+                if (client == null) {
+                    client = getClient("localhost", config.getPort(), 5000);
+                }
 
-            ServiceStatus status = client.getStatus();
-            if (status != ServiceStatus.ALIVE) {
-                throw new RuntimeException("NOT ALIVE!!!");
+                ServiceStatus status = client.getStatus();
+                if (status != ServiceStatus.ALIVE) {
+                    throw new RuntimeException("NOT ALIVE!!!");
+                }
             }
 
             return "SuroServer - OK";
