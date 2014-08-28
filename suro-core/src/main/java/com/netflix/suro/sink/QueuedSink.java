@@ -97,8 +97,8 @@ public abstract class QueuedSink extends Thread {
                     }
                     lastBatch = System.currentTimeMillis();
                 }
-            } catch (Exception e) {
-                log.error("Exception on running: " + e.getMessage(), e);
+            } catch (Throwable e) {
+                log.error("Thrown on running: " + e.getMessage(), e);
                 droppedMessagesCount.addAndGet(msgList.size());
                 DynamicCounter.increment(
                         MonitorConfig.builder(TagKey.DROPPED_COUNT)

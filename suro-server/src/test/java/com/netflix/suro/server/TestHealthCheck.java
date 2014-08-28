@@ -17,6 +17,7 @@
 package com.netflix.suro.server;
 
 import com.netflix.suro.input.InputManager;
+import com.netflix.suro.input.SuroInput;
 import com.netflix.suro.input.thrift.ServerConfig;
 import org.apache.thrift.transport.TTransportException;
 import org.junit.Rule;
@@ -26,6 +27,8 @@ import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 
 public class TestHealthCheck {
     @Rule
@@ -33,12 +36,14 @@ public class TestHealthCheck {
 
     @Test
     public void test() throws TTransportException, IOException {
+        InputManager inputManager = mock(InputManager.class);
+        doReturn(mock(SuroInput.class)).when(inputManager).getInput("thrift");
         HealthCheck healthCheck = new HealthCheck(new ServerConfig() {
             @Override
             public int getPort() {
                 return suroServer.getServerPort();
             }
-        });
+        }, inputManager);
         healthCheck.get();
 
         suroServer.getInjector().getInstance(InputManager.class).getInput("thrift").shutdown();

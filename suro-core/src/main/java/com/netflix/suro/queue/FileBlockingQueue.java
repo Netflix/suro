@@ -109,8 +109,8 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
             public void run() {
                 try {
                     gc();
-                } catch (IOException e) {
-                    log.error("IOException while gc: " + e.getMessage(), e);
+                } catch (Exception e) {
+                    log.error("Exception while gc: " + e.getMessage(), e);
                 }
             }
         }, gcPeriodInSec, gcPeriodInSec, TimeUnit.SECONDS);
