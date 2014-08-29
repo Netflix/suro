@@ -22,10 +22,6 @@ if (JavaVersion.current().isJava8Compatible()) {
 allprojects {
     repositories { 
       mavenCentral()
-      maven{
-        name 'github.release.repo'
-        url 'https://raw.github.com/bulldog2011/bulldog-repo/master/repo/releases/'
-      }
       maven {
         url "https://metamx.artifactoryonline.com/metamx/pub-libs-releases-local"
       }
@@ -72,7 +68,7 @@ subprojects {
       compile 'com.fasterxml.jackson.datatype:jackson-datatype-guava:2.2.0'
 
       compile 'com.ning:compress-lzf:0.9.5'
-      compile 'com.leansoft:bigqueue:0.7.0'
+      compile 'com.leansoft:bigqueue:0.7.0-NF'
       compile 'commons-io:commons-io:2.4'
 
       runtime 'com.netflix.netflix-commons:netflix-commons-util:0.1.1'
