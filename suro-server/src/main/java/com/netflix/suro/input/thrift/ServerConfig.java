@@ -117,6 +117,11 @@ public class ServerConfig {
         return fileQueueGCPeriod;
     }
 
+    public static final String FILEQUEUE_SIZELIMIT = "SuroServer.fileQueueSizeLimit";
+    @Configuration(FILEQUEUE_SIZELIMIT)
+    private long fileQueueSizeLimit = 10L * 1024L * 1024L * 1024L; // 10 GB
+    public long getFileQueueSizeLimit() { return fileQueueSizeLimit; }
+
     public int messageRouterDefaultPollTimeout = 500;
     public int messageRouterMaxPollTimeout = 2500;
     @Override
