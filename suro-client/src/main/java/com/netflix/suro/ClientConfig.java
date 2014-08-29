@@ -165,6 +165,11 @@ public class ClientConfig {
         return fileQueueGCPeriod;
     }
 
+    public static final String FILEQUEUE_SIZELIMIT = "SuroClient.fileQueueSizeLimit";
+    @Configuration(FILEQUEUE_SIZELIMIT)
+    private long fileQueueSizeLimit = 10L * 1024L * 1024L * 1024L; // 10 GB
+    public long getFileQueueSizeLimit() { return fileQueueSizeLimit; }
+
     public static final String LB_TYPE = "SuroClient.loadBalancerType";
     @Configuration(LB_TYPE)
     private String loadBalancerType;

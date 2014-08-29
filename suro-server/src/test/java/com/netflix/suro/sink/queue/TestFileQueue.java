@@ -18,7 +18,7 @@ public class TestFileQueue {
 
     @Test
     public void test() throws IOException {
-        FileQueue4Sink queue = new FileQueue4Sink(folder.newFolder().getAbsolutePath(), "testqueue", "PT1m");
+        FileQueue4Sink queue = new FileQueue4Sink(folder.newFolder().getAbsolutePath(), "testqueue", "PT1m", 1024 * 1024 * 1024);
         assertEquals(queue.size(), 0);
         assertEquals(queue.isEmpty(), true);
         assertEquals(queue.drain(100, new LinkedList<Message>()), 0);

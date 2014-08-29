@@ -49,7 +49,8 @@ public class Queue4Client {
                 queue = new FileQueue4Sink(
                         config.getAsyncFileQueuePath(),
                         config.getAsyncFileQueueName(),
-                        config.getAsyncFileQueueGCPeriod());
+                        config.getAsyncFileQueueGCPeriod(),
+                        config.getFileQueueSizeLimit());
             } catch (IOException e) {
                 throw new IllegalStateException("Exception on initializing Queue4Client: " + e.getMessage(), e);
             }
