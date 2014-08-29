@@ -46,12 +46,15 @@ public class FileQueue4Sink implements MessageQueue4Sink {
     public FileQueue4Sink(
             @JsonProperty("path") String path,
             @JsonProperty("name") String name,
-            @JsonProperty("gcPeriod") String gcPeriod) throws IOException {
+            @JsonProperty("gcPeriod") String gcPeriod,
+            @JsonProperty("sizeLimit") long sizeLimit) throws IOException {
+
         queue = new FileBlockingQueue<Message>(
                 path,
                 name,
                 new Period(gcPeriod == null ? "PT1m" : gcPeriod).toStandardSeconds().getSeconds(),
-                new MessageSerDe());
+                new MessageSerDe(),
+                sizeLimit == 0 ? Long.MAX_VALUE : sizeLimit);
     }
 
     @Override

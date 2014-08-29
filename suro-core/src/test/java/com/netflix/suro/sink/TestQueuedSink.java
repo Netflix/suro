@@ -23,7 +23,7 @@ public class TestQueuedSink {
 
     @Test
     public void testDrainOnce() throws IOException {
-        FileQueue4Sink queue = new FileQueue4Sink(folder.newFolder().getAbsolutePath(), "testDrainOnce", "PT1h");
+        FileQueue4Sink queue = new FileQueue4Sink(folder.newFolder().getAbsolutePath(), "testDrainOnce", "PT1h", 1024 * 1024 * 1024);
         final List<Message> sentMessageList = new LinkedList<Message>();
 
         QueuedSink sink = new QueuedSink() {
