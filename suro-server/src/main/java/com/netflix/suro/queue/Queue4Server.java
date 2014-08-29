@@ -53,7 +53,8 @@ public class Queue4Server {
                         config.getFileQueuePath(),
                         config.getFileQueueName(),
                         new Period(config.getFileQueueGCPeriod()).toStandardSeconds().getSeconds(),
-                        new MessageSetSerDe());
+                        new MessageSetSerDe(),
+                        config.getFileQueueSizeLimit());
             } catch (IOException e) {
                 logger.error("Exception on initializing Queue4Server: " + e.getMessage(), e);
             }
