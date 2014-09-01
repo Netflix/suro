@@ -99,18 +99,60 @@ project(':suro-client') {
   }
 }
 
-project(':suro-kafka') {
+project(':suro-server') {
+  apply plugin: 'application'
+	
   dependencies {
     compile project(':suro-core')
+    compile project(':suro-client')
+    compile project(':suro-kafka')
+    compile project(':suro-localfile')
+    compile project(':suro-s3')
+    compile project(':suro-elasticsearch')
 
-    compile('org.apache.kafka:kafka_2.9.2:0.8.1.1') {
-      exclude module: 'jms'
-      exclude module: 'jmxtools'
-      exclude module: 'jmxri'
-      exclude module: 'zookeeper'
-    }
+    compile 'org.eclipse.jetty:jetty-servlet:7.6.7.v20120910'
+    compile 'com.sun.jersey.contribs:jersey-guice:1.11'
+    compile 'com.sun.jersey:jersey-bundle:1.11'
+    compile 'javax.servlet:servlet-api:2.5'
+    compile 'com.amazonaws:aws-java-sdk:1.4.7'
 
+    compile 'commons-cli:commons-cli:1.2'
+    
     testCompile 'org.apache.curator:curator-test:2.4.2'
+    testCompile project(':suro-client').sourceSets.test.output
+    testCompile project(':suro-kafka').sourceSets.test.output
+  }
+
+  mainClassName = "com.netflix.suro.SuroServer"
+  task (runServer, type: JavaExec, dependsOn: jar) {
+    main = "com.netflix.suro.SuroServer"
+    classpath = sourceSets.main.runtimeClasspath
+    classpath += sourceSets.main.compileClasspath
+    args = ['-m', 'conf/routingmap.json', '-s', 'conf/sink.json', '-i', 'conf/input.json']
+  }
+  installApp {
+    into('build/install/'+applicationName + '-' + version){
+      from ('conf').into '/conf'
+    }
+  }
+  distZip {
+    into(applicationName){
+      from ('conf').into applicationName + '-' + version + '/conf'
+    }	
+  }
+  distTar {
+    into(applicationName){
+      from ('conf').into applicationName + '-' + version + '/conf'
+    }	
+  }
+}
+
+project(':suro-integration-test') {
+  dependencies {
+    testCompile project(':suro-core')
     testCompile project(':suro-client')
+    testCompile project(':suro-server')
+    testCompile project(':suro-client').sourceSets.test.output
+    testCompile project(':suro-server').sourceSets.test.output
   }
 }
