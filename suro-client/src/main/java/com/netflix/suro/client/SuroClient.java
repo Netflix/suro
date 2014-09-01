@@ -65,7 +65,7 @@ public class SuroClient implements ISuroClient {
                     }
                 )
                 .withModules(new SuroClientModule())
-                .createInjector();
+                .build().createInjector();
         LifecycleManager manager = injector.getInstance(LifecycleManager.class);
 
         try {
