@@ -26,6 +26,23 @@ NetflixGraph is built via Gradle (www.gradle.org). To build from the command lin
 
     ./gradlew build
 
+To build a jar that includes all dependencies run:
+
+	./gradlew installApp
+
+Running the server
+------------------
+
+After running `./gradlew installApp` the basic run command is:
+
+	cd suro-server
+	java -cp "build/install/suro-server/lib/*" com.netflix.suro.SuroServer -m conf/routingmap.json -s conf/sink.json -i conf/input.json
+
+To enable basic logging you can downloaded `slf4j-simple-1.7.7.jar` and copy it into `suro-server` then run:
+
+	cd suro-server
+	java -cp "build/install/suro-server/lib/*:slf4j-simple-1.7.7.jar" com.netflix.suro.SuroServer -m conf/routingmap.json -s conf/sink.json -i conf/input.json
+
 Support
 -----
 
