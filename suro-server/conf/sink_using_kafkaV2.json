@@ -9,7 +9,7 @@
         "reconnect.interval": 10000,
         "queue4Sink": {
             "type": "file",
-            "path": "~/suroserver",
+            "path": "/home/starzia/suroserver",
             "name" : "sinkQueue",
             "gcPeriod": "PT10s",
             "sizeLimit": 999999999999
