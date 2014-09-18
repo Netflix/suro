@@ -78,7 +78,6 @@ public class TestKafkaSinkV2 {
             sink.writeTo(next); // send
             sentPayloads.add( new String( next.getMessage().getPayload() ) ); // record
         }
-        assertTrue(sink.getNumOfPendingMessages() > 0);
         sink.close();
         assertEquals(sink.getNumOfPendingMessages(), 0);
         System.out.println(sink.getStat());
