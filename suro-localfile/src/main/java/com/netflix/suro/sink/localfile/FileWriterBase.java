@@ -44,7 +44,7 @@ public class FileWriterBase {
         this.conf = conf;
 
         try {
-            fs = FileSystem.get(conf);
+            fs = FileSystem.getLocal(conf);
             fs.setVerifyChecksum(false);
             if (codecClass != null) {
                 codec = createCodecInstance(codecClass);
