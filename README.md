@@ -26,14 +26,14 @@ NetflixGraph is built via Gradle (www.gradle.org). To build from the command lin
 
     ./gradlew build
 
-To build a jar that includes all dependencies run:
-
-	./gradlew installApp
+See the `build.gradle` file for other gradle targets, like `distTar`, `distZip`, `installApp`, and `runServer`.
 
 Running the server
 ------------------
 
-After running `./gradlew installApp` the basic run command is:
+You can run the server locally by just running `./gradlew runServer`.
+
+More more advanced usage you may wish to run `./gradlew installApp` and then:
 
 	cd suro-server
 	java -cp "build/install/suro-server/lib/*" com.netflix.suro.SuroServer -m conf/routingmap.json -s conf/sink.json -i conf/input.json
