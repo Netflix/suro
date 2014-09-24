@@ -52,6 +52,8 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
     private long msgId = 0;
     private AtomicInteger failureCount = new AtomicInteger(0);
 
+    private final DefaultPartitioner partitioner = new DefaultPartitioner(null); // old Scala partitioner
+
     @JsonCreator
     public KafkaSinkV2(
             @JsonProperty("queue4Sink") MessageQueue4Sink queue4Sink,
@@ -156,7 +158,6 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
 
                     // calculate the kafka partition, with backward compatibility with old kafka producer
                     int numPartitions = producer.partitionsFor(topic).size();
-                    DefaultPartitioner partitioner = new DefaultPartitioner(null); // old Scala partitioner
                     int partition = partitioner.partition(m.getKey(), numPartitions);
 
                     ProducerRecord r = new ProducerRecord( topic,
