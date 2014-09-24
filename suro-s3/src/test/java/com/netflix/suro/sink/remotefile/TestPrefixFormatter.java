@@ -91,7 +91,7 @@ public class TestPrefixFormatter {
     public void testDynamicCombination() throws IOException {
         String spec = "{\n" +
                 "    \"type\": \"dynamic\",\n" +
-                "    \"format\": \"static(routing_key)/date(YYYYMMDD)/property(prop1)\"\n" +
+                "    \"format\": \"static(routing_key);date(YYYYMMDD);property(prop1)\"\n" +
                 "}";
 
         ConfigurationManager.getConfigInstance().setProperty("prop1", "propvalue1");
