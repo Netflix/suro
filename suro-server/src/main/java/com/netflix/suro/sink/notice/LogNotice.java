@@ -1,5 +1,6 @@
 package com.netflix.suro.sink.notice;
 
+import com.netflix.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +24,16 @@ public class LogNotice implements Notice<String> {
     @Override
     public String recv() {
         return null;
+    }
+
+    @Override
+    public Pair<String, String> peek() {
+        return null;
+    }
+
+    @Override
+    public void remove(String key) {
+
     }
 
     @Override

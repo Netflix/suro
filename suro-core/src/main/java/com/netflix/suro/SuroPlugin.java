@@ -2,6 +2,7 @@ package com.netflix.suro;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.multibindings.Multibinder;
+import com.netflix.suro.input.RecordParser;
 import com.netflix.suro.input.SuroInput;
 import com.netflix.suro.routing.Filter;
 import com.netflix.suro.sink.Sink;
@@ -40,6 +41,14 @@ public abstract class SuroPlugin extends AbstractModule {
         Multibinder<TypeHolder> bindings
                 = Multibinder.newSetBinder(binder(), TypeHolder.class);
         bindings.addBinding().toInstance(new TypeHolder(typeName, inputClass));
+    }
+
+    public <T extends RecordParser> void addRecordParserType(String typeName, Class<T> recordParserClass) {
+        LOG.info("Adding recordParser: " + typeName + " -> " + recordParserClass.getCanonicalName());
+
+        Multibinder<TypeHolder> bindings
+                = Multibinder.newSetBinder(binder(), TypeHolder.class);
+        bindings.addBinding().toInstance(new TypeHolder(typeName, recordParserClass));
     }
 
     public <T extends RemotePrefixFormatter> void addRemotePrefixFormatterType(String typeName, Class<T> remotePrefixFormatterClass) {

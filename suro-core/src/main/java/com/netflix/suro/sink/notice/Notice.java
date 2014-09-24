@@ -17,6 +17,7 @@
 package com.netflix.suro.sink.notice;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.netflix.util.Pair;
 
 /**
  * Notice interface is used to send a notice from the sink to somewhere.
@@ -32,5 +33,7 @@ public interface Notice<E> {
     void init();
     boolean send(E message);
     E recv();
+    Pair<String, E> peek();
+    void remove(String key);
     String getStat();
 }
