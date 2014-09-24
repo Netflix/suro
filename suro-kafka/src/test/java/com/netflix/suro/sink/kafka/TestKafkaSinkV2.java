@@ -52,6 +52,7 @@ public class TestKafkaSinkV2 {
     private static final String TOPIC_NAME = "routingKey";
     private static final String TOPIC_NAME_MULTITHREAD = "routingKeyMultithread";
     private static final String TOPIC_NAME_PARTITION_BY_KEY = "routingKey_partitionByKey";
+    private static final String TOPIC_NAME_BACKWARD_COMPAT = "routingKey_backwardCompat";
 
     @Test
     public void testDefaultParameters() throws IOException {
@@ -247,6 +248,99 @@ public class TestKafkaSinkV2 {
             consumer.shutdown();
         }
     }
+
+
+    /** Tests backward compatability with old Kafka sink. */
+    @Test
+    public void testBackwardCompatability() throws Exception {
+        int numPartitions = 9;
+
+        TopicCommand.createTopic(zk.getZkClient(),
+                new TopicCommand.TopicCommandOptions(new String[]{
+                        "--zookeeper", "dummy", "--create", "--topic", TOPIC_NAME_BACKWARD_COMPAT,
+                        "--replication-factor", "2", "--partitions", Integer.toString(numPartitions)}));
+        String keyTopicMap = String.format("   \"keyTopicMap\": {\n" +
+                "        \"%s\": \"key\"\n" +
+                "    }", TOPIC_NAME_BACKWARD_COMPAT);
+
+        String description1 = "{\n" +
+            "    \"type\": \"kafkaV1\",\n" +
+            "    \"client.id\": \"kafkasink\",\n" +
+            "    \"metadata.broker.list\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
+            "    \"request.required.acks\": 1,\n" +
+            keyTopicMap + "\n" +
+            "}";
+        String description2 = "{\n" +
+            "    \"type\": \"kafkaV2\",\n" +
+            "    \"client.id\": \"kafkasink\",\n" +
+            "    \"metadata.broker.list\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
+            "    \"request.required.acks\": 1,\n" +
+            keyTopicMap + "\n" +
+            "}";
+
+        // setup sinks, both old and new versions
+        ObjectMapper jsonMapper = new DefaultObjectMapper();
+        jsonMapper.registerSubtypes(new NamedType(KafkaSink.class, "kafkaV1"));
+        jsonMapper.registerSubtypes(new NamedType(KafkaSinkV2.class, "kafkaV2"));
+        KafkaSink   sinkV1 = jsonMapper.readValue(description1, new TypeReference<Sink>(){});
+        KafkaSinkV2 sinkV2 = jsonMapper.readValue(description2, new TypeReference<Sink>(){});
+        sinkV1.open();
+        sinkV2.open();
+        List<Sink> sinks = new ArrayList<Sink>();
+        sinks.add(sinkV1);
+        sinks.add(sinkV2);
+
+        // setup Kafka consumer (to read back messages)
+        ConsumerConnector consumer = kafka.consumer.Consumer.createJavaConsumerConnector(
+            createConsumerConfig("localhost:" + zk.getServerPort(), "gropuid"));
+        Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
+        topicCountMap.put(TOPIC_NAME_BACKWARD_COMPAT, 1);
+        Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = 
+                                                consumer.createMessageStreams(topicCountMap);
+        KafkaStream<byte[], byte[]> stream = consumerMap.get(TOPIC_NAME_BACKWARD_COMPAT).get(0);
+
+        // Send 20 test message, using the old and new Kafka sinks.
+        // Retrieve the messages and ensure that they are identical and sent to the same partition.
+        Random rand = new Random();
+        int messageCount = 20;
+        for (int i = 0; i < messageCount; ++i) {
+            Map<String, Object> msgMap = new ImmutableMap.Builder<String, Object>()
+                    .put("key", new Long( rand.nextLong() ) )
+                    .put("value", "message:" + i).build();
+
+            // send message to both sinks
+            for( Sink sink : sinks ){
+              sink.writeTo(new DefaultMessageContainer(
+                    new Message(TOPIC_NAME_BACKWARD_COMPAT, jsonMapper.writeValueAsBytes(msgMap)),
+                    jsonMapper));
+            }
+
+            // read two copies of message back from Kafka and check that partitions and data match
+            MessageAndMetadata<byte[], byte[]> msgAndMeta1 = stream.iterator().next();
+            MessageAndMetadata<byte[], byte[]> msgAndMeta2 = stream.iterator().next();
+            System.out.println( "iteration: "+i+" partition1: "+msgAndMeta1.partition() );
+            System.out.println( "iteration: "+i+" partition2: "+msgAndMeta2.partition() );
+            assertEquals( msgAndMeta1.partition(), msgAndMeta2.partition() );
+            String msg1Str = new String( msgAndMeta1.message() );
+            String msg2Str = new String( msgAndMeta2.message() );
+            System.out.println( "iteration: "+i+" message1: "+msg1Str );
+            System.out.println( "iteration: "+i+" message2: "+msg2Str );
+            assertEquals( msg1Str, msg2Str );
+        }
+
+        // close sinks
+        sinkV1.close();
+        sinkV2.close();
+        // close consumer
+        try {
+            stream.iterator().next();
+            fail(); // there should be no data left to consume
+        } catch (ConsumerTimeoutException e) {
+            //this is expected
+            consumer.shutdown();
+        }
+    }
+
 
     @Test
     public void testBlockingThreadPoolExecutor() {

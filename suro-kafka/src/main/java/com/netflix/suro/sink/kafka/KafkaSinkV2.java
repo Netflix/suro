@@ -144,28 +144,28 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
         }
 
         // The new KafkaProducer does not have interface for sending multiple messages,
-        // so we loop and create lots of Runnables -- this seems inefficient.
+        // so we loop and create lots of Runnables -- this seems inefficient, but the alternative
+        // has its own problems.  If we create one "big Runnable" that loops over messages we'll
+        // drain the queue4sink too quickly -- all the messages will be queued in the in-memory 
+        // job queue storing the Runnables.
         for( final SuroKeyedMessage m : msgCopies ) {
             senders.submit(new Runnable() {
                 @Override
                 public void run() {
-                    // TODO: somehow use keyForTopic map in SinkConfig, or is this already handled elsewhere?
                     String topic = m.getRoutingKey();
 
                     // calculate the kafka partition, with backward compatibility with old kafka producer
                     int numPartitions = producer.partitionsFor(topic).size();
-                    int partition = (int) (m.getKey() % numPartitions);
+                    DefaultPartitioner partitioner = new DefaultPartitioner(null); // old Scala partitioner
+                    int partition = partitioner.partition(m.getKey(), numPartitions);
 
-                    // Suro's message key is an Integer type but Kafka stores it as a byte[].
-                    // For the storage purpose, we are converting the number to ASCII.
-                    // For the partitioning purpose, it will be treated as an Integer.
-                    byte[] keyBytes = Long.toHexString( m.getKey() ).getBytes();
                     ProducerRecord r = new ProducerRecord( topic,
                                                            partition,
-                                                           keyBytes,
+                                                           null, // don't store the key
                                                            m.getPayload() );
                     log.trace( "Will send message to Kafka" );
                     long startTimeMs = System.currentTimeMillis();
+                    // send
                     Future<RecordMetadata> responseFtr = producer.send( r );
                     log.trace( "Started aysnc producer" );
                     boolean success = true;
