@@ -1,1 +1,18 @@
-{}
+{
+	"document-routing": {
+		"where": [
+			{
+				"sink": "solr-sink"
+			},
+			{
+				"sink": "cassandra-sink"
+			},
+			{
+				"sink": "s3-sink"
+			},
+			{
+				"sink": "logger-sink"
+			}
+		]
+	}
+}

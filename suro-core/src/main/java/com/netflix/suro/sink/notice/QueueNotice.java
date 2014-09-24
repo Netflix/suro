@@ -22,7 +22,7 @@ import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
-import com.netflix.suro.sink.notice.Notice;
+import com.netflix.util.Pair;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -89,6 +89,16 @@ public class QueueNotice<E> implements Notice<E> {
         } catch (InterruptedException e) {
             return null;
         }
+    }
+
+    @Override
+    public Pair<String, E> peek() {
+        return new Pair<String, E>("", queue.peek());
+    }
+
+    @Override
+    public void remove(String key) {
+
     }
 
     @Override
