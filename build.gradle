@@ -172,6 +172,8 @@ project(':suro-kafka') {
       exclude module: 'zookeeper'
     }
 
+    compile files('lib/kafka-clients-0.8.2-SNAPSHOT.jar')
+
     testCompile 'org.apache.curator:curator-test:2.4.2'
     testCompile project(':suro-client')
   }
