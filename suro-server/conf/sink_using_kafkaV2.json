@@ -1,0 +1,23 @@
+{
+    "default": {
+        "type": "KafkaV2",
+        "client.id": "suroserver-default",
+        "metadata.broker.list": "localhost:9092",
+        "bootstrap.servers": "localhost:9092",
+        "request.required.acks": 1,
+        "message.send.max.retries": 0,
+        "reconnect.interval": 10000,
+        "queue4Sink": {
+            "type": "file",
+            "path": "/home/starzia/suroserver",
+            "name" : "sinkQueue",
+            "gcPeriod": "PT10s",
+            "sizeLimit": 999999999999
+        },
+        "kafka.etc": {
+            "reconnect.backoff.ms": 1000,
+            "block.on.buffer.full": false,
+            "metadata.fetch.timeout.ms": 2000
+        }
+    }
+}
