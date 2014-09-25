@@ -1,8 +1,35 @@
 {
     "default": {
         "type": "local",
-        "outputDir": "/tmp/suroserver",
-        "minPercentFreeDisk": 10,
+        "outputDir": "/tmp/suroserver/default",
+        "writer": {
+            "type": "text"
+        }
+    },
+    "solr-sink": {
+        "type": "local",
+        "outputDir": "/tmp/suroserver/solr",
+        "writer": {
+            "type": "text"
+        }
+    },
+    "cassandra-sink": {
+        "type": "local",
+        "outputDir": "/tmp/suroserver/coc",
+        "writer": {
+            "type": "text"
+        }
+    },
+    "s3-sink": {
+        "type": "local",
+        "outputDir": "/tmp/suroserver/s3",
+        "writer": {
+            "type": "text"
+        }
+    },
+    "logger-sink": {
+        "type": "local",
+        "outputDir": "/tmp/suroserver/logger",
         "writer": {
             "type": "text"
         }
