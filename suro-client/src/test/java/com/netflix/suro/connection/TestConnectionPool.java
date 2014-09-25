@@ -35,8 +35,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
-import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -89,19 +87,12 @@ public class TestConnectionPool {
     public static List<SuroServer4Test> startServers(int count) throws Exception {
         List<SuroServer4Test> collectors = new LinkedList<SuroServer4Test>();
         for (int i = 0; i < count; ++i) {
-            SuroServer4Test c = new SuroServer4Test(pickPort());
+            SuroServer4Test c = new SuroServer4Test();
             c.start();
             collectors.add(c);
         }
 
         return collectors;
-    }
-
-    public static int pickPort() throws IOException {
-        ServerSocket s = new ServerSocket(0);
-        int port = s.getLocalPort();
-        s.close();
-        return port;
     }
 
     public static String createConnectionString(List<SuroServer4Test> servers) {

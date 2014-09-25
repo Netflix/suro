@@ -174,11 +174,11 @@ public class TestAsyncSuroClient {
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
 
         long start = System.currentTimeMillis();
-        for (int i = 0; i < 50; ++i) {
+        for (int i = 0; i < 100; ++i) {
             client.send(new Message("routingKey", "testMessage".getBytes()));
         }
 
-        while (client.getSentMessageCount() < 50) {
+        while (client.getSentMessageCount() < 100) {
             Thread.sleep(100);
         }
 
