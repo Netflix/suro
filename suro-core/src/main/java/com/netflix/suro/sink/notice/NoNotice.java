@@ -16,7 +16,7 @@
 
 package com.netflix.suro.sink.notice;
 
-import com.netflix.suro.sink.notice.Notice;
+import com.netflix.util.Pair;
 
 /**
  * Do nothing for debugging purpose
@@ -38,6 +38,16 @@ public class NoNotice implements Notice<String> {
     @Override
     public String recv() {
         return null;
+    }
+
+    @Override
+    public Pair<String, String> peek() {
+        return null;
+    }
+
+    @Override
+    public void remove(String key) {
+
     }
 
     @Override

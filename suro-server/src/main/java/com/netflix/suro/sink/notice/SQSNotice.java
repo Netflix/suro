@@ -30,6 +30,7 @@ import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
+import com.netflix.util.Pair;
 import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -188,6 +189,47 @@ public class SQSNotice implements Notice<String> {
             log.error("Exception while recving SQS notice: " + e.getMessage(), e);
             return "";
         }
+    }
+
+    @Override
+    public Pair<String, String> peek() {
+        ReceiveMessageRequest request = new ReceiveMessageRequest()
+                .withQueueUrl(queueUrls.get(0))
+                .withMaxNumberOfMessages(1);
+
+        try {
+            ReceiveMessageResult result = sqsClient.receiveMessage(request);
+            if (!result.getMessages().isEmpty()) {
+                Message msg = result.getMessages().get(0);
+
+                recvMessageCount.incrementAndGet();
+
+                if (enableBase64Encoding) {
+                    return new Pair<String, String>(
+                            msg.getReceiptHandle(),
+                            new String(
+                                    Base64.decodeBase64(msg.getBody().getBytes()),
+                                    Charsets.UTF_8));
+                } else {
+                    return new Pair<String, String>(
+                            msg.getReceiptHandle(),
+                            msg.getBody());
+                }
+            } else {
+                return null;
+            }
+        } catch (Exception e) {
+            log.error("Exception while recving SQS notice: " + e.getMessage(), e);
+            return null;
+        }
+    }
+
+    @Override
+    public void remove(String key) {
+        DeleteMessageRequest deleteReq = new DeleteMessageRequest()
+                .withQueueUrl(queueUrls.get(0))
+                .withReceiptHandle(key);
+        sqsClient.deleteMessage(deleteReq);
     }
 
     @Override
