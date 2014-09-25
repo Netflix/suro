@@ -23,6 +23,8 @@ import org.apache.thrift.TException;
 import org.apache.thrift.server.THsHaServer;
 import org.apache.thrift.transport.TNonblockingServerSocket;
 
+import java.lang.reflect.Field;
+import java.net.ServerSocket;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -39,10 +41,9 @@ public class SuroServer4Test implements SuroServer.Iface {
     private Map<String, AtomicLong> counters = new HashMap<String, AtomicLong>();
     private List<TMessageSet> messageSetList = new LinkedList<TMessageSet>();
 
-    public SuroServer4Test(int port) {
+    public SuroServer4Test() {
         counters.put("messageSetCount",new AtomicLong(0l));
         counters.put("messageCount",new AtomicLong(0l));
-        this.port = port;
     }
 
     private boolean tryLater = false;
@@ -150,6 +151,11 @@ public class SuroServer4Test implements SuroServer.Iface {
 
         };
         t.start();
+
+        Field serverSocketField = TNonblockingServerSocket.class.getDeclaredField("serverSocket_");
+        serverSocketField.setAccessible(true);
+        ServerSocket serverSocket = (ServerSocket) serverSocketField.get(transport);
+        port = serverSocket.getLocalPort();
     }
 
     public  long getMessageSetCount() {
@@ -166,11 +172,5 @@ public class SuroServer4Test implements SuroServer.Iface {
         System.out.println("shutdown STC");
         try {Thread.sleep(1000);} catch (Exception e) { e.printStackTrace(); }
         return 0;
-    }
-
-    public static SuroServer4Test getTestServer(int port) throws Exception {
-        SuroServer4Test s = new SuroServer4Test(port);
-        s.start();
-        return s;
     }
 }
