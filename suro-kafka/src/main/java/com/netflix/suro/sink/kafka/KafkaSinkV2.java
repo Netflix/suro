@@ -50,7 +50,14 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
 
     private final KafkaProducer producer;
     private long msgId = 0;
-    private AtomicInteger failureCount = new AtomicInteger(0);
+    private AtomicInteger receivedCount = new AtomicInteger(0);
+    private AtomicInteger sentCount = new AtomicInteger(0);
+    private AtomicInteger sentByteCount = new AtomicInteger(0);
+    /** number of times a message send failed without retrying */
+    private AtomicInteger droppedCount = new AtomicInteger(0);
+    /** number of times a message send failed but was requeued */
+    private AtomicInteger requeuedCount = new AtomicInteger(0);
+
 
     private final DefaultPartitioner partitioner = new DefaultPartitioner(null); // old Scala partitioner
 
@@ -121,6 +128,7 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
             }
         }
         log.trace( "KafkaSink writeTo()" );
+        receivedCount.incrementAndGet();
         enqueue(new SuroKeyedMessage(key, message.getMessage()));
     }
 
@@ -174,6 +182,7 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
                         log.warn( "Kafka producer request was cancelled" );
                         // note that we do not set success = false because we assume that cancelled
                         // requests should not be retried.
+                        droppedCount.incrementAndGet();
                     }
                     try {
                         // wait for request to finish
@@ -181,10 +190,13 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
                         if( response.topic() == null ){
                             log.warn( "Kafka producer got null topic in response" );
                         }
+                        sentCount.incrementAndGet();
+                        sentByteCount.addAndGet( m.getPayload().length );
                     }catch (InterruptedException e) {
                         // ???: I don't know whether we should re-queue the request here.
                         // For now, assume that Interruption does not mean failure
                         log.warn( "Caught InterruptedException: "+ e );
+                        droppedCount.incrementAndGet();
                     }catch( UnknownTopicOrPartitionException e ){
                         log.warn( "Caught UnknownTopicOrPartitionException for topic: " + m.getRoutingKey()
                                   +"\tThis may be simply because KafkaProducer does not yet have information about the brokers."
@@ -200,7 +212,7 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
                     long durationMs = System.currentTimeMillis() - startTimeMs;
                     if( !success ){
                         log.warn( "Kafka producer send failed after {} milliseconds", durationMs );
-                        failureCount.incrementAndGet();
+                        requeuedCount.incrementAndGet();
                         enqueue( m );
                     }else{
                         log.trace( "Kafka producer send succeeded after {} milliseconds", durationMs );
@@ -226,13 +238,17 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
     public String getStat() {
         Map<String,? extends Metric> metrics = producer.metrics();
         StringBuilder sb = new StringBuilder();
-        // add kafka producer stats
+        // add kafka producer stats, which are rates
         for( Map.Entry<String,? extends Metric> e : metrics.entrySet() ){
             sb.append("kafka.").append(e.getKey()).append(": ").append(e.getValue().value()).append('\n');
         }
-        // also report the queue size
+        // also report our counters
         sb.append("messages-in-queue4sink: ").append( this.queue4Sink.size() ).append('\n');
-        sb.append("failures: ").append( this.failureCount.get() ).append('\n');
+        sb.append("received-messages: ").append( this.receivedCount.get() ).append('\n');
+        sb.append("sent-messages: ").append( this.sentCount.get() ).append('\n');
+        sb.append("sent-bytes: ").append( this.sentByteCount.get() ).append('\n');
+        sb.append("dropped-messages: ").append( this.droppedCount.get() ).append('\n');
+        sb.append("requeued-messages: ").append( this.requeuedCount.get() ).append('\n');
 
         return sb.toString();
     }
