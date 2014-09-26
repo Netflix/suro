@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Kafka 0.8.2 Sink, using new Java-native producer, rather than Scala produer.
@@ -50,13 +50,13 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
 
     private final KafkaProducer producer;
     private long msgId = 0;
-    private AtomicInteger receivedCount = new AtomicInteger(0);
-    private AtomicInteger sentCount = new AtomicInteger(0);
-    private AtomicInteger sentByteCount = new AtomicInteger(0);
+    private AtomicLong receivedCount = new AtomicLong(0);
+    private AtomicLong sentCount = new AtomicLong(0);
+    private AtomicLong sentByteCount = new AtomicLong(0);
     /** number of times a message send failed without retrying */
-    private AtomicInteger droppedCount = new AtomicInteger(0);
+    private AtomicLong droppedCount = new AtomicLong(0);
     /** number of times a message send failed but was requeued */
-    private AtomicInteger requeuedCount = new AtomicInteger(0);
+    private AtomicLong requeuedCount = new AtomicLong(0);
 
 
     private final DefaultPartitioner partitioner = new DefaultPartitioner(null); // old Scala partitioner
