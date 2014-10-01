@@ -3,10 +3,11 @@
         "type": "KafkaV2",
         "client.id": "suroserver-default",
         "metadata.broker.list": "localhost:9092",
-        "bootstrap.servers": "localhost:9092",
-        "request.required.acks": 1,
         "message.send.max.retries": 0,
         "reconnect.interval": 10000,
+        "jobTimeout": 2000,
+        "corePoolSize":50,
+        "maxPoolSize":50,
         "queue4Sink": {
             "type": "file",
             "path": "/home/starzia/suroserver",

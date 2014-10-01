@@ -244,6 +244,8 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
         }
         // also report our counters
         sb.append("messages-in-queue4sink: ").append( this.queue4Sink.size() ).append('\n');
+        sb.append("queued-jobs: ").append( this.jobQueue.size() ).append('\n');
+        sb.append("active-threads: ").append( this.senders.getActiveCount() ).append('\n');
         sb.append("received-messages: ").append( this.receivedCount.get() ).append('\n');
         sb.append("sent-messages: ").append( this.sentCount.get() ).append('\n');
         sb.append("sent-bytes: ").append( this.sentByteCount.get() ).append('\n');
