@@ -6,6 +6,7 @@
         "message.send.max.retries": 0,
         "reconnect.interval": 10000,
         "jobTimeout": 2000,
+        "//": "corePoolSize defaults to 3 but this is much too small for the KafkaV2 sink because  these threads will block while waiting for the response from Kafka.  So, the pool size limits the number of in-flight Kakfa requests.",
         "corePoolSize":50,
         "maxPoolSize":50,
         "queue4Sink": {
