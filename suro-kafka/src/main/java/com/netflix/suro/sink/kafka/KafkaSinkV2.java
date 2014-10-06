@@ -177,13 +177,12 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
                     // send
                     Future<RecordMetadata> responseFtr = producer.send( r );
                     log.trace( "Started aysnc producer" );
-                    boolean failure = false;
-                    boolean retry = false;
+                    boolean failure = true;
+                    boolean retry = true;
                     if( responseFtr.isCancelled() ){
                         log.warn( "Kafka producer request was cancelled" );
-                        // note that we do not set success = false because we assume that cancelled
-                        // requests should not be retried.
-                        droppedCount.incrementAndGet();
+                        // we assume that cancelled requests should not be retried.
+                        retry = false;
                     }
                     try {
                         // wait for request to finish
@@ -193,24 +192,20 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
                         }
                         sentCount.incrementAndGet();
                         sentByteCount.addAndGet( m.getPayload().length );
+                        failure = false;
+                        retry = false;
                     }catch (InterruptedException e) {
-                        // Assume that Interrupted means we're trying to shutdown do don't retry
+                        // Assume that Interrupted means we're trying to shutdown so don't retry
                         log.warn( "Caught InterruptedException: "+ e );
-                        failure = true;
+                        retry = false;
                     }catch( UnknownTopicOrPartitionException e ){
                         log.warn( "Caught UnknownTopicOrPartitionException for topic: " + m.getRoutingKey()
                                   +" This may be simply because KafkaProducer does not yet have information about the brokers."
                                   +" Request will be retried.");
-                        failure = true;
-                        retry = true;
                     }catch (ExecutionException e) {
                         log.warn( "Caught ExecutionException: "+ e );
-                        failure = true;
-                        retry = true;
                     }catch (Exception e){
                         log.warn( "Caught Exception: "+e );
-                        failure = true;
-                        retry = true;
                     }
                     long durationMs = System.currentTimeMillis() - startTimeMs;
 
