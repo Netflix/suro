@@ -177,7 +177,8 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
                     // send
                     Future<RecordMetadata> responseFtr = producer.send( r );
                     log.trace( "Started aysnc producer" );
-                    boolean success = true;
+                    boolean failure = false;
+                    boolean retry = false;
                     if( responseFtr.isCancelled() ){
                         log.warn( "Kafka producer request was cancelled" );
                         // note that we do not set success = false because we assume that cancelled
@@ -193,27 +194,35 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
                         sentCount.incrementAndGet();
                         sentByteCount.addAndGet( m.getPayload().length );
                     }catch (InterruptedException e) {
-                        // ???: I don't know whether we should re-queue the request here.
-                        // For now, assume that Interruption does not mean failure
+                        // Assume that Interrupted means we're trying to shutdown do don't retry
                         log.warn( "Caught InterruptedException: "+ e );
-                        droppedCount.incrementAndGet();
+                        failure = true;
                     }catch( UnknownTopicOrPartitionException e ){
                         log.warn( "Caught UnknownTopicOrPartitionException for topic: " + m.getRoutingKey()
-                                  +"\tThis may be simply because KafkaProducer does not yet have information about the brokers."
-                                  +"\tRequest will be retried.");
-                        success = false;
+                                  +" This may be simply because KafkaProducer does not yet have information about the brokers."
+                                  +" Request will be retried.");
+                        failure = true;
+                        retry = true;
                     }catch (ExecutionException e) {
                         log.warn( "Caught ExecutionException: "+ e );
-                        success = false;
+                        failure = true;
+                        retry = true;
                     }catch (Exception e){
                         log.warn( "Caught Exception: "+e );
-                        success = false;
+                        failure = true;
+                        retry = true;
                     }
                     long durationMs = System.currentTimeMillis() - startTimeMs;
-                    if( !success ){
+
+                    if( failure ){
                         log.warn( "Kafka producer send failed after {} milliseconds", durationMs );
                         requeuedCount.incrementAndGet();
-                        enqueue( m );
+                        if( retry ){
+                            enqueue( m );
+                        }else{
+                            log.info("Dropped message");
+                            droppedCount.incrementAndGet();
+                        }
                     }else{
                         log.trace( "Kafka producer send succeeded after {} milliseconds", durationMs );
                     }
