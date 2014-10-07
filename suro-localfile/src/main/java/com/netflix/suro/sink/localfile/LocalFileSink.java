@@ -198,10 +198,11 @@ public class LocalFileSink extends QueuedSink implements Sink {
 
         DateTime currentDateTime = new DateTime();
         nextRotation = currentDateTime.plus(rotationPeriod).getMillis();
-        long expectedBreak = granularity.next(currentDateTime).getMillis();
-
-        if(nextRotation >expectedBreak){
-            nextRotation = expectedBreak;
+        if(granularity!=null){
+            long expectedBreak = granularity.next(currentDateTime).getMillis();
+            if(nextRotation >expectedBreak){
+                nextRotation = expectedBreak;
+            }
         }
 
         if (!spaceChecker.hasEnoughSpace()) {
