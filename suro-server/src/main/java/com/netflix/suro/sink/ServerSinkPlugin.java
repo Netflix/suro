@@ -14,6 +14,7 @@ import com.netflix.suro.sink.remotefile.HdfsFileSink;
 import com.netflix.suro.sink.remotefile.S3FileSink;
 import com.netflix.suro.sink.remotefile.formatter.DateRegionStackFormatter;
 import com.netflix.suro.sink.remotefile.formatter.DynamicRemotePrefixFormatter;
+import com.netflix.suro.sink.remotefile.formatter.FileDatePrefixFormatter;
 
 /**
  *
@@ -33,6 +34,7 @@ public class ServerSinkPlugin extends SuroPlugin {
         this.addSinkType(HdfsFileSink.TYPE, HdfsFileSink.class);
         this.addRemotePrefixFormatterType(DateRegionStackFormatter.TYPE, DateRegionStackFormatter.class);
         this.addRemotePrefixFormatterType(DynamicRemotePrefixFormatter.TYPE, DynamicRemotePrefixFormatter.class);
+        this.addRemotePrefixFormatterType(FileDatePrefixFormatter.TYPE,FileDatePrefixFormatter.class);
 
         this.addSinkType(SuroSink.TYPE, SuroSink.class);
 
