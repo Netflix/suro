@@ -86,6 +86,8 @@ public class LocalFileSink extends QueuedSink implements Sink {
 
     private boolean messageWrittenInRotation = false;
 
+    private Granularity granularity;
+
     @JsonCreator
     public LocalFileSink(
             @JsonProperty("outputDir") String outputDir,
@@ -97,6 +99,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
             @JsonProperty("queue4Sink") MessageQueue4Sink queue4Sink,
             @JsonProperty("batchSize") int batchSize,
             @JsonProperty("batchTimeout") int batchTimeout,
+            @JsonProperty("granularity") String gran,
             @JacksonInject TrafficController trafficController,
             @JacksonInject SpaceChecker spaceChecker) {
         if (!outputDir.endsWith("/")) {
@@ -112,6 +115,10 @@ public class LocalFileSink extends QueuedSink implements Sink {
         this.notice = notice == null ? new QueueNotice<String>() : notice;
         this.trafficController = trafficController;
         this.spaceChecker = spaceChecker;
+
+        if(gran!=null){
+            granularity = Granularity.valueOf(gran.toUpperCase());
+        }
 
         Monitors.registerObject(outputDir.replace('/', '_'), this);
         initialize("localfile_" + outputDir.replace('/', '_'),
@@ -189,7 +196,14 @@ public class LocalFileSink extends QueuedSink implements Sink {
 
         filePath = newName;
 
-        nextRotation = new DateTime().plus(rotationPeriod).getMillis();
+        DateTime currentDateTime = new DateTime();
+        nextRotation = currentDateTime.plus(rotationPeriod).getMillis();
+        if(granularity!=null){
+            long expectedBreak = granularity.next(currentDateTime).getMillis();
+            if(nextRotation >expectedBreak){
+                nextRotation = expectedBreak;
+            }
+        }
 
         if (!spaceChecker.hasEnoughSpace()) {
             trafficController.stopTakingTraffic();
