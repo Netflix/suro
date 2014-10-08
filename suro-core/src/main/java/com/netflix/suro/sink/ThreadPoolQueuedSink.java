@@ -60,10 +60,7 @@ public abstract class ThreadPoolQueuedSink extends QueuedSink {
     @Override
     public long getNumOfPendingMessages() {
         long messagesInQueue = super.getNumOfPendingMessages();
-        if (messagesInQueue == 0) {
-            return getJobQueueSize() + senders.getActiveCount();
-        } else {
-            return messagesInQueue;
-        }
+        // add messages in thread pool, either in job queue or active
+        return messagesInQueue + getJobQueueSize() + senders.getActiveCount();
     }
 }
