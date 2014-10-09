@@ -85,6 +85,9 @@ subprojects {
         forkEvery = 1
         maxParallelForks = 1
     }
+
+    sourceCompatibility = "1.7"
+    targetCompatibility = "1.7"
 }
 
 project(':suro-core') {
