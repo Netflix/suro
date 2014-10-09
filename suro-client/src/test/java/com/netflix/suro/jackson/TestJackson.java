@@ -35,12 +35,13 @@ import static junit.framework.TestCase.assertEquals;
 public class TestJackson {
     @Test
     public void test() throws IOException {
-       String spec = "{\"a\":\"aaa\", \"b\":\"bbb\"}";
+        String spec = "{\"a\":\"aaa\", \"b\":\"bbb\"}";
 
         ObjectMapper mapper = new DefaultObjectMapper();
         final Map<String, Object> injectables = Maps.newHashMap();
 
         injectables.put("test", "test");
+        injectables.put("b", "binjected");
         mapper.setInjectableValues(new InjectableValues() {
             @Override
             public Object findInjectableValue(
@@ -52,6 +53,7 @@ public class TestJackson {
 
         TestClass test = mapper.readValue(spec, new TypeReference<TestClass>(){});
         assertEquals(test.getTest(), "test");
+        assertEquals(test.getB(), "bbb");
     }
 
     public static class TestClass {
@@ -69,5 +71,8 @@ public class TestJackson {
             this.b = b;
         }
         public String getTest() { return test; }
+
+        public String getA() { return a; }
+        public String getB() { return b; }
     }
 }
