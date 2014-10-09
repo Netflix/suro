@@ -39,6 +39,8 @@ public abstract class QueuedSink extends Thread {
     private int batchTimeout;
     private String sinkId;
 
+    public String getSinkId() { return sinkId; }
+
     protected void initialize(String sinkId, MessageQueue4Sink queue4Sink, int batchSize, int batchTimeout) {
         this.sinkId = sinkId;
         this.queue4Sink = queue4Sink;

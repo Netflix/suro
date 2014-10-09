@@ -7,9 +7,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.netflix.appinfo.InstanceInfo;
 import com.netflix.discovery.DiscoveryClient;
-import com.netflix.servo.annotations.DataSourceType;
-import com.netflix.servo.annotations.Monitor;
-import com.netflix.servo.monitor.Monitors;
+import com.netflix.servo.DefaultMonitorRegistry;
+import com.netflix.servo.monitor.*;
+import com.netflix.suro.Servo;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.queue.MemoryQueue4Sink;
@@ -37,6 +37,13 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
 
     public static final String TYPE = "elasticsearch";
 
+    private static final String INDEXED_ROW = "indexedRow";
+    private static final String REJECTED_ROW = "rejectedRow";
+    private static final String PARSING_FAILED = "parsingFailedRow";
+    private static final String INDEX_DELAY = "indexDelay";
+    private static final String SINK_ID = "sinkId";
+    private static final String ROUTING_KEY = "routingKey";
+
     private Client client;
     private final List<String> addressList;
     private final IndexInfoBuilder indexInfo;
@@ -44,17 +51,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private final Settings settings;
     private final String clusterName;
 
-    @Monitor(name = "indexedRowCount", type = DataSourceType.COUNTER)
-    private long indexedRowCount = 0;
-
-    @Monitor(name = "parsingFailedRowCount", type = DataSourceType.COUNTER)
-    private long parsingFailedRowCount = 0;
-
-    @Monitor(name = "rejectedRowCount", type = DataSourceType.COUNTER)
-    private long rejectedRowCount = 0;
-
-    @Monitor(name = "indexDelay", type = DataSourceType.GAUGE)
-    private long indexDelay = 0;
+    private final LongGauge indexDelay;
 
     @JsonCreator
     public ElasticSearchSink(
@@ -82,6 +79,8 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
 
         initialize("es_" + clusterName, queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
 
+        indexDelay = new LongGauge(MonitorConfig.builder(INDEX_DELAY).withTag(SINK_ID, getSinkId()).build());
+        DefaultMonitorRegistry.getInstance().register(indexDelay);
 
         ImmutableSettings.Builder settingsBuilder = ImmutableSettings.settingsBuilder();
         if (clusterName != null) {
@@ -153,8 +152,39 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
 
     @Override
     public String getStat() {
-        return String.format("indexed: %d, rejected: %d, parsing failed: %d",
-                indexedRowCount, rejectedRowCount, parsingFailedRowCount);
+        StringBuilder sb = new StringBuilder();
+        sb.append('\n').append(INDEX_DELAY).append(':').append(indexDelay.getNumber().get());
+        StringBuilder indexed = new StringBuilder();
+        StringBuilder rejected = new StringBuilder();
+        StringBuilder parsingFailed = new StringBuilder();
+
+        for (Monitor<?> m : DefaultMonitorRegistry.getInstance().getRegisteredMonitors()) {
+            if (m instanceof BasicCounter) {
+                BasicCounter counter = (BasicCounter) m;
+                if (counter.getConfig().getTags().getValue(SINK_ID).equals(getSinkId())) {
+                    if (counter.getConfig().getName().equals(INDEXED_ROW)) {
+                        indexed.append(counter.getConfig().getTags().getValue(ROUTING_KEY))
+                                .append(":")
+                                .append(counter.getValue()).append('\n');
+                    } else if (counter.getConfig().getName().equals(REJECTED_ROW)) {
+                        rejected.append(counter.getConfig().getTags().getValue(ROUTING_KEY))
+                                .append(":")
+                                .append(counter.getValue()).append('\n');
+
+                    } else if (counter.getConfig().getName().equals(PARSING_FAILED)) {
+                        parsingFailed.append(counter.getConfig().getTags().getValue(ROUTING_KEY))
+                                .append(":")
+                                .append(counter.getValue()).append('\n');
+                    }
+                }
+            }
+        }
+
+        sb.append('\n').append(INDEXED_ROW).append('\n').append(indexed.toString());
+        sb.append('\n').append(REJECTED_ROW).append('\n').append(rejected.toString());
+        sb.append('\n').append(PARSING_FAILED).append('\n').append(parsingFailed.toString());
+
+        return sb.toString();
     }
 
     @Override
@@ -163,7 +193,11 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private IndexRequest createIndexRequest(Message m) {
         IndexInfo info = indexInfo.create(m);
         if (info == null) {
-            ++parsingFailedRowCount;
+            Servo.getCounter(
+                    MonitorConfig.builder(PARSING_FAILED)
+                            .withTag(SINK_ID, getSinkId())
+                            .withTag(ROUTING_KEY, m.getRoutingKey())
+                            .build()).increment();
             return null;
         } else {
             return Requests.indexRequest(info.getIndex())
@@ -198,23 +232,27 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             @Override
             public void run() {
                 BulkResponse response = client.bulk(request).actionGet();
-                if (response.hasFailures()) {
-                    int rejectedCount = 0;
-                    for (BulkItemResponse r : response.getItems()) {
-                        if (r.isFailed() && !r.getFailureMessage().contains("DocumentAlreadyExistsException")) {
-                            log.error("Failed with: " + r.getFailureMessage());
-                            ++rejectedCount;
+                for (BulkItemResponse r : response.getItems()) {
+                    if (r.isFailed() && !r.getFailureMessage().contains("DocumentAlreadyExistsException")) {
+                        log.error("Failed with: " + r.getFailureMessage());
+                        Servo.getCounter(
+                                MonitorConfig.builder(REJECTED_ROW)
+                                        .withTag(SINK_ID, getSinkId())
+                                        .withTag(ROUTING_KEY, ((Message) request.payloads().get(r.getItemId())).getRoutingKey())
+                                        .build()).increment();
 
-                            recover(r.getItemId(), request);
-                        }
+                        recover(r.getItemId(), request);
+                    } else {
+                        Servo.getCounter(
+                                MonitorConfig.builder(INDEXED_ROW)
+                                        .withTag(SINK_ID, getSinkId())
+                                        .withTag(ROUTING_KEY, ((Message) request.payloads().get(r.getItemId())).getRoutingKey())
+                                        .build()).increment();
                     }
-                    rejectedRowCount += rejectedCount;
-                    indexedRowCount += request.numberOfActions() - rejectedCount;
-                } else {
-                    indexedRowCount += request.numberOfActions();
                 }
 
-                indexDelay = System.currentTimeMillis() - indexInfo.create((Message) request.payloads().get(0)).getTimestamp();
+                indexDelay.set(
+                        System.currentTimeMillis() - indexInfo.create((Message) request.payloads().get(0)).getTimestamp());
             }
         };
     }
