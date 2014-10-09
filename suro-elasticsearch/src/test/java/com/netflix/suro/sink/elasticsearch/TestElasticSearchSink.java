@@ -57,6 +57,16 @@ public class TestElasticSearchSink {
 
     @Test
     public void testDefaultArgument() throws JsonProcessingException {
+        String index = "topic";
+
+        createDefaultESSink(index);
+
+        node.client().admin().indices().prepareRefresh(index).execute().actionGet();
+        CountResponse response = node.client().prepareCount(index).execute().actionGet();
+        assertEquals(response.getCount(), 100);
+    }
+
+    private ElasticSearchSink createDefaultESSink(String index) throws JsonProcessingException {
         ObjectMapper jsonMapper = new DefaultObjectMapper();
         ElasticSearchSink sink = new ElasticSearchSink(
                 null,
@@ -84,16 +94,11 @@ public class TestElasticSearchSink {
                 .put("ts", dt.getMillis())
                 .build();
 
-        String routingKey = "topic";
-        String index = "topic";
         for (int i = 0; i < 100; ++i) {
-            sink.writeTo(new DefaultMessageContainer(new Message(routingKey, jsonMapper.writeValueAsBytes(msg)), jsonMapper));
+            sink.writeTo(new DefaultMessageContainer(new Message(index, jsonMapper.writeValueAsBytes(msg)), jsonMapper));
         }
         sink.close();
-
-        node.client().admin().indices().prepareRefresh(index).execute().actionGet();
-        CountResponse response = node.client().prepareCount(index).execute().actionGet();
-        assertEquals(response.getCount(), 100);
+        return sink;
     }
 
     @Test
@@ -230,5 +235,12 @@ public class TestElasticSearchSink {
         node.client().admin().indices().prepareRefresh(index).execute().actionGet();
         CountResponse response = node.client().prepareCount(index).execute().actionGet();
         assertEquals(response.getCount(), 100);
+    }
+
+    @Test
+    public void testStat() throws JsonProcessingException, InterruptedException {
+        ElasticSearchSink sink = createDefaultESSink("topic");
+        Thread.sleep(15000);
+        System.out.println(sink.getStat());
     }
 }
