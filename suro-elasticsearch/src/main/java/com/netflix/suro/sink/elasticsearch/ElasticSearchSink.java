@@ -9,6 +9,7 @@ import com.netflix.appinfo.InstanceInfo;
 import com.netflix.discovery.DiscoveryClient;
 import com.netflix.servo.DefaultMonitorRegistry;
 import com.netflix.servo.monitor.*;
+import com.netflix.suro.Servo;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.queue.MemoryQueue4Sink;
@@ -156,25 +157,24 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         StringBuilder indexed = new StringBuilder();
         StringBuilder rejected = new StringBuilder();
         StringBuilder parsingFailed = new StringBuilder();
-        for (Monitor<?> m : DefaultMonitorRegistry.getInstance().getRegisteredMonitors()) {
-            if (m instanceof DynamicCounter) {
-                DynamicCounter counter = (DynamicCounter) m;
-                for (Monitor<?> subM : counter.getMonitors()) {
-                    if (subM.getConfig().getTags().getValue(SINK_ID).equals(getSinkId())) {
-                        if (subM.getConfig().getName().equals(INDEXED_ROW)) {
-                            indexed.append(subM.getConfig().getTags().getValue(ROUTING_KEY))
-                                    .append(":")
-                                    .append(subM.getValue()).append('\n');
-                        } else if (subM.getConfig().getName().equals(REJECTED_ROW)) {
-                            rejected.append(subM.getConfig().getTags().getValue(ROUTING_KEY))
-                                    .append(":")
-                                    .append(subM.getValue()).append('\n');
 
-                        } else if (subM.getConfig().getName().equals(PARSING_FAILED)) {
-                            parsingFailed.append(subM.getConfig().getTags().getValue(ROUTING_KEY))
-                                    .append(":")
-                                    .append(subM.getValue()).append('\n');
-                        }
+        for (Monitor<?> m : DefaultMonitorRegistry.getInstance().getRegisteredMonitors()) {
+            if (m instanceof BasicCounter) {
+                BasicCounter counter = (BasicCounter) m;
+                if (counter.getConfig().getTags().getValue(SINK_ID).equals(getSinkId())) {
+                    if (counter.getConfig().getName().equals(INDEXED_ROW)) {
+                        indexed.append(counter.getConfig().getTags().getValue(ROUTING_KEY))
+                                .append(":")
+                                .append(counter.getValue()).append('\n');
+                    } else if (counter.getConfig().getName().equals(REJECTED_ROW)) {
+                        rejected.append(counter.getConfig().getTags().getValue(ROUTING_KEY))
+                                .append(":")
+                                .append(counter.getValue()).append('\n');
+
+                    } else if (counter.getConfig().getName().equals(PARSING_FAILED)) {
+                        parsingFailed.append(counter.getConfig().getTags().getValue(ROUTING_KEY))
+                                .append(":")
+                                .append(counter.getValue()).append('\n');
                     }
                 }
             }
@@ -193,11 +193,11 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private IndexRequest createIndexRequest(Message m) {
         IndexInfo info = indexInfo.create(m);
         if (info == null) {
-            DynamicCounter.increment(
+            Servo.getCounter(
                     MonitorConfig.builder(PARSING_FAILED)
                             .withTag(SINK_ID, getSinkId())
                             .withTag(ROUTING_KEY, m.getRoutingKey())
-                            .build());
+                            .build()).increment();
             return null;
         } else {
             return Requests.indexRequest(info.getIndex())
@@ -235,19 +235,19 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                 for (BulkItemResponse r : response.getItems()) {
                     if (r.isFailed() && !r.getFailureMessage().contains("DocumentAlreadyExistsException")) {
                         log.error("Failed with: " + r.getFailureMessage());
-                        DynamicCounter.increment(
+                        Servo.getCounter(
                                 MonitorConfig.builder(REJECTED_ROW)
                                         .withTag(SINK_ID, getSinkId())
                                         .withTag(ROUTING_KEY, ((Message) request.payloads().get(r.getItemId())).getRoutingKey())
-                                        .build());
+                                        .build()).increment();
 
                         recover(r.getItemId(), request);
                     } else {
-                        DynamicCounter.increment(
+                        Servo.getCounter(
                                 MonitorConfig.builder(INDEXED_ROW)
                                         .withTag(SINK_ID, getSinkId())
                                         .withTag(ROUTING_KEY, ((Message) request.payloads().get(r.getItemId())).getRoutingKey())
-                                        .build());
+                                        .build()).increment();
                     }
                 }
 
