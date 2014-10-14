@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public abstract class RemoteFileSink implements Sink {
     private static final Logger log = LoggerFactory.getLogger(RemoteFileSink.class);
 
-    private final LocalFileSink localFileSink;
+    protected final LocalFileSink localFileSink;
     private final RemotePrefixFormatter prefixFormatter;
 
     private final ExecutorService uploader;

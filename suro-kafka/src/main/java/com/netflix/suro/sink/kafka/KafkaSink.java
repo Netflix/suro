@@ -57,7 +57,8 @@ public class KafkaSink extends ThreadPoolQueuedSink implements Sink {
             @JsonProperty("jobQueueSize") int jobQueueSize,
             @JsonProperty("corePoolSize") int corePoolSize,
             @JsonProperty("maxPoolSize") int maxPoolSize,
-            @JsonProperty("jobTimeout") long jobTimeout
+            @JsonProperty("jobTimeout") long jobTimeout,
+            @JsonProperty("pauseOnLongQueue") boolean pauseOnLongQueue
     ) {
         super(jobQueueSize, corePoolSize, maxPoolSize, jobTimeout,
                 KafkaSink.class.getSimpleName() + "-" + clientId);
@@ -67,7 +68,12 @@ public class KafkaSink extends ThreadPoolQueuedSink implements Sink {
         Preconditions.checkNotNull(clientId);
 
         this.clientId = clientId;
-        initialize("kafka_" + clientId, queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+        initialize(
+                "kafka_" + clientId,
+                queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink,
+                batchSize,
+                batchTimeout,
+                pauseOnLongQueue);
 
         Properties props = new Properties();
         props.put("client.id", clientId);

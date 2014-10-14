@@ -8,6 +8,7 @@ import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.queue.MessageQueue4Sink;
+import com.netflix.suro.servo.Meter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,26 +34,49 @@ public abstract class QueuedSink extends Thread {
     protected volatile boolean isRunning = false;
     private volatile boolean isStopped = false;
 
+    public static int MAX_PENDING_MESSAGES_TO_PAUSE = 1000000; // not final for the test
+
     @VisibleForTesting
     protected MessageQueue4Sink queue4Sink;
     private int batchSize;
     private int batchTimeout;
     private String sinkId;
 
+    protected Meter throughput;
+    private boolean pauseOnLongQueue;
+
+    // make queue occupied more than half, then should be paused
+    // if throughput is too small at the beginning, pause can be too big
+    // so, setting up minimum threshold as 1 message per millisecond
+    public long checkPause() {
+        if (pauseOnLongQueue &&
+                (getNumOfPendingMessages() > queue4Sink.remainingCapacity() ||
+                getNumOfPendingMessages() > MAX_PENDING_MESSAGES_TO_PAUSE)) {
+            double throughputRate = Math.max(throughput.meanRate(), 1.0);
+            return (long) (getNumOfPendingMessages() / throughputRate);
+        } else {
+            return 0;
+        }
+    }
+
     public String getSinkId() { return sinkId; }
 
-    protected void initialize(String sinkId, MessageQueue4Sink queue4Sink, int batchSize, int batchTimeout) {
+    protected void initialize(
+            String sinkId,
+            MessageQueue4Sink queue4Sink,
+            int batchSize, int batchTimeout,
+            boolean pauseOnLongQueue) {
         this.sinkId = sinkId;
         this.queue4Sink = queue4Sink;
         this.batchSize = batchSize == 0 ? 1000 : batchSize;
         this.batchTimeout = batchTimeout == 0 ? 1000 : batchTimeout;
+        this.pauseOnLongQueue = pauseOnLongQueue;
+
+        throughput = new Meter(MonitorConfig.builder(sinkId + "_throughput_meter").build());
     }
 
     protected void initialize(MessageQueue4Sink queue4Sink, int batchSize, int batchTimeout) {
-        this.sinkId = "empty_sink_id";
-        this.queue4Sink = queue4Sink;
-        this.batchSize = batchSize == 0 ? 1000 : batchSize;
-        this.batchTimeout = batchTimeout == 0 ? 1000 : batchTimeout;
+        initialize("empty_sink_id", queue4Sink, batchSize, batchTimeout, false);
     }
 
     @VisibleForTesting

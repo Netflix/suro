@@ -1,3 +1,19 @@
+/*
+ * Copyright 2014 Netflix, Inc.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package com.netflix.suro.sink.kafka;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -12,11 +28,7 @@ import com.netflix.suro.queue.MemoryQueue4Sink;
 import com.netflix.suro.queue.MessageQueue4Sink;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.ThreadPoolQueuedSink;
-
-import kafka.metrics.KafkaMetricsReporter$;
-import kafka.producer.*;
-import kafka.utils.VerifiableProperties;
-
+import kafka.producer.DefaultPartitioner;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -76,7 +88,8 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
             @JsonProperty("jobQueueSize") int jobQueueSize,
             @JsonProperty("corePoolSize") int corePoolSize,
             @JsonProperty("maxPoolSize") int maxPoolSize,
-            @JsonProperty("jobTimeout") long jobTimeout
+            @JsonProperty("jobTimeout") long jobTimeout,
+            @JsonProperty("pauseOnLongQueue") boolean pauseOnLongQueue
     ) {
         super(jobQueueSize, corePoolSize, maxPoolSize, jobTimeout,
                 KafkaSink.class.getSimpleName() + "-" + clientId);
@@ -85,7 +98,12 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
         Preconditions.checkNotNull(clientId);
 
         this.clientId = clientId;
-        initialize("kafka_" + clientId, queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+        initialize(
+                "kafka_" + clientId,
+                queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink,
+                batchSize,
+                batchTimeout,
+                pauseOnLongQueue);
 
         Properties props = new Properties();
         props.put("client.id", clientId);
@@ -108,7 +126,6 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
         this.keyTopicMap = keyTopicMap != null ? keyTopicMap : Maps.<String, String>newHashMap();
 
         producer = new KafkaProducer( props );
-        KafkaMetricsReporter$.MODULE$.startReporters(new VerifiableProperties(props));
 
         Monitors.registerObject(clientId, this);
     }
