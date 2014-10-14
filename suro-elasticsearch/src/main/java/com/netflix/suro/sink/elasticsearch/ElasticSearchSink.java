@@ -257,8 +257,11 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                     }
                 }
 
+<<<<<<< HEAD
                 throughput.increment(response.getItems().length);
 
+=======
+>>>>>>> c5befb3772a0298d42dd4085c17beff919156559
                 indexDelay.set(
                         System.currentTimeMillis() - indexInfo.create((Message) request.payloads().get(0)).getTimestamp());
             }
