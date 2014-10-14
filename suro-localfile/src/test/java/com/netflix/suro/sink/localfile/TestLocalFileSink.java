@@ -26,7 +26,6 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.message.StringMessage;
-import com.netflix.suro.queue.TrafficController;
 import com.netflix.suro.sink.Sink;
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,20 +42,6 @@ import static org.mockito.Mockito.when;
 public class TestLocalFileSink {
     @Rule
     public TemporaryFolder tempDir = new TemporaryFolder();
-
-    private TrafficController trafficController = new TrafficController() {
-        int status = 200;
-
-        @Override
-        public void stopTakingTraffic() {
-            status = 503;
-        }
-
-        @Override
-        public void startTakingTraffic() {
-            status = 200;
-        }
-    };
 
     private static Injector injector = Guice.createInjector(
         new SuroSinkPlugin(),

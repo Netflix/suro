@@ -9,7 +9,7 @@ import com.netflix.appinfo.InstanceInfo;
 import com.netflix.discovery.DiscoveryClient;
 import com.netflix.servo.DefaultMonitorRegistry;
 import com.netflix.servo.monitor.*;
-import com.netflix.suro.Servo;
+import com.netflix.suro.servo.Servo;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.queue.MemoryQueue4Sink;
@@ -68,6 +68,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             @JsonProperty("corePoolSize") int corePoolSize,
             @JsonProperty("maxPoolSize") int maxPoolSize,
             @JsonProperty("jobTimeout") long jobTimeout,
+            @JsonProperty("pauseOnLongQueue") boolean pauseOnLongQueue,
             @JacksonInject DiscoveryClient discoveryClient,
             @JacksonInject ObjectMapper jsonMapper,
             @JacksonInject Client client) {
@@ -77,7 +78,12 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         this.indexInfo =
                 indexInfo == null ? new DefaultIndexInfoBuilder(null, null, null, null, null, jsonMapper) : indexInfo;
 
-        initialize("es_" + clusterName, queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+        initialize(
+                "es_" + clusterName,
+                queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink,
+                batchSize,
+                batchTimeout,
+                pauseOnLongQueue);
 
         indexDelay = new LongGauge(MonitorConfig.builder(INDEX_DELAY).withTag(SINK_ID, getSinkId()).build());
         DefaultMonitorRegistry.getInstance().register(indexDelay);
@@ -250,6 +256,8 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                                         .build()).increment();
                     }
                 }
+
+                throughput.increment(response.getItems().length);
 
                 indexDelay.set(
                         System.currentTimeMillis() - indexInfo.create((Message) request.payloads().get(0)).getTimestamp());

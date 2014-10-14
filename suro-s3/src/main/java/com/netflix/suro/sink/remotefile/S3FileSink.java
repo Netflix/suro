@@ -135,6 +135,11 @@ public class S3FileSink extends RemoteFileSink {
         return notice.recv();
     }
 
+    @Override
+    public long checkPause() {
+        return localFileSink.checkPause();
+    }
+
     @Monitor(name="fail_grantAcl", type=DataSourceType.COUNTER)
     private AtomicLong fail_grantAcl = new AtomicLong(0);
     public long getFail_grantAcl() { return fail_grantAcl.get(); }

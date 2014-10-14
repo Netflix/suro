@@ -28,13 +28,12 @@ import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
-import com.netflix.suro.sink.notice.QueueNotice;
-import com.netflix.suro.sink.notice.Notice;
-import com.netflix.suro.queue.TrafficController;
-import com.netflix.suro.sink.QueuedSink;
-import com.netflix.suro.sink.Sink;
 import com.netflix.suro.queue.MemoryQueue4Sink;
 import com.netflix.suro.queue.MessageQueue4Sink;
+import com.netflix.suro.sink.QueuedSink;
+import com.netflix.suro.sink.Sink;
+import com.netflix.suro.sink.notice.Notice;
+import com.netflix.suro.sink.notice.QueueNotice;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -53,7 +52,7 @@ import java.util.List;
  * LocalFileSink appends messages to the file in local file system and rotates
  * the file when the file size reaches to the threshold or in the regular basis
  * whenever it comes earlier. When {@link com.netflix.suro.sink.localfile.LocalFileSink.SpaceChecker} checks not enough disk
- * space, it triggers {@link com.netflix.suro.queue.TrafficController} not to take the traffic anymore.
+ * space, it triggers pause not to take the traffic anymore.
  *
  * @author jbae
  */
@@ -73,7 +72,6 @@ public class LocalFileSink extends QueuedSink implements Sink {
     private final int minPercentFreeDisk;
     private final Notice<String> notice;
 
-    private TrafficController trafficController;
     private SpaceChecker spaceChecker;
 
     private String filePath;
@@ -97,7 +95,7 @@ public class LocalFileSink extends QueuedSink implements Sink {
             @JsonProperty("queue4Sink") MessageQueue4Sink queue4Sink,
             @JsonProperty("batchSize") int batchSize,
             @JsonProperty("batchTimeout") int batchTimeout,
-            @JacksonInject TrafficController trafficController,
+            @JsonProperty("pauseOnLongQueue") boolean pauseOnLongQueue,
             @JacksonInject SpaceChecker spaceChecker) {
         if (!outputDir.endsWith("/")) {
             outputDir += "/";
@@ -110,12 +108,14 @@ public class LocalFileSink extends QueuedSink implements Sink {
         this.rotationPeriod = new Period(rotationPeriod == null ? "PT2m" : rotationPeriod);
         this.minPercentFreeDisk = minPercentFreeDisk == 0 ? 15 : minPercentFreeDisk;
         this.notice = notice == null ? new QueueNotice<String>() : notice;
-        this.trafficController = trafficController;
         this.spaceChecker = spaceChecker;
 
         Monitors.registerObject(outputDir.replace('/', '_'), this);
         initialize("localfile_" + outputDir.replace('/', '_'),
-                queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink, batchSize, batchTimeout);
+                queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink,
+                batchSize,
+                batchTimeout,
+                pauseOnLongQueue);
     }
 
     public String getOutputDir() {
@@ -127,9 +127,6 @@ public class LocalFileSink extends QueuedSink implements Sink {
         try {
             if (spaceChecker == null) {
                 spaceChecker = new SpaceChecker(minPercentFreeDisk, outputDir);
-            }
-            if (trafficController == null) {
-                trafficController = new TrafficController();
             }
 
             notice.init();
@@ -181,6 +178,8 @@ public class LocalFileSink extends QueuedSink implements Sink {
         }
     }
 
+    private long pause;
+
     private void rotate() throws IOException {
         String newName = FileNameFormatter.get(outputDir) + suffix;
         writer.rotate(newName);
@@ -192,10 +191,15 @@ public class LocalFileSink extends QueuedSink implements Sink {
         nextRotation = new DateTime().plus(rotationPeriod).getMillis();
 
         if (!spaceChecker.hasEnoughSpace()) {
-            trafficController.stopTakingTraffic();
+            pause = rotationPeriod.toStandardDuration().getMillis();
         } else {
-            trafficController.startTakingTraffic();
+            pause = 0;
         }
+    }
+
+    @Override
+    public long checkPause() {
+        return super.checkPause() + pause;
     }
 
     /**
@@ -243,6 +247,8 @@ public class LocalFileSink extends QueuedSink implements Sink {
         }
 
         writer.sync();
+
+        throughput.increment(msgList.size());
     }
 
     private String normalizeRoutingKey(Message msg) {

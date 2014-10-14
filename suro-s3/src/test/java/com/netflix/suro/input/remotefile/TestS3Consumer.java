@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.netflix.suro.input.RecordParser;
+import com.netflix.suro.input.SuroInput;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.routing.MessageRouter;
@@ -173,7 +174,7 @@ public class TestS3Consumer {
         latch.await();
         consumer.shutdown();
 
-        verify(router, times(numOfMessages * numOfLines * count.get())).process(any(MessageContainer.class));
+        verify(router, times(numOfMessages * numOfLines * count.get())).process(any(SuroInput.class), any(MessageContainer.class));
         assertEquals(removedKeys.size(), peekedMsgCount.get() - invalidMsgCount.get());
 
         // no files under downloadPath

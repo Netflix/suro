@@ -87,6 +87,11 @@ public class TestSinkManager {
         public long getNumOfPendingMessages() {
             return 0;
         }
+
+        @Override
+        public long checkPause() {
+            return 0;
+        }
     }
 
     @Test

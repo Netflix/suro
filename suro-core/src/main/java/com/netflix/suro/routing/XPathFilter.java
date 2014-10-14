@@ -23,9 +23,6 @@ import com.netflix.suro.routing.filter.MessageFilter;
 import com.netflix.suro.routing.filter.MessageFilterCompiler;
 import com.netflix.suro.routing.filter.lang.InvalidFilterException;
 
-import java.util.Map;
-import java.util.regex.Pattern;
-
 /**
  * An implementation of {@link Filter} that coerced message payload to a string, and applies
  * regex to the coerced string. The match is partial.
@@ -51,7 +48,7 @@ public class XPathFilter implements Filter {
             throw new IllegalArgumentException(String.format("Can't compile expression %s into a message filter: %s", expression, e.getMessage()), e);
         }
 
-        this.converter = converter;
+        this.converter = converter == null ? new JsonMapConverter() : converter;
     }
 
     /**

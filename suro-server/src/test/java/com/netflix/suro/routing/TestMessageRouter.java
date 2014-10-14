@@ -27,14 +27,15 @@ import com.netflix.governator.guice.BootstrapModule;
 import com.netflix.governator.guice.LifecycleInjector;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.SuroPlugin;
+import com.netflix.suro.input.SuroInput;
+import com.netflix.suro.input.thrift.MessageSetProcessor;
+import com.netflix.suro.input.thrift.ServerConfig;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.message.MessageSetBuilder;
 import com.netflix.suro.message.SerDe;
 import com.netflix.suro.message.StringSerDe;
-import com.netflix.suro.input.thrift.MessageSetProcessor;
 import com.netflix.suro.routing.RoutingMap.RoutingInfo;
-import com.netflix.suro.input.thrift.ServerConfig;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
 import org.junit.Assert;
@@ -43,6 +44,7 @@ import org.junit.Test;
 import java.util.*;
 
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 public class TestMessageRouter {
     public static Map<String, Integer> messageCount = new HashMap<String, Integer>();
@@ -105,6 +107,11 @@ public class TestMessageRouter {
             return 0;
         }
 
+        @Override
+        public long checkPause() {
+            return 0;
+        }
+
         public List<String> getMessageList() {
             return messageList;
         }
@@ -145,7 +152,7 @@ public class TestMessageRouter {
                 public void configure(BootstrapBinder binder) {
                     binder.bindConfigurationProvider().toInstance(new PropertiesConfigurationProvider(properties));
                 }
-        }).createInjector();
+        }).build().createInjector();
         
         
         SinkManager sinkManager = startSinkMakager(injector);
@@ -153,6 +160,7 @@ public class TestMessageRouter {
         startMessageRouter(injector);
 
         MessageSetProcessor queue = injector.getInstance(MessageSetProcessor.class);
+        queue.setInput(mock(SuroInput.class));
         queue.start();
 
         MessageSetBuilder builder = new MessageSetBuilder(new ClientConfig());

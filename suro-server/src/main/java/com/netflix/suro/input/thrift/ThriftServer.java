@@ -19,9 +19,9 @@ package com.netflix.suro.input.thrift;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Throwables;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.suro.input.SuroInput;
-import com.netflix.suro.queue.TrafficController;
 import com.netflix.suro.thrift.SuroServer;
 import org.apache.thrift.server.THsHaServer;
 import org.apache.thrift.transport.TTransportException;
@@ -42,14 +42,15 @@ public class ThriftServer implements SuroInput {
     private final MessageSetProcessor msgProcessor;
     private ExecutorService executor;
 
+    private int port;
+
     @JsonCreator
     public ThriftServer(
             @JacksonInject ServerConfig config,
-            @JacksonInject MessageSetProcessor msgProcessor,
-            @JacksonInject TrafficController trafficController) throws Exception {
+            @JacksonInject MessageSetProcessor msgProcessor) throws Exception {
         this.config = config;
         this.msgProcessor = msgProcessor;
-        trafficController.registerService(this);
+        this.msgProcessor.setInput(this);
     }
 
     @Override
@@ -63,6 +64,7 @@ public class ThriftServer implements SuroInput {
 
         logger.info("Starting ThriftServer with config " + config);
         CustomServerSocket transport = new CustomServerSocket(config);
+        port = transport.getPort();
         SuroServer.Processor processor =  new SuroServer.Processor<MessageSetProcessor>(msgProcessor);
 
         THsHaServer.Args serverArgs = new THsHaServer.Args(transport);
@@ -105,7 +107,7 @@ public class ThriftServer implements SuroInput {
     public void shutdown() {
         logger.info("Shutting down thrift server");
         try {
-            stopTakingTraffic();
+            msgProcessor.stopTakingTraffic();
             Thread.sleep(1000);
             server.stop();
             executor.shutdownNow();
@@ -114,16 +116,6 @@ public class ThriftServer implements SuroInput {
             // ignore any exception when shutdown
             logger.error("Exception while shutting down: " + e.getMessage(), e);
         }
-    }
-
-    @Override
-    public void startTakingTraffic() {
-        msgProcessor.startTakingTraffic();
-    }
-
-    @Override
-    public void stopTakingTraffic() {
-        msgProcessor.stopTakingTraffic();
     }
 
     @Override
@@ -138,5 +130,34 @@ public class ThriftServer implements SuroInput {
     @Override
     public int hashCode() {
         return TYPE.hashCode();
+    }
+
+    private ExecutorService pauseExecutor = Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder()
+                    .setDaemon(true)
+                    .setNameFormat("ThriftServer-PauseExec-%d").build());
+
+    @Override
+    public void setPause(final long ms) {
+        if (ms > 0) {
+            pauseExecutor.execute(new Runnable() {
+
+                @Override
+                public void run() {
+                    msgProcessor.stopTakingTraffic();
+                    try {
+                        Thread.sleep(ms);
+                    } catch (InterruptedException e) {
+                        // do nothing
+                    }
+                    msgProcessor.startTakingTraffic();
+                }
+            });
+        }
+    }
+
+    // for testing purpose
+    public int getPort() {
+        return port;
     }
 }
