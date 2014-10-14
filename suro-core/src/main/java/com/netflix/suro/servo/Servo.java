@@ -1,4 +1,4 @@
-package com.netflix.suro;
+package com.netflix.suro.servo;
 
 import com.netflix.servo.DefaultMonitorRegistry;
 import com.netflix.servo.monitor.*;

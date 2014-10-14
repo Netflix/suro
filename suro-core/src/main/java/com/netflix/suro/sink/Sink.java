@@ -47,4 +47,5 @@ public interface Sink  {
     String getStat();
 
     long getNumOfPendingMessages();
+    long checkPause();
 }

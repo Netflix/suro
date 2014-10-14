@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPInputStream;
 
 public class S3Consumer implements SuroInput {
@@ -134,7 +135,29 @@ public class S3Consumer implements SuroInput {
 
         notice.init();
 
-        startTakingTraffic();
+        running = true;
+        runner = executor.submit(new Runnable() {
+            @Override
+            public void run() {
+                while (running) {
+                    try {
+                        long pause = pausedTime.get();
+                        if (pause > 0) {
+                            Thread.sleep(pause);
+                            pausedTime.addAndGet(-pause);
+                        }
+                        Pair<String, String> msg = notice.peek();
+                        if (msg != null) {
+                            executor.submit(createDownloadRunnable(msg));
+                        } else {
+                            Thread.sleep(timeout);
+                        }
+                    } catch (Exception e) {
+                        log.error("Exception on receiving messages from Notice", e);
+                    }
+                }
+            }
+        });
     }
 
     @Override
@@ -142,7 +165,14 @@ public class S3Consumer implements SuroInput {
         try {
             log.info("shutting down S3Consumer now");
 
-            stopTakingTraffic();
+            running = false;
+            try {
+                runner.get();
+            } catch (InterruptedException e) {
+                // do nothing
+            } catch (ExecutionException e) {
+                log.error("Exception on stopping the task", e);
+            }
 
             executor.shutdown();
             while (true) {
@@ -159,26 +189,11 @@ public class S3Consumer implements SuroInput {
         }
     }
 
+    private AtomicLong pausedTime = new AtomicLong(0);
+
     @Override
-    public void startTakingTraffic() {
-        running = true;
-        runner = executor.submit(new Runnable() {
-            @Override
-            public void run() {
-                while (running) {
-                    try {
-                        Pair<String, String> msg = notice.peek();
-                        if (msg != null) {
-                            executor.submit(createDownloadRunnable(msg));
-                        } else {
-                            Thread.sleep(timeout);
-                        }
-                    } catch (Exception e) {
-                        log.error("Exception on receiving messages from Notice", e);
-                    }
-                }
-            }
-        });
+    public void setPause(long ms) {
+        pausedTime.addAndGet(ms);
     }
 
     public static TypeReference<Map<String, Object>> typeReference = new TypeReference<Map<String, Object>>() {};
@@ -253,7 +268,7 @@ public class S3Consumer implements SuroInput {
                             try {
                                 if (data.trim().length() > 0) {
                                     for (MessageContainer msg : recordParser.parse(data)) {
-                                        router.process(msg);
+                                        router.process(S3Consumer.this, msg);
                                     }
                                 }
                             } catch (Exception e) {
@@ -309,18 +324,6 @@ public class S3Consumer implements SuroInput {
                 log.error("invalid msg: " + msg.second());
             }
         };
-    }
-
-    @Override
-    public void stopTakingTraffic() {
-        running = false;
-        try {
-            runner.get();
-        } catch (InterruptedException e) {
-            // do nothing
-        } catch (ExecutionException e) {
-            log.error("Exception on stopping the task", e);
-        }
     }
 
     @Override

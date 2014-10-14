@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class KafkaConsumer implements SuroInput {
     public static final String TYPE = "kafka";
@@ -66,6 +67,8 @@ public class KafkaConsumer implements SuroInput {
         return topic + "-" + consumerProps.getProperty("group.id");
     }
 
+    private AtomicLong pausedTime = new AtomicLong(0);
+
     @Override
     public void start() throws Exception {
         connector = Consumer.createJavaConsumerConnector(new ConsumerConfig(consumerProps));
@@ -79,25 +82,21 @@ public class KafkaConsumer implements SuroInput {
 
         stream = streamList.get(0).iterator();
 
-        startTakingTraffic();
-    }
-
-    @Override
-    public void shutdown() {
-        stopTakingTraffic();
-        connector.shutdown();
-    }
-
-    @Override
-    public void startTakingTraffic() {
         running = true;
         runner = executor.submit(new Runnable() {
             @Override
             public void run() {
                 while (running) {
                     try {
+                        long pause = pausedTime.get();
+                        if (pause > 0) {
+                            Thread.sleep(pause);
+                            pausedTime.addAndGet(-pause);
+                        }
                         byte[] message = stream.next().message();
-                        router.process(new DefaultMessageContainer(new Message(topic, message), jsonMapper));
+                        router.process(
+                                KafkaConsumer.this,
+                                new DefaultMessageContainer(new Message(topic, message), jsonMapper));
                     } catch (ConsumerTimeoutException timeoutException) {
                         // do nothing
                     } catch (Exception e) {
@@ -109,7 +108,17 @@ public class KafkaConsumer implements SuroInput {
     }
 
     @Override
-    public void stopTakingTraffic() {
+    public void shutdown() {
+        stop();
+        connector.shutdown();
+    }
+
+    @Override
+    public void setPause(long ms) {
+        pausedTime.addAndGet(ms);
+    }
+
+    private void stop() {
         running = false;
         try {
             runner.get();

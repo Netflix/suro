@@ -3,6 +3,7 @@ package com.netflix.suro.input.kafka;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
+import com.netflix.suro.input.SuroInput;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
@@ -28,9 +29,7 @@ import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
@@ -53,7 +52,7 @@ public class TestKafkaConsumer {
 
         ObjectMapper jsonMapper = new DefaultObjectMapper();
 
-        sendKafkaMessage(jsonMapper);
+        sendKafkaMessage(jsonMapper, kafkaServer.getBrokerListStr(), TOPIC_NAME);
 
         final CountDownLatch latch = new CountDownLatch(2);
 
@@ -65,34 +64,32 @@ public class TestKafkaConsumer {
                 latch.countDown();
                 return null;
             }
-        }).when(router).process(any(MessageContainer.class));
+        }).when(router).process(any(SuroInput.class), any(MessageContainer.class));
 
         Properties properties = new Properties();
         properties.setProperty("group.id", "testkafkaconsumer");
         properties.setProperty("zookeeper.connect", zk.getConnectionString());
         properties.setProperty("auto.offset.reset", "smallest");
 
-        KafkaConsumer consumer = null;
         try {
-            consumer = new KafkaConsumer(properties, TOPIC_NAME, router, jsonMapper);
+            new KafkaConsumer(properties, TOPIC_NAME, router, jsonMapper);
             fail("should have failed without timeout");
         } catch (Exception e) {
             // do nothing
         }
 
         properties.setProperty("consumer.timeout.ms", "1000");
-        consumer = new KafkaConsumer(properties, TOPIC_NAME, router, jsonMapper);
+        KafkaConsumer consumer = new KafkaConsumer(properties, TOPIC_NAME, router, jsonMapper);
 
         consumer.start();
-        latch.await(500000, TimeUnit.MILLISECONDS);
+        latch.await(1000 * 5, TimeUnit.MILLISECONDS);
 
         ArgumentCaptor<MessageContainer> msgContainers = ArgumentCaptor.forClass(MessageContainer.class);
-        verify(router, times(2)).process(msgContainers.capture());
+        verify(router, times(2)).process(any(SuroInput.class), msgContainers.capture());
         for (MessageContainer container : msgContainers.getAllValues()) {
             assertEquals(container.getRoutingKey(), TOPIC_NAME);
             assertTrue(container.getEntity(String.class).startsWith("testMessage"));
         }
-        consumer.stopTakingTraffic();
 
         final CountDownLatch latch1 = new CountDownLatch(2);
         doAnswer(new Answer() {
@@ -102,34 +99,41 @@ public class TestKafkaConsumer {
                 latch1.countDown();
                 return null;
             }
-        }).when(router).process(any(MessageContainer.class));
+        }).when(router).process(any(SuroInput.class), any(MessageContainer.class));
 
-        sendKafkaMessage(jsonMapper);
-        latch1.await(5000, TimeUnit.MILLISECONDS);
-        assertEquals(latch1.getCount(), 2); // not processed due to stop
+        long pauseTime = 5000;
+        consumer.setPause(pauseTime);
+        long start = System.currentTimeMillis();
 
-        consumer.startTakingTraffic();
-        latch1.await(5000, TimeUnit.MILLISECONDS);
-        assertEquals(latch1.getCount(), 0);
-        verify(router, times(4)).process(msgContainers.capture());
+        sendKafkaMessage(jsonMapper, kafkaServer.getBrokerListStr(), TOPIC_NAME);
+
+        latch1.await(1000 * 5 + pauseTime, TimeUnit.MILLISECONDS);
+        long end = System.currentTimeMillis();
+        assertTrue(end - start > pauseTime);
+
+        msgContainers = ArgumentCaptor.forClass(MessageContainer.class);
+        verify(router, times(4)).process(any(SuroInput.class), msgContainers.capture());
+
         for (MessageContainer container : msgContainers.getAllValues()) {
             assertEquals(container.getRoutingKey(), TOPIC_NAME);
             assertTrue(container.getEntity(String.class).startsWith("testMessage"));
         }
+
+        consumer.shutdown();
     }
 
-    private void sendKafkaMessage(ObjectMapper jsonMapper) throws java.io.IOException, InterruptedException {
+    public static void sendKafkaMessage(ObjectMapper jsonMapper, String brokerList, String topicName) throws java.io.IOException, InterruptedException {
         String description = "{\n" +
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
-                "    \"metadata.broker.list\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
+                "    \"metadata.broker.list\": \"" + brokerList + "\",\n" +
                 "    \"request.required.acks\": 1\n" +
                 "}";
 
         jsonMapper.registerSubtypes(new NamedType(KafkaSink.class, "kafka"));
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
-        Iterator<Message> msgIterator = new MessageSetReader(TestKafkaSink.createMessageSet(TOPIC_NAME, 2)).iterator();
+        Iterator<Message> msgIterator = new MessageSetReader(TestKafkaSink.createMessageSet(topicName, 2)).iterator();
         while (msgIterator.hasNext()) {
             sink.writeTo(new StringMessage(msgIterator.next()));
         }

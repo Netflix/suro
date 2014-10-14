@@ -89,7 +89,7 @@ public class TestElasticSearchSink {
                 "1s",
                 null,
                 null,
-                0,0,0,0,
+                0,0,0,0,false,
                 null,
                 jsonMapper,
                 node.client()
@@ -133,7 +133,7 @@ public class TestElasticSearchSink {
                         new IndexSuffixFormatter("date", props),
                         null,
                         jsonMapper),
-                0,0,0,0,
+                0,0,0,0,false,
                 null,
                 jsonMapper,
                 node.client()
@@ -216,7 +216,7 @@ public class TestElasticSearchSink {
                 "1s",
                 null,
                 null,
-                0,0,0,0,
+                0,0,0,0,false,
                 null,
                 jsonMapper,
                 node.client()
@@ -310,10 +310,7 @@ public class TestElasticSearchSink {
                 null,
                 null,
                 indexInfo,
-                0,
-                0,
-                0,
-                0,
+                0,0,0,0,false,
                 null,
                 jsonMapper,
                 client);

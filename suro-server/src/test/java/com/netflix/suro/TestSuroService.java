@@ -56,6 +56,11 @@ public class TestSuroService {
         public long getNumOfPendingMessages() {
             return 0;
         }
+
+        @Override
+        public long checkPause() {
+            return 0;
+        }
     }
 
     public static class TestSuroServiceInput implements SuroInput {
@@ -79,11 +84,8 @@ public class TestSuroService {
         }
 
         @Override
-        public void startTakingTraffic() {
-        }
+        public void setPause(long ms) {
 
-        @Override
-        public void stopTakingTraffic() {
         }
     }
 

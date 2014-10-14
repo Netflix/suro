@@ -8,6 +8,5 @@ public interface SuroInput {
     void start() throws Exception;
     void shutdown();
 
-    void startTakingTraffic();
-    void stopTakingTraffic();
+    void setPause(long ms);
 }

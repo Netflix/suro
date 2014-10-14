@@ -91,4 +91,9 @@ public class FileQueue4Sink implements MessageQueue4Sink {
     public long size() {
         return queue.size();
     }
+
+    @Override
+    public long remainingCapacity() {
+        return Long.MAX_VALUE; // theoretically unlimited
+    }
 }

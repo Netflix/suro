@@ -125,4 +125,9 @@ public class CustomServerSocket extends TNonblockingServerTransport {
         // that it is safe to do this from a different thread context
         close();
     }
+
+    // for testing purpose
+    public int getPort() {
+        return serverSocket_.getLocalPort();
+    }
 }

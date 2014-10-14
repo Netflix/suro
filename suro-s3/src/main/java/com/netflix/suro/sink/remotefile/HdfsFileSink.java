@@ -50,6 +50,11 @@ public class HdfsFileSink extends RemoteFileSink {
     }
 
     @Override
+    public long checkPause() {
+        return localFileSink.checkPause();
+    }
+
+    @Override
     void initialize() {
         // do nothing
     }

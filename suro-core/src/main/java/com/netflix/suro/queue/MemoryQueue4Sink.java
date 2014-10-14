@@ -55,4 +55,9 @@ public class MemoryQueue4Sink implements MessageQueue4Sink {
     public long size() {
         return queue.size();
     }
+
+    @Override
+    public long remainingCapacity() {
+        return queue.remainingCapacity();
+    }
 }
