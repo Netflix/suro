@@ -103,7 +103,7 @@ public class TestPauseOnLongQueueKafkaConsumer {
                 "1s",
                 null,
                 null,
-                0,0,0,0,true,
+                0,0,0,0,true,null,
                 null,
                 jsonMapper,
                 client

@@ -5,21 +5,24 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.netflix.appinfo.InstanceInfo;
 import com.netflix.discovery.DiscoveryClient;
 import com.netflix.servo.DefaultMonitorRegistry;
 import com.netflix.servo.monitor.*;
-import com.netflix.suro.servo.Servo;
+import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.queue.MemoryQueue4Sink;
 import com.netflix.suro.queue.MessageQueue4Sink;
+import com.netflix.suro.servo.Servo;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.ThreadPoolQueuedSink;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.support.replication.ReplicationType;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.client.transport.TransportClient;
@@ -42,7 +45,6 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private static final String PARSING_FAILED = "parsingFailedRow";
     private static final String INDEX_DELAY = "indexDelay";
     private static final String SINK_ID = "sinkId";
-    private static final String ROUTING_KEY = "routingKey";
 
     private Client client;
     private final List<String> addressList;
@@ -50,6 +52,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private final DiscoveryClient discoveryClient;
     private final Settings settings;
     private final String clusterName;
+    private final ReplicationType replicationType;
 
     private final LongGauge indexDelay;
 
@@ -69,6 +72,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             @JsonProperty("maxPoolSize") int maxPoolSize,
             @JsonProperty("jobTimeout") long jobTimeout,
             @JsonProperty("pauseOnLongQueue") boolean pauseOnLongQueue,
+            @JsonProperty("replicationType") String replicationType,
             @JacksonInject DiscoveryClient discoveryClient,
             @JacksonInject ObjectMapper jsonMapper,
             @JacksonInject Client client) {
@@ -111,6 +115,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         this.discoveryClient = discoveryClient;
         this.addressList = addressList;
         this.clusterName = clusterName;
+        this.replicationType = replicationType == null ? ReplicationType.ASYNC : ReplicationType.fromString(replicationType);
     }
 
     @Override
@@ -167,18 +172,19 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         for (Monitor<?> m : DefaultMonitorRegistry.getInstance().getRegisteredMonitors()) {
             if (m instanceof BasicCounter) {
                 BasicCounter counter = (BasicCounter) m;
-                if (counter.getConfig().getTags().getValue(SINK_ID).equals(getSinkId())) {
+                String sinkId = counter.getConfig().getTags().getValue(SINK_ID);
+                if (!Strings.isNullOrEmpty(sinkId) && sinkId.equals(getSinkId())) {
                     if (counter.getConfig().getName().equals(INDEXED_ROW)) {
-                        indexed.append(counter.getConfig().getTags().getValue(ROUTING_KEY))
+                        indexed.append(counter.getConfig().getTags().getValue(TagKey.ROUTING_KEY))
                                 .append(":")
                                 .append(counter.getValue()).append('\n');
                     } else if (counter.getConfig().getName().equals(REJECTED_ROW)) {
-                        rejected.append(counter.getConfig().getTags().getValue(ROUTING_KEY))
+                        rejected.append(counter.getConfig().getTags().getValue(TagKey.ROUTING_KEY))
                                 .append(":")
                                 .append(counter.getValue()).append('\n');
 
                     } else if (counter.getConfig().getName().equals(PARSING_FAILED)) {
-                        parsingFailed.append(counter.getConfig().getTags().getValue(ROUTING_KEY))
+                        parsingFailed.append(counter.getConfig().getTags().getValue(TagKey.ROUTING_KEY))
                                 .append(":")
                                 .append(counter.getValue()).append('\n');
                     }
@@ -202,7 +208,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             Servo.getCounter(
                     MonitorConfig.builder(PARSING_FAILED)
                             .withTag(SINK_ID, getSinkId())
-                            .withTag(ROUTING_KEY, m.getRoutingKey())
+                            .withTag(TagKey.ROUTING_KEY, m.getRoutingKey())
                             .build()).increment();
             return null;
         } else {
@@ -210,6 +216,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                             .type(info.getType())
                             .source(info.getSource())
                             .id(info.getId())
+                            .replicationType(replicationType)
                             .opType(IndexRequest.OpType.CREATE);
         }
     }
@@ -244,7 +251,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                         Servo.getCounter(
                                 MonitorConfig.builder(REJECTED_ROW)
                                         .withTag(SINK_ID, getSinkId())
-                                        .withTag(ROUTING_KEY, ((Message) request.payloads().get(r.getItemId())).getRoutingKey())
+                                        .withTag(TagKey.ROUTING_KEY, ((Message) request.payloads().get(r.getItemId())).getRoutingKey())
                                         .build()).increment();
 
                         recover(r.getItemId(), request);
@@ -252,7 +259,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                         Servo.getCounter(
                                 MonitorConfig.builder(INDEXED_ROW)
                                         .withTag(SINK_ID, getSinkId())
-                                        .withTag(ROUTING_KEY, ((Message) request.payloads().get(r.getItemId())).getRoutingKey())
+                                        .withTag(TagKey.ROUTING_KEY, ((Message) request.payloads().get(r.getItemId())).getRoutingKey())
                                         .build()).increment();
                     }
                 }

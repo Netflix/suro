@@ -53,11 +53,11 @@ public class TestTimestampField {
 
     @Test
     public void testFormat2() {
-        TimestampField field = new TimestampField("ts", "YYYY-MM-dd HH:mm:ss,SSS");
+        TimestampField field = new TimestampField("ts", "YYYY-MM-dd HH:mm:ss.SSS");
         assertEquals(
                 field.get(new ImmutableMap.Builder<String, Object>()
-                        .put("ts", "2014-10-04 07:16:35,207")
+                        .put("ts", "2014-10-17 19:53:26.001")
                         .put("field1", "value1").build()),
-                new DateTime("2014-10-04T07:16:35.207Z").getMillis());
+                new DateTime("2014-10-17T19:53:26.001Z").getMillis());
     }
 }
