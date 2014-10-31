@@ -12,6 +12,7 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.sink.Sink;
+import org.apache.commons.collections.iterators.ArrayIterator;
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -33,10 +34,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -252,6 +250,8 @@ public class TestElasticSearchSink {
 
     @Test
     public void testStat() throws JsonProcessingException, InterruptedException {
+        final long ts = System.currentTimeMillis() - 1;
+
         IndexInfoBuilder indexInfo = mock(IndexInfoBuilder.class);
         doAnswer(new Answer() {
             @Override
@@ -283,7 +283,7 @@ public class TestElasticSearchSink {
 
                         @Override
                         public long getTimestamp() {
-                            return System.currentTimeMillis();
+                            return ts;
                         }
                     };
                 }
@@ -330,6 +330,7 @@ public class TestElasticSearchSink {
 
         sink.close();
         String stat = sink.getStat();
+        System.out.println(stat);
         int count = 0;
         for (int i = 0; i < 3; ++i) {
             for (int j = 0; j < 3; ++j) {
@@ -349,6 +350,17 @@ public class TestElasticSearchSink {
             }
         }
         assertEquals(count, 27);
+
+        // check indexDelay section
+        ArrayIterator iterator = new ArrayIterator(stat.split("\n"));
+        while (iterator.hasNext() && !iterator.next().equals("indexDelay"));
+        Set<String> stringSet = new HashSet<>();
+        for (int i = 0; i < 6; ++i) {
+            String s = (String) iterator.next();
+            assertTrue(Long.parseLong(s.split(":")[1]) > 0);
+            stringSet.add(s.split(":")[0]);
+        }
+        assertEquals(stringSet.size(), 6);
     }
 
     private BulkResponse getBulkItemResponses() {
