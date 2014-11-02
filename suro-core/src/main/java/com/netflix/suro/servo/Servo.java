@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 public class Servo {
     private static final ConcurrentMap<MonitorConfig, Counter> counters = new ConcurrentHashMap<>();
     private static final ConcurrentMap<MonitorConfig, Timer> timers = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<MonitorConfig, NumberGauge> gauges = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<MonitorConfig, LongGauge> gauges = new ConcurrentHashMap<>();
 
     private Servo() {
     }
@@ -61,21 +61,17 @@ public class Servo {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends Number> T getNumberGauge(MonitorConfig config, T number) {
-        NumberGauge v = gauges.get(config);
-        if (v != null) return (T) v.getValue(0);
+    public static LongGauge getLongGauge(MonitorConfig config) {
+        LongGauge v = gauges.get(config);
+        if (v != null) return v;
         else {
-            NumberGauge gauge = new NumberGauge(config, number);
-            NumberGauge prev = gauges.putIfAbsent(config, gauge);
-            if (prev != null) return (T) prev.getValue(0);
+            LongGauge gauge = new LongGauge(config);
+            LongGauge prev = gauges.putIfAbsent(config, gauge);
+            if (prev != null) return prev;
             else {
                 DefaultMonitorRegistry.getInstance().register(gauge);
-                return (T) gauge.getValue(0);
+                return gauge;
             }
         }
-    }
-
-    public static <T extends Number> T getNumberGauge(String name, T number) {
-        return getNumberGauge(MonitorConfig.builder(name).build(), number);
     }
 }
