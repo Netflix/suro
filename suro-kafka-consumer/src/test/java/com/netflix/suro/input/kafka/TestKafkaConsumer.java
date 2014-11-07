@@ -1,21 +1,16 @@
 package com.netflix.suro.input.kafka;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
+import com.google.common.collect.ImmutableMap;
 import com.netflix.suro.input.SuroInput;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
-import com.netflix.suro.message.MessageSetReader;
-import com.netflix.suro.message.StringMessage;
 import com.netflix.suro.routing.MessageRouter;
-import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.kafka.KafkaServerExternalResource;
-import com.netflix.suro.sink.kafka.KafkaSink;
-import com.netflix.suro.sink.kafka.TestKafkaSink;
 import com.netflix.suro.sink.kafka.ZkExternalResource;
 import kafka.admin.TopicCommand;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -24,7 +19,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.util.Iterator;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -52,7 +46,7 @@ public class TestKafkaConsumer {
 
         ObjectMapper jsonMapper = new DefaultObjectMapper();
 
-        sendKafkaMessage(jsonMapper, kafkaServer.getBrokerListStr(), TOPIC_NAME);
+        sendKafkaMessage(kafkaServer.getBrokerListStr(), TOPIC_NAME);
 
         final CountDownLatch latch = new CountDownLatch(2);
 
@@ -105,7 +99,7 @@ public class TestKafkaConsumer {
         consumer.setPause(pauseTime);
         long start = System.currentTimeMillis();
 
-        sendKafkaMessage(jsonMapper, kafkaServer.getBrokerListStr(), TOPIC_NAME);
+        sendKafkaMessage(kafkaServer.getBrokerListStr(), TOPIC_NAME);
 
         latch1.await(1000 * 5 + pauseTime, TimeUnit.MILLISECONDS);
         long end = System.currentTimeMillis();
@@ -122,21 +116,12 @@ public class TestKafkaConsumer {
         consumer.shutdown();
     }
 
-    public static void sendKafkaMessage(ObjectMapper jsonMapper, String brokerList, String topicName) throws java.io.IOException, InterruptedException {
-        String description = "{\n" +
-                "    \"type\": \"kafka\",\n" +
-                "    \"client.id\": \"kafkasink\",\n" +
-                "    \"metadata.broker.list\": \"" + brokerList + "\",\n" +
-                "    \"request.required.acks\": 1\n" +
-                "}";
-
-        jsonMapper.registerSubtypes(new NamedType(KafkaSink.class, "kafka"));
-        KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
-        sink.open();
-        Iterator<Message> msgIterator = new MessageSetReader(TestKafkaSink.createMessageSet(topicName, 2)).iterator();
-        while (msgIterator.hasNext()) {
-            sink.writeTo(new StringMessage(msgIterator.next()));
-        }
-        sink.close();
+    public static void sendKafkaMessage(String brokerList, String topicName) throws java.io.IOException, InterruptedException {
+        KafkaProducer producer = new KafkaProducer
+                (new ImmutableMap.Builder<String, Object>()
+                        .put("client.id", "kakasink")
+                        .put("bootstrap.servers", brokerList).build());
+        producer.send(new ProducerRecord(topicName, null, new String("testMessage1").getBytes()));
+        producer.send(new ProducerRecord(topicName, null, new String("testMessage2").getBytes()));
     }
 }

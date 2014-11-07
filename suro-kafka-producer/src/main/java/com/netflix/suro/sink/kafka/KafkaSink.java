@@ -10,11 +10,14 @@ import com.google.common.collect.Maps;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.sink.Sink;
 import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.Metric;
+import org.apache.kafka.common.config.ConfigDef;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Properties;
 
@@ -41,6 +44,7 @@ public class KafkaSink implements Sink {
             @JsonProperty("bootstrap.servers") String bootstrapServers,
             @JsonProperty("acks") String acks,
             @JsonProperty("buffer.memory") long bufferMemory,
+            @JsonProperty("batch.size") int batchSize,
             @JsonProperty("compression.type") String compression,
             @JsonProperty("retries") int retries,
             @JsonProperty("block.on.buffer.full") boolean blockOnBufferFull,
@@ -61,6 +65,9 @@ public class KafkaSink implements Sink {
         if (bufferMemory > 0) {
             props.put("buffer.memory", bufferMemory);
         }
+        if (batchSize > 0) {
+            props.put("batch.size", batchSize);
+        }
         if (compression != null) {
             props.put("compression.type", compression);
         }
@@ -71,6 +78,15 @@ public class KafkaSink implements Sink {
         this.blockOnBufferFull = blockOnBufferFull;
         props.put("block.on.buffer.full", blockOnBufferFull);
         props.put("metric.reporters", Lists.newArrayList(ServoReporter.class.getName()));
+        try {
+            Field f = ProducerConfig.class.getDeclaredField("config");
+            f.setAccessible(true);
+            ConfigDef config = (ConfigDef) f.get(ConfigDef.class);
+            config.define(ServoReporter.class.getName(), ConfigDef.Type.CLASS, ServoReporter.class, ConfigDef.Importance.LOW, "");
+        } catch (Exception e) {
+            // swallow exception
+        }
+        props.put(ServoReporter.class.getName(), ServoReporter.class);
 
         if (etcProps != null) {
             props.putAll(etcProps);
@@ -91,7 +107,8 @@ public class KafkaSink implements Sink {
                 Map<String, Object> msgMap = message.getEntity(new TypeReference<Map<String, Object>>() {});
                 Object keyField = msgMap.get(keyTopicMap.get(message.getRoutingKey()));
                 if (keyField != null) {
-                    partition = Math.abs(keyField.hashCode() % numPartitions);
+                    long hashCode = keyField.hashCode();
+                    partition = Math.abs((int)(hashCode ^ (hashCode >>> 32))) % numPartitions;
                 }
             } catch (Exception e) {
                 log.error("Exception on getting key field: " + e.getMessage());

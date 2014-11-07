@@ -2,6 +2,9 @@ package com.netflix.suro;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.BeanProperty;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.common.collect.ImmutableMap;
@@ -17,9 +20,7 @@ import com.netflix.suro.sink.QueuedSink;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
 import com.netflix.suro.sink.elasticsearch.ElasticSearchSink;
-import com.netflix.suro.sink.kafka.KafkaServerExternalResource;
-import com.netflix.suro.sink.kafka.KafkaSink;
-import com.netflix.suro.sink.kafka.ZkExternalResource;
+import com.netflix.suro.sink.kafka.*;
 import kafka.admin.TopicCommand;
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -88,6 +89,16 @@ public class TestPauseOnLongQueueKafkaConsumer {
                         "--replication-factor", "2", "--partitions", "1"}));
 
         final ObjectMapper jsonMapper = new DefaultObjectMapper();
+        jsonMapper.setInjectableValues(new InjectableValues() {
+            @Override
+            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
+                if (valueId.equals(KafkaRetentionPartitioner.class.getName())) {
+                    return new KafkaRetentionPartitioner();
+                } else {
+                    return null;
+                }
+            }
+        });
 
         final KafkaSink kafkaSink = createKafkaProducer(jsonMapper, kafkaServer.getBrokerListStr());
 
@@ -172,8 +183,8 @@ public class TestPauseOnLongQueueKafkaConsumer {
         String description = "{\n" +
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
-                "    \"metadata.broker.list\": \"" + brokerListStr + "\",\n" +
-                "    \"request.required.acks\": 1\n" +
+                "    \"bootstrap.servers\": \"" + brokerListStr + "\",\n" +
+                "    \"acks\": 1\n" +
                 "}";
 
         jsonMapper.registerSubtypes(new NamedType(KafkaSink.class, "kafka"));

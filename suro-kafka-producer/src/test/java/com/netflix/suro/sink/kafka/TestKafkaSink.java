@@ -1,6 +1,9 @@
 package com.netflix.suro.sink.kafka;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.BeanProperty;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.common.collect.ImmutableMap;
@@ -22,6 +25,8 @@ import kafka.message.MessageAndMetadata;
 import kafka.message.MessageAndOffset;
 import kafka.server.KafkaConfig;
 import kafka.utils.ZkUtils;
+import org.apache.kafka.clients.producer.BufferExhaustedException;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -33,7 +38,8 @@ import scala.Option;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
 
@@ -53,6 +59,23 @@ public class TestKafkaSink {
     private static final String TOPIC_NAME_MULTITHREAD = "routingKeyMultithread";
     private static final String TOPIC_NAME_PARTITION_BY_KEY = "routingKey_partitionByKey";
 
+    private static ObjectMapper jsonMapper = new DefaultObjectMapper();
+
+    @BeforeClass
+    public static void startup() {
+        jsonMapper.registerSubtypes(new NamedType(KafkaSink.class, "kafka"));
+        jsonMapper.setInjectableValues(new InjectableValues() {
+            @Override
+            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
+                if (valueId.equals(KafkaRetentionPartitioner.class.getName())) {
+                    return new KafkaRetentionPartitioner();
+                } else {
+                    return null;
+                }
+            }
+        });
+    }
+
     @Test
     public void testDefaultParameters() throws IOException {
         TopicCommand.createTopic(zk.getZkClient(),
@@ -62,26 +85,25 @@ public class TestKafkaSink {
         String description = "{\n" +
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
-                "    \"metadata.broker.list\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"request.required.acks\": 1\n" +
+                "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
+                "    \"acks\": 1\n" +
                 "}";
 
-        ObjectMapper jsonMapper = new DefaultObjectMapper();
-        jsonMapper.registerSubtypes(new NamedType(KafkaSink.class, "kafka"));
+
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
         Iterator<Message> msgIterator = new MessageSetReader(createMessageSet(TOPIC_NAME, 2)).iterator();
         while (msgIterator.hasNext()) {
             sink.writeTo(new StringMessage(msgIterator.next()));
         }
-        Assert.assertTrue(sink.getNumOfPendingMessages() > 0);
+        assertTrue(sink.getNumOfPendingMessages() > 0);
         sink.close();
         assertEquals(sink.getNumOfPendingMessages(), 0);
         System.out.println(sink.getStat());
 
         // get the leader
         Option<Object> leaderOpt = ZkUtils.getLeaderForPartition(zk.getZkClient(), TOPIC_NAME, 0);
-        Assert.assertTrue("Leader for topic new-topic partition 0 should exist", leaderOpt.isDefined());
+        assertTrue("Leader for topic new-topic partition 0 should exist", leaderOpt.isDefined());
         int leader = (Integer) leaderOpt.get();
 
         KafkaConfig config;
@@ -94,10 +116,10 @@ public class TestKafkaSink {
         FetchResponse response = consumer.fetch(new FetchRequestBuilder().addFetch(TOPIC_NAME, 0, 0, 100000).build());
 
         List<MessageAndOffset> messageSet = Lists.newArrayList(response.messageSet(TOPIC_NAME, 0).iterator());
-        Assert.assertEquals("Should have fetched 2 messages", 2, messageSet.size());
+        assertEquals("Should have fetched 2 messages", 2, messageSet.size());
 
-        Assert.assertEquals(new String(extractMessage(messageSet, 0)), "testMessage" + 0);
-        Assert.assertEquals(new String(extractMessage(messageSet, 1)), "testMessage" + 1);
+        assertEquals(new String(extractMessage(messageSet, 0)), "testMessage" + 0);
+        assertEquals(new String(extractMessage(messageSet, 1)), "testMessage" + 1);
     }
 
     @Test
@@ -109,15 +131,12 @@ public class TestKafkaSink {
         String description = "{\n" +
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
-                "    \"metadata.broker.list\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"request.required.acks\": 1,\n" +
-                "    \"batchSize\": 10,\n" +
-                "    \"jobQueueSize\": 3\n" +
+                "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
+                "    \"acks\": 1\n" +
                 "}";
 
-        ObjectMapper jsonMapper = new DefaultObjectMapper();
-        jsonMapper.registerSubtypes(new NamedType(KafkaSink.class, "kafka"));
-        KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
+        KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>() {
+        });
         sink.open();
         int msgCount = 10000;
         for (int i = 0; i < msgCount; ++i) {
@@ -128,7 +147,7 @@ public class TestKafkaSink {
                     new Message(TOPIC_NAME_MULTITHREAD, jsonMapper.writeValueAsBytes(msgMap)),
                     jsonMapper));
         }
-        Assert.assertTrue(sink.getNumOfPendingMessages() > 0);
+        assertTrue(sink.getNumOfPendingMessages() > 0);
         sink.close();
         System.out.println(sink.getStat());
         assertEquals(sink.getNumOfPendingMessages(), 0);
@@ -145,7 +164,7 @@ public class TestKafkaSink {
 
         try {
             stream.iterator().next();
-            Assert.fail();
+            fail();
         } catch (ConsumerTimeoutException e) {
             //this is expected
             consumer.shutdown();
@@ -153,19 +172,13 @@ public class TestKafkaSink {
     }
 
     @Test
-    public void testFileBasedQueuePartitionByKey() throws Exception {
+    public void testPartitionByKey() throws Exception {
         int numPartitions = 9;
 
         TopicCommand.createTopic(zk.getZkClient(),
                 new TopicCommand.TopicCommandOptions(new String[]{
                         "--zookeeper", "dummy", "--create", "--topic", TOPIC_NAME_PARTITION_BY_KEY,
                         "--replication-factor", "2", "--partitions", Integer.toString(numPartitions)}));
-        String fileQueue = String.format(
-                "    \"queue4Sink\": {\n" +
-                "        \"type\": \"file\",\n" +
-                "        \"path\": \"%s\",\n" +
-                "        \"name\": \"testKafkaSink\"\n" +
-                "    }\n", tempDir.newFolder().getAbsolutePath());
         String keyTopicMap = String.format("   \"keyTopicMap\": {\n" +
                 "        \"%s\": \"key\"\n" +
                 "    }", TOPIC_NAME_PARTITION_BY_KEY);
@@ -173,14 +186,11 @@ public class TestKafkaSink {
         String description = "{\n" +
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
-                "    \"metadata.broker.list\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"request.required.acks\": 1,\n" +
-                fileQueue + ",\n" +
+                "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
+                "    \"acks\": 1,\n" +
                 keyTopicMap + "\n" +
                 "}";
 
-        ObjectMapper jsonMapper = new DefaultObjectMapper();
-        jsonMapper.registerSubtypes(new NamedType(KafkaSink.class, "kafka"));
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
 
@@ -221,14 +231,14 @@ public class TestKafkaSink {
             sizeSum += e.getValue().size();
             String key = (String) e.getValue().iterator().next().get("key");
             for (Map<String, Object> ss : e.getValue()) {
-                Assert.assertEquals(key, (String) ss.get("key"));
+                assertEquals(key, (String) ss.get("key"));
             }
         }
-        Assert.assertEquals(sizeSum, messageCount);
+        assertEquals(sizeSum, messageCount);
 
         try {
             stream.iterator().next();
-            Assert.fail();
+            fail();
         } catch (ConsumerTimeoutException e) {
             //this is expected
             consumer.shutdown();
@@ -236,51 +246,88 @@ public class TestKafkaSink {
     }
 
     @Test
-    public void testBlockingThreadPoolExecutor() {
-        int jobQueueSize = 5;
-        int corePoolSize = 3;
-        int maxPoolSize = 3;
+    public void testCheckPause() throws IOException, InterruptedException {
+        TopicCommand.createTopic(zk.getZkClient(),
+                new TopicCommand.TopicCommandOptions(new String[]{
+                        "--zookeeper", "dummy", "--create", "--topic", TOPIC_NAME + "check_pause",
+                        "--replication-factor", "2", "--partitions", "1"}));
+        String description = "{\n" +
+                "    \"type\": \"kafka\",\n" +
+                "    \"client.id\": \"kafkasink\",\n" +
+                "    \"bootstrap.servers\": \"localhost:2200,localhost:2201\",\n" +
+                "    \"acks\": 1,\n" +
+                "    \"buffer.memory\": 1000,\n" +
+                "    \"batch.size\": 1000\n" +
+                "}";
 
-        try {
-            testQueue(corePoolSize, maxPoolSize, new ArrayBlockingQueue<Runnable>(jobQueueSize));
-            Assert.fail("RejectedExecutionException should be thrown");
-        } catch (RejectedExecutionException e) {
-            // good to go
-        }
 
-        BlockingQueue<Runnable> jobQueue = new ArrayBlockingQueue<Runnable>(jobQueueSize) {
-            @Override
-            public boolean offer(Runnable runnable) {
-                try {
-                    put(runnable); // not to reject the task, slowing down
-                } catch (InterruptedException e) {
-                    // do nothing
-                }
-                return true;
-            }
-        };
-        testQueue(corePoolSize, maxPoolSize, jobQueue);
-    }
-
-    private void testQueue(int corePoolSize, int maxPoolSize, BlockingQueue<Runnable> jobQueue) {
-        ThreadPoolExecutor senders = new ThreadPoolExecutor(
-                corePoolSize,
-                maxPoolSize,
-                10, TimeUnit.SECONDS,
-                jobQueue);
+        final KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
+        sink.open();
+        boolean exceptionCaught = false;
+        boolean checkPaused = false;
+        boolean pending = false;
 
         for (int i = 0; i < 100; ++i) {
-            senders.execute(new Runnable() {
-                @Override
-                public void run() {
+            try {
+                sink.writeTo(new DefaultMessageContainer(new Message(TOPIC_NAME + "check_pause", getBigData()), jsonMapper));
+            } catch (BufferExhaustedException e) {
+                exceptionCaught = true;
+                if (sink.checkPause() > 0) {
+                    checkPaused = true;
+                }
+                if (sink.getNumOfPendingMessages() > 0) {
+                    pending = true;
+                }
+            } catch (Exception e) {
+                fail("invalid exception:" + e.toString());
+            }
+        }
+        assertTrue(exceptionCaught);
+        assertTrue(checkPaused);
+        assertTrue(pending);
+    }
+
+    @Test
+    public void testBlockingOnBufferFull() throws Throwable {
+        TopicCommand.createTopic(zk.getZkClient(),
+                new TopicCommand.TopicCommandOptions(new String[]{
+                        "--zookeeper", "dummy", "--create", "--topic", TOPIC_NAME + "buffer_full",
+                        "--replication-factor", "2", "--partitions", "1"}));
+        String description = "{\n" +
+                "    \"type\": \"kafka\",\n" +
+                "    \"client.id\": \"kafkasink\",\n" +
+                "    \"bootstrap.servers\": \"localhost:2200,localhost:2201\",\n" +
+                "    \"acks\": 1,\n" +
+                "    \"block.on.buffer.full\": true,\n" +
+                "    \"buffer.memory\": 1000,\n" +
+                "    \"batch.size\": 1000\n" +
+                "}";
+
+
+        final KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
+        sink.open();
+        final CountDownLatch latch = new CountDownLatch(1);
+        new Thread(new Runnable() {
+
+            @Override
+            public void run() {
+                for (int i = 0; i < 100; ++i) {
                     try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        Assert.fail();
+                        sink.writeTo(new DefaultMessageContainer(new Message(TOPIC_NAME + "buffer_full", getBigData()), jsonMapper));
+                    } catch (Exception e) {
+                        fail("exception thrown: " + e.toString());
+                    }
+                    if (i == 50) {
+                        kafkaServer.after(); // to simulate kafka latency
                     }
                 }
-            });
-        }
+                latch.countDown();
+            }
+        }).start();
+        latch.await(3, TimeUnit.SECONDS);
+        assertEquals(latch.getCount(), 1); // blocked
+
+        kafkaServer.before();
     }
 
     private static ConsumerConfig createConsumerConfig(String a_zookeeper, String a_groupId) {
@@ -309,5 +356,13 @@ public class TestKafkaSink {
         }
 
         return builder.build();
+    }
+
+    public byte[] getBigData() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 900; ++i) {
+            sb.append('a');
+        }
+        return sb.toString().getBytes();
     }
 }

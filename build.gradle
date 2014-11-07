@@ -102,7 +102,8 @@ project(':suro-client') {
     compile project(':suro-core')
 
     testCompile project(':suro-core').sourceSets.test.output
-    testCompile project(':suro-kafka')
+    testCompile project(':suro-kafka-producer')
+    testCompile project(':suro-kafka-consumer')
   }
 }
 
@@ -112,7 +113,8 @@ project(':suro-server') {
   dependencies {
     compile project(':suro-core')
     compile project(':suro-client')
-    compile project(':suro-kafka')
+    compile project(':suro-kafka-producer')
+    compile project(':suro-kafka-consumer')
     compile project(':suro-localfile')
     compile project(':suro-s3')
     compile project(':suro-elasticsearch')
@@ -127,7 +129,8 @@ project(':suro-server') {
     
     testCompile 'org.apache.curator:curator-test:2.4.2'
     testCompile project(':suro-client').sourceSets.test.output
-    testCompile project(':suro-kafka').sourceSets.test.output
+    testCompile project(':suro-kafka-producer').sourceSets.test.output
+    testCompile project(':suro-kafka-consumer').sourceSets.test.output
   }
 
   mainClassName = "com.netflix.suro.SuroServer"
@@ -161,23 +164,35 @@ project(':suro-integration-test') {
     testCompile project(':suro-server')
     testCompile project(':suro-client').sourceSets.test.output
     testCompile project(':suro-server').sourceSets.test.output
-    testCompile project(':suro-kafka').sourceSets.test.output
+    testCompile project(':suro-kafka-producer').sourceSets.test.output
+    testCompile project(':suro-kafka-consumer').sourceSets.test.output
     testCompile 'org.apache.curator:curator-test:2.4.2'
   }
 }
 
-project(':suro-kafka') {
+project(':suro-kafka-producer') {
   dependencies {
     compile project(':suro-core')
 
-    compile('org.apache.kafka:kafka_2.9.2:0.8.1.1') {
+    compile 'org.apache.kafka:kafka-clients:0.8.2-beta'
+
+    testCompile 'org.apache.curator:curator-test:2.4.2'
+    testCompile project(':suro-client')
+    testCompile project(':suro-kafka-consumer').sourceSets.test.output
+    testCompile project(':suro-kafka-consumer')
+  }
+}
+
+project(':suro-kafka-consumer') {
+  dependencies {
+    compile project(':suro-core')
+
+    compile('org.apache.kafka:kafka_2.9.2:0.8.2-beta') {
       exclude module: 'jms'
       exclude module: 'jmxtools'
       exclude module: 'jmxri'
       exclude module: 'zookeeper'
     }
-
-    compile files('lib/kafka-clients-0.8.2-SNAPSHOT.jar')
 
     testCompile 'org.apache.curator:curator-test:2.4.2'
     testCompile project(':suro-client')
