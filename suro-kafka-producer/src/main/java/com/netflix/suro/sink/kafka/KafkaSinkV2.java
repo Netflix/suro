@@ -26,9 +26,9 @@ import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.queue.MemoryQueue4Sink;
 import com.netflix.suro.queue.MessageQueue4Sink;
+import com.netflix.suro.sink.QueuedSink;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.ThreadPoolQueuedSink;
-import kafka.producer.DefaultPartitioner;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -69,9 +69,6 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
     private AtomicLong droppedCount = new AtomicLong(0);
     /** number of times a message send failed but was requeued */
     private AtomicLong requeuedCount = new AtomicLong(0);
-
-
-    private final DefaultPartitioner partitioner = new DefaultPartitioner(null); // old Scala partitioner
 
     @JsonCreator
     public KafkaSinkV2(
@@ -141,10 +138,10 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
                     key = keyField.hashCode();
                 }
             } catch (Exception e) {
-                log.error("Exception on getting key field: " + e.getMessage());
+                QueuedSink.log.error("Exception on getting key field: " + e.getMessage());
             }
         }
-        log.trace( "KafkaSink writeTo()" );
+        QueuedSink.log.trace( "KafkaSink writeTo()" );
         receivedCount.incrementAndGet();
         enqueue(new SuroKeyedMessage(key, message.getMessage()));
     }
@@ -160,7 +157,7 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
 
     @Override
     protected void write(List<Message> msgList) {
-        log.trace( "KafkaSink write() with {} messages", msgList.size() );
+        QueuedSink.log.trace( "KafkaSink write() with {} messages", msgList.size() );
         // prepare "final" copies of the messages to be used in the anonymous class below
         final ArrayList<SuroKeyedMessage> msgCopies = 
                 new ArrayList<SuroKeyedMessage>( msgList.size() );
@@ -183,21 +180,21 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
 
                     // calculate the kafka partition, with backward compatibility with old kafka producer
                     int numPartitions = producer.partitionsFor(topic).size();
-                    int partition = partitioner.partition(m.getKey(), numPartitions);
+                    int partition = Math.abs((int)(m.getKey() ^ (m.getKey() >>> 32))) % numPartitions;
 
                     ProducerRecord r = new ProducerRecord( topic,
                                                            partition,
                                                            null, // don't store the key
                                                            m.getPayload() );
-                    log.trace( "Will send message to Kafka" );
+                    QueuedSink.log.trace( "Will send message to Kafka" );
                     long startTimeMs = System.currentTimeMillis();
                     // send
                     Future<RecordMetadata> responseFtr = producer.send( r );
-                    log.trace( "Started aysnc producer" );
+                    QueuedSink.log.trace( "Started aysnc producer" );
                     boolean failure = true;
                     boolean retry = true;
                     if( responseFtr.isCancelled() ){
-                        log.warn( "Kafka producer request was cancelled" );
+                        QueuedSink.log.warn( "Kafka producer request was cancelled" );
                         // we assume that cancelled requests should not be retried.
                         retry = false;
                     }
@@ -205,38 +202,38 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
                         // wait for request to finish
                         RecordMetadata response = responseFtr.get();
                         if( response.topic() == null ){
-                            log.warn( "Kafka producer got null topic in response" );
+                            QueuedSink.log.warn( "Kafka producer got null topic in response" );
                         }
                         sentCount.incrementAndGet();
                         sentByteCount.addAndGet( m.getPayload().length );
                         failure = false;
                         retry = false;
-                    }catch (InterruptedException e) {
+                    } catch (InterruptedException e) {
                         // Assume that Interrupted means we're trying to shutdown so don't retry
-                        log.warn( "Caught InterruptedException: "+ e );
+                        QueuedSink.log.warn( "Caught InterruptedException: "+ e );
                         retry = false;
-                    }catch( UnknownTopicOrPartitionException e ){
-                        log.warn( "Caught UnknownTopicOrPartitionException for topic: " + m.getRoutingKey()
+                    } catch( UnknownTopicOrPartitionException e ){
+                        QueuedSink.log.warn( "Caught UnknownTopicOrPartitionException for topic: " + m.getRoutingKey()
                                   +" This may be simply because KafkaProducer does not yet have information about the brokers."
                                   +" Request will be retried.");
-                    }catch (ExecutionException e) {
-                        log.warn( "Caught ExecutionException: "+ e );
-                    }catch (Exception e){
-                        log.warn( "Caught Exception: "+e );
+                    } catch (ExecutionException e) {
+                        QueuedSink.log.warn( "Caught ExecutionException: "+ e );
+                    } catch (Exception e){
+                        QueuedSink.log.warn( "Caught Exception: "+e );
                     }
                     long durationMs = System.currentTimeMillis() - startTimeMs;
 
-                    if( failure ){
-                        log.warn( "Kafka producer send failed after {} milliseconds", durationMs );
+                    if (failure){
+                        QueuedSink.log.warn( "Kafka producer send failed after {} milliseconds", durationMs );
                         requeuedCount.incrementAndGet();
                         if( retry ){
                             enqueue( m );
                         }else{
-                            log.info("Dropped message");
+                            QueuedSink.log.info("Dropped message");
                             droppedCount.incrementAndGet();
                         }
-                    }else{
-                        log.trace( "Kafka producer send succeeded after {} milliseconds", durationMs );
+                    } else{
+                        QueuedSink.log.trace( "Kafka producer send succeeded after {} milliseconds", durationMs );
                     }
                 }
             });
