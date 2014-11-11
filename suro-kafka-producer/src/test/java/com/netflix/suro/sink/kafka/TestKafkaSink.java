@@ -255,7 +255,7 @@ public class TestKafkaSink {
         String description = "{\n" +
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
-                "    \"bootstrap.servers\": \"localhost:2200,localhost:2201\",\n" +
+                "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
                 "    \"acks\": 1,\n" +
                 "    \"buffer.memory\": 1000,\n" +
                 "    \"batch.size\": 1000\n" +
@@ -297,7 +297,7 @@ public class TestKafkaSink {
         String description = "{\n" +
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
-                "    \"bootstrap.servers\": \"localhost:2200,localhost:2201\",\n" +
+                "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
                 "    \"acks\": 1,\n" +
                 "    \"block.on.buffer.full\": true,\n" +
                 "    \"buffer.memory\": 1000,\n" +
