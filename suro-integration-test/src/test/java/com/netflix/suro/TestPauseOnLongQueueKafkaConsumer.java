@@ -20,7 +20,10 @@ import com.netflix.suro.sink.QueuedSink;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
 import com.netflix.suro.sink.elasticsearch.ElasticSearchSink;
-import com.netflix.suro.sink.kafka.*;
+import com.netflix.suro.sink.kafka.KafkaRetentionPartitioner;
+import com.netflix.suro.sink.kafka.KafkaServerExternalResource;
+import com.netflix.suro.sink.kafka.KafkaSink;
+import com.netflix.suro.sink.kafka.ZkExternalResource;
 import kafka.admin.TopicCommand;
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -138,7 +141,7 @@ public class TestPauseOnLongQueueKafkaConsumer {
         properties.setProperty("auto.offset.reset", "smallest");
 
         properties.setProperty("consumer.timeout.ms", "1000");
-        KafkaConsumer consumer = new KafkaConsumer(properties, TOPIC_NAME, router, jsonMapper);
+        KafkaConsumer consumer = new KafkaConsumer(properties, TOPIC_NAME, 1, router, jsonMapper);
 
         consumer.start();
 
