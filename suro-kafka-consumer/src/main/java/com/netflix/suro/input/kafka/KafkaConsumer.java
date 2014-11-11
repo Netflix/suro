@@ -16,6 +16,7 @@ import kafka.javaapi.consumer.ConsumerConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -35,16 +36,16 @@ public class KafkaConsumer implements SuroInput {
     private final ObjectMapper jsonMapper;
 
     private ConsumerConnector connector;
-    private ConsumerIterator<byte[], byte[]> stream;
-    private ExecutorService executor = Executors.newSingleThreadExecutor(
-            new ThreadFactoryBuilder().setNameFormat("KafkaConsumer-%d").build());
-    private Future<?> runner = null;
+    private ExecutorService executor;
+    private final int readers;
+    private List<Future<?>> runners = new ArrayList<Future<?>>();
     private volatile boolean running = false;
 
     @JsonCreator
     public KafkaConsumer(
             @JsonProperty("consumerProps") Properties consumerProps,
             @JsonProperty("topic") String topic,
+            @JsonProperty("readers") int readers,
             @JacksonInject MessageRouter router,
             @JacksonInject ObjectMapper jsonMapper
     ) {
@@ -58,6 +59,7 @@ public class KafkaConsumer implements SuroInput {
 
         this.consumerProps = consumerProps;
         this.topic = topic;
+        this.readers = readers == 0 ? 1 : readers;
         this.router = router;
         this.jsonMapper = jsonMapper;
     }
@@ -71,40 +73,45 @@ public class KafkaConsumer implements SuroInput {
 
     @Override
     public void start() throws Exception {
+        executor = Executors.newCachedThreadPool(
+                new ThreadFactoryBuilder().setNameFormat("KafkaConsumer-%d").build());
         connector = Consumer.createJavaConsumerConnector(new ConsumerConfig(consumerProps));
 
-        final Map<String, List<KafkaStream<byte[], byte[]>>> streams = connector.createMessageStreams(ImmutableMap.of(topic, 1));
+        final Map<String, List<KafkaStream<byte[], byte[]>>> streams = connector.createMessageStreams(ImmutableMap.of(topic, readers));
 
         final List<KafkaStream<byte[], byte[]>> streamList = streams.get(topic);
-        if (streamList == null || streamList.size() != 1) {
+        if (streamList == null) {
             throw new RuntimeException(topic + " is not valid");
         }
 
-        stream = streamList.get(0).iterator();
-
         running = true;
-        runner = executor.submit(new Runnable() {
-            @Override
-            public void run() {
-                while (running) {
-                    try {
-                        long pause = pausedTime.get();
-                        if (pause > 0) {
-                            Thread.sleep(pause);
-                            pausedTime.addAndGet(-pause);
+        for (KafkaStream<byte[], byte[]> stream : streamList) {
+            final ConsumerIterator<byte[], byte[]> iterator = stream.iterator();
+            runners.add(
+                    executor.submit(new Runnable() {
+                        @Override
+                        public void run() {
+                            while (running) {
+                                try {
+                                    long pause = pausedTime.get();
+                                    if (pause > 0) {
+                                        Thread.sleep(pause);
+                                        pausedTime.addAndGet(-pause);
+                                    }
+                                    byte[] message = iterator.next().message();
+                                    router.process(
+                                            KafkaConsumer.this,
+                                            new DefaultMessageContainer(new Message(topic, message), jsonMapper));
+                                } catch (ConsumerTimeoutException timeoutException) {
+                                    // do nothing
+                                } catch (Exception e) {
+                                    log.error("Exception on consuming kafka with topic: " + topic, e);
+                                }
+                            }
                         }
-                        byte[] message = stream.next().message();
-                        router.process(
-                                KafkaConsumer.this,
-                                new DefaultMessageContainer(new Message(topic, message), jsonMapper));
-                    } catch (ConsumerTimeoutException timeoutException) {
-                        // do nothing
-                    } catch (Exception e) {
-                        log.error("Exception on consuming kafka with topic: " + topic, e);
-                    }
-                }
-            }
-        });
+                    })
+            );
+        }
     }
 
     @Override
@@ -121,7 +128,9 @@ public class KafkaConsumer implements SuroInput {
     private void stop() {
         running = false;
         try {
-            runner.get();
+            for (Future<?> runner : runners) {
+                runner.get();
+            }
         } catch (InterruptedException e) {
             // do nothing
         } catch (ExecutionException e) {

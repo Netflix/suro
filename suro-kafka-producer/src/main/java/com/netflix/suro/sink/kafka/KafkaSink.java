@@ -41,10 +41,13 @@ public class KafkaSink implements Sink {
     @JsonCreator
     public KafkaSink(
             @JsonProperty("client.id") String clientId,
+            @JsonProperty("metadata.broker.list") String brokerList,
             @JsonProperty("bootstrap.servers") String bootstrapServers,
+            @JsonProperty("request.required.acks") Integer requiredAcks,
             @JsonProperty("acks") String acks,
             @JsonProperty("buffer.memory") long bufferMemory,
             @JsonProperty("batch.size") int batchSize,
+            @JsonProperty("compression.codec") String codec,
             @JsonProperty("compression.type") String compression,
             @JsonProperty("retries") int retries,
             @JsonProperty("block.on.buffer.full") boolean blockOnBufferFull,
@@ -52,15 +55,15 @@ public class KafkaSink implements Sink {
             @JsonProperty("keyTopicMap") Map<String, String> keyTopicMap,
             @JacksonInject KafkaRetentionPartitioner retentionPartitioner
     ) {
-        Preconditions.checkNotNull(bootstrapServers);
+        Preconditions.checkArgument(bootstrapServers != null | brokerList != null);
         Preconditions.checkNotNull(clientId);
 
         props = new Properties();
         props.put("client.id", clientId);
-        props.put("bootstrap.servers", bootstrapServers);
+        props.put("bootstrap.servers", brokerList != null ? brokerList : bootstrapServers);
 
-        if (acks != null) {
-            props.put("acks", acks);
+        if (acks != null || requiredAcks != null) {
+            props.put("acks", requiredAcks != null ? requiredAcks.toString() : acks);
         }
         if (bufferMemory > 0) {
             props.put("buffer.memory", bufferMemory);
@@ -68,8 +71,8 @@ public class KafkaSink implements Sink {
         if (batchSize > 0) {
             props.put("batch.size", batchSize);
         }
-        if (compression != null) {
-            props.put("compression.type", compression);
+        if (compression != null || codec != null) {
+            props.put("compression.type", codec != null ? codec : compression);
         }
         if (retries > 0) {
             props.put("retries", retries);
@@ -77,7 +80,20 @@ public class KafkaSink implements Sink {
 
         this.blockOnBufferFull = blockOnBufferFull;
         props.put("block.on.buffer.full", blockOnBufferFull);
+        setServoReporter();
+
+        if (etcProps != null) {
+            props.putAll(etcProps);
+        }
+
+        this.keyTopicMap = keyTopicMap != null ? keyTopicMap : Maps.<String, String>newHashMap();
+
+        this.retentionPartitioner = retentionPartitioner;
+    }
+
+    private void setServoReporter() {
         props.put("metric.reporters", Lists.newArrayList(ServoReporter.class.getName()));
+        // this should be needed because ProducerConfig cannot retrieve undefined key
         try {
             Field f = ProducerConfig.class.getDeclaredField("config");
             f.setAccessible(true);
@@ -87,14 +103,6 @@ public class KafkaSink implements Sink {
             // swallow exception
         }
         props.put(ServoReporter.class.getName(), ServoReporter.class);
-
-        if (etcProps != null) {
-            props.putAll(etcProps);
-        }
-
-        this.keyTopicMap = keyTopicMap != null ? keyTopicMap : Maps.<String, String>newHashMap();
-
-        this.retentionPartitioner = retentionPartitioner;
     }
 
     @Override
@@ -160,10 +168,12 @@ public class KafkaSink implements Sink {
 
     @Override
     public long checkPause() {
-        if (!blockOnBufferFull) {
+        if (blockOnBufferFull) {
+            return 0; // do not pause here, will be blocked
+        } else {
             double consumedMemory =
                     producer.metrics().get("buffer-total-bytes").value()
-                    - producer.metrics().get("buffer-available-bytes").value();
+                            - producer.metrics().get("buffer-available-bytes").value();
             double memoryRate = consumedMemory / producer.metrics().get("buffer-total-bytes").value();
             if (memoryRate >= 0.5) {
                 double throughputRate = Math.max(producer.metrics().get("outgoing-byte-rate").value(), 1.0);
@@ -171,8 +181,6 @@ public class KafkaSink implements Sink {
             } else {
                 return 0;
             }
-        } else {
-            return 0; // do not pause here, it will be blocked
         }
     }
 }
