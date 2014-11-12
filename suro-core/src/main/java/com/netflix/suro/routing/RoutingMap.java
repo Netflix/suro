@@ -116,7 +116,12 @@ public class RoutingMap {
     private volatile RoutingInfo defaultRoutingInfo = null;
 
     public RoutingInfo getRoutingInfo(String routingKey) {
-        return routingMap.getOrDefault(routingKey, defaultRoutingInfo);
+        RoutingInfo info = routingMap.get(routingKey);
+        if(info == null) {
+            info = defaultRoutingInfo;
+        }
+
+        return info;
     }
 
     public void set(Map<String, RoutingInfo> routes) {
