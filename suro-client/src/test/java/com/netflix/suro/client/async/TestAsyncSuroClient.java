@@ -37,9 +37,11 @@ import org.junit.rules.TemporaryFolder;
 
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class TestAsyncSuroClient {
     @Rule
@@ -97,14 +99,15 @@ public class TestAsyncSuroClient {
 
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
 
-        for (int i = 0; i < 3000; ++i) {
+        int messageCount = 10;
+        for (int i = 0; i < messageCount; ++i) {
             client.send(new Message("routingKey", "testMessage".getBytes()));
         }
 
         client.shutdown();
-        TestConnectionPool.checkMessageCount(servers, 3000);
+        TestConnectionPool.checkMessageCount(servers, messageCount);
 
-        assertEquals(client.getSentMessageCount(), 3000);
+        assertEquals(client.getSentMessageCount(), messageCount);
     }
 
     @Test
@@ -113,77 +116,76 @@ public class TestAsyncSuroClient {
 
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
 
-        for (int i = 0; i < 3000; ++i) {
+        int messageCount = 10;
+        for (int i = 0; i < messageCount; ++i) {
             client.send(new Message("routingKey", "testMessage".getBytes()));
         }
 
         client.shutdown();
-        TestConnectionPool.checkMessageCount(servers, 3000);
+        TestConnectionPool.checkMessageCount(servers, messageCount);
 
-        assertEquals(client.getSentMessageCount(), 3000);
+        assertEquals(client.getSentMessageCount(), messageCount);
     }
 
     @Test
     public void testRestore() throws Exception {
         Properties props = new Properties();
-        props.setProperty(ClientConfig.ASYNC_JOBQUEUE_CAPACITY, "3");
+        props.setProperty(ClientConfig.RETRY_COUNT, "1");
+        props.setProperty(ClientConfig.ASYNC_TIMEOUT, "1");
         setupFile(props);
 
+        int messageCount = 30;
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
+
+        final CountDownLatch restoreLatch = new CountDownLatch(messageCount / 10);
+        final CountDownLatch sentLatch = new CountDownLatch(messageCount);
+        client.addListener(new AsyncSuroClient.Listener() {
+            @Override
+            public void sentCallback(int count) {
+                for (int i = 0; i < count; ++i) {
+                    sentLatch.countDown();
+                }
+            }
+
+            @Override
+            public void restoredCallback() {
+                restoreLatch.countDown();
+            }
+
+            @Override
+            public void lostCallback(int count) {
+                fail("should not be lost");
+            }
+
+            @Override
+            public void retriedCallback() {
+
+            }
+        });
 
         for (SuroServer4Test c : servers) {
             c.setTryLater();
         }
 
-        int messageCount = 300;
         for (int i = 0; i < messageCount; ++i) {
             client.send(new Message("routingKey", "testMessage".getBytes()));
         }
 
-        // wait until some messages are restored
-        while (client.getRestoredMessageCount() < messageCount / 3) {
-            System.out.println("restored: " + client.getRestoredMessageCount());
-            Thread.sleep(1000);
-        }
+        restoreLatch.await(10, TimeUnit.SECONDS);
+        assertEquals(restoreLatch.getCount(), 0);
 
         for (SuroServer4Test c : servers) {
             c.cancelTryLater();
         }
         injector.getInstance(ConnectionPool.class).populateClients();
 
-        // wait until alll messages are sent
-        while (client.getSentMessageCount() < messageCount) {
-            System.out.println("sent: " + client.getSentMessageCount());
-            Thread.sleep(1000);
-        }
+        sentLatch.await(60, TimeUnit.SECONDS);
+        assertEquals(client.getSentMessageCount(), messageCount);
+        assertEquals(client.getLostMessageCount(), 0);
 
         client.shutdown();
-        assertEquals(client.getLostMessageCount(), 0);
-        assertEquals(client.getSentMessageCount(), messageCount);
 
         TestConnectionPool.checkMessageCount(servers, messageCount);
-    }
-
-    @Test
-    public void testRateLimit() throws Exception {
-        Properties props = new Properties();
-        props.put(AsyncSuroClient.asyncRateLimitConfig, "10");
-
-        setupFile(props);
-
-        AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
-
-        long start = System.currentTimeMillis();
-        for (int i = 0; i < 100; ++i) {
-            client.send(new Message("routingKey", "testMessage".getBytes()));
-        }
-
-        while (client.getSentMessageCount() < 100) {
-            Thread.sleep(100);
-        }
-
-        long duration = System.currentTimeMillis() - start;
-        assertTrue(duration >= 5000);
     }
 
     @Test

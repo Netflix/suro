@@ -16,6 +16,7 @@
 
 package com.netflix.suro.client;
 
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
@@ -24,6 +25,7 @@ import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.TagKey;
+import com.netflix.suro.client.async.AsyncSuroClient;
 import com.netflix.suro.connection.ConnectionPool;
 import com.netflix.suro.message.Compression;
 import com.netflix.suro.message.Message;
@@ -35,6 +37,7 @@ import com.netflix.suro.thrift.TMessageSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -58,13 +61,12 @@ public class SyncSuroClient implements ISuroClient {
         Monitors.registerObject(this);
     }
 
-    @Monitor(name = TagKey.SENT_COUNT, type = DataSourceType.COUNTER)
     private AtomicLong sentMessageCount = new AtomicLong(0);
     @Override
     public long getSentMessageCount() {
         return sentMessageCount.get();
     }
-    @Monitor(name = TagKey.LOST_COUNT, type = DataSourceType.COUNTER)
+
     private AtomicLong lostMessageCount = new AtomicLong(0);
     @Override
     public long getLostMessageCount() {
@@ -76,11 +78,11 @@ public class SyncSuroClient implements ISuroClient {
         return 0;
     }
 
-    @Monitor(name = TagKey.RETRIED_COUNT, type = DataSourceType.COUNTER)
     private AtomicLong retriedCount = new AtomicLong(0);
     public long getRetriedCount() {
         return retriedCount.get();
     }
+
     @Monitor(name = "senderExceptionCount", type = DataSourceType.COUNTER)
     private AtomicLong senderExceptionCount = new AtomicLong(0);
 
@@ -90,6 +92,8 @@ public class SyncSuroClient implements ISuroClient {
                 .withCompression(compression)
                 .withMessage(message.getRoutingKey(), message.getPayload()).build());
     }
+
+    private List<AsyncSuroClient.Listener> emptyList = Lists.newArrayList();
 
     public boolean send(TMessageSet messageSet) {
         if (messageSet == null) {
@@ -124,19 +128,19 @@ public class SyncSuroClient implements ISuroClient {
 
         MessageSetReader reader = new MessageSetReader(messageSet);
         if (sent) {
-            sentMessageCount.addAndGet(incrementMessageCount(TagKey.SENT_COUNT, config.getApp(), reader));
+            sentMessageCount.addAndGet(incrementMessageCount(TagKey.SENT_COUNT, config.getApp(), reader, emptyList));
             if (retried) {
                 retriedCount.incrementAndGet();
             }
 
         } else {
-            lostMessageCount.addAndGet(incrementMessageCount(TagKey.LOST_COUNT, config.getApp(), reader));
+            lostMessageCount.addAndGet(incrementMessageCount(TagKey.LOST_COUNT, config.getApp(), reader, emptyList));
         }
 
         return sent;
     }
 
-    public static int incrementMessageCount(String counterName, String app, Iterable<Message> messages) {
+    public static int incrementMessageCount(String counterName, String app, Iterable<Message> messages, List<AsyncSuroClient.Listener> listeners) {
         int count = 0;
         for (Message message : messages) {
             DynamicCounter.increment(
@@ -145,6 +149,10 @@ public class SyncSuroClient implements ISuroClient {
                             .withTag(TagKey.DATA_SOURCE, message.getRoutingKey())
                             .build());
             ++count;
+        }
+
+        for (AsyncSuroClient.Listener listener : listeners) {
+            listener.sentCallback(count);
         }
 
         return count;

@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.PreDestroy;
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -70,7 +71,6 @@ public class AsyncSuroClient implements ISuroClient {
         return messageQueue.size();
     }
 
-    @Monitor(name = TagKey.SENT_COUNT, type = DataSourceType.COUNTER)
     private AtomicLong sentMessages = new AtomicLong(0);
     @Override
     public long getSentMessageCount() {
@@ -154,6 +154,9 @@ public class AsyncSuroClient implements ISuroClient {
                             .withTag(TagKey.APP, config.getApp())
                             .withTag(TagKey.DATA_SOURCE, message.getRoutingKey())
                             .build());
+            for (Listener listener : listeners) {
+                listener.lostCallback(1);
+            }
         }
     }
 
@@ -164,6 +167,9 @@ public class AsyncSuroClient implements ISuroClient {
                         .withTag(TagKey.APP, config.getApp())
                         .withTag(TagKey.DATA_SOURCE, message.getRoutingKey())
                         .build());
+        for (Listener listener : listeners) {
+            listener.restoredCallback();
+        }
         send(message);
     }
 
@@ -250,9 +256,13 @@ public class AsyncSuroClient implements ISuroClient {
                 SyncSuroClient.incrementMessageCount(
                         TagKey.SENT_COUNT,
                         config.getApp(),
-                        new MessageSetReader(messageSet)));
+                        new MessageSetReader(messageSet),
+                        listeners));
         if (retried) {
             retriedCount.incrementAndGet();
+            for (Listener listener : listeners) {
+                listener.retriedCallback();
+            }
         }
     }
 
@@ -264,5 +274,17 @@ public class AsyncSuroClient implements ISuroClient {
     private AtomicLong senderExceptionCount = new AtomicLong(0);
     public void updateSenderException() {
         senderExceptionCount.incrementAndGet();
+    }
+
+    public static interface Listener {
+        void sentCallback(int count);
+        void restoredCallback();
+        void lostCallback(int count);
+        void retriedCallback();
+    }
+
+    private List<Listener> listeners = new CopyOnWriteArrayList<>();
+    public void addListener(Listener listener) {
+        listeners.add(listener);
     }
 }
