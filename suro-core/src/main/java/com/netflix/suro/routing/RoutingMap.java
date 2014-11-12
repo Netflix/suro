@@ -28,13 +28,15 @@ import java.util.Map;
 
 /**
  * A collection of {@link RoutingInfo}, each of which is mapped to a routing key.
- * 
+ *
  * @author jbae
  * @author elandau
  *
  */
 @Singleton
 public class RoutingMap {
+    public static final String KEY_FOR_DEFAULT_ROUTING = "__default__";
+
     public static class Route {
         public static final String JSON_PROPERTY_SINK = "sink";
         public static final String JSON_PROPERTY_FILTER = "filter";
@@ -43,12 +45,12 @@ public class RoutingMap {
         private final String sink;
         private final Filter filter;
         private final String alias;
-        
+
         @JsonCreator
         public Route(
-               @JsonProperty(JSON_PROPERTY_SINK) String sink,
-               @JsonProperty(JSON_PROPERTY_FILTER) Filter filter,
-               @JsonProperty(JSON_PROPERTY_ALIAS) String alias) {
+            @JsonProperty(JSON_PROPERTY_SINK) String sink,
+            @JsonProperty(JSON_PROPERTY_FILTER) Filter filter,
+            @JsonProperty(JSON_PROPERTY_ALIAS) String alias) {
             this.sink   = sink;
             this.filter = filter;
             this.alias = alias;
@@ -66,13 +68,13 @@ public class RoutingMap {
 
         @JsonProperty(JSON_PROPERTY_ALIAS)
         public String getAlias() { return alias; }
-        
+
         public boolean doFilter(MessageContainer message) throws Exception {
             return filter == null || filter.doFilter(message);
         }
 
     }
-    
+
     public static class RoutingInfo {
         public static final String JSON_PROPERTY_WHERE = "where";
         public static final String JSON_PROPERTY_FILTER = "filter";
@@ -81,16 +83,16 @@ public class RoutingMap {
 
         @JsonCreator
         public RoutingInfo(
-                @JsonProperty(JSON_PROPERTY_WHERE) List<Route> where,
-                @JsonProperty(JSON_PROPERTY_FILTER) Filter filter
+            @JsonProperty(JSON_PROPERTY_WHERE) List<Route> where,
+            @JsonProperty(JSON_PROPERTY_FILTER) Filter filter
         ) {
             this.where  = where;
             this.filter = filter;
         }
 
         @JsonProperty(JSON_PROPERTY_WHERE)
-        public List<Route> getWhere() { 
-            return where; 
+        public List<Route> getWhere() {
+            return where;
         }
 
         @JsonProperty(JSON_PROPERTY_FILTER)
@@ -109,18 +111,22 @@ public class RoutingMap {
             return filter == null || filter.doFilter(message);
         }
     }
-    
-    private volatile Map<String, RoutingInfo> routingMap = Maps.newHashMap();
+
+    private volatile ImmutableMap<String, RoutingInfo> routingMap = ImmutableMap.of();
+    private volatile RoutingInfo defaultRoutingInfo = null;
 
     public RoutingInfo getRoutingInfo(String routingKey) {
-        return routingMap.get(routingKey);
+        return routingMap.getOrDefault(routingKey, defaultRoutingInfo);
     }
 
     public void set(Map<String, RoutingInfo> routes) {
-        this.routingMap = ImmutableMap.copyOf(routes);
+        // We assume only a single thread will call this method, so
+        // there's no need to synchronize this method
+        routingMap = ImmutableMap.copyOf(routes);
+        defaultRoutingInfo = routingMap.get(KEY_FOR_DEFAULT_ROUTING);
     }
 
     public Map<String, RoutingInfo> getRoutingMap() {
-        return ImmutableMap.copyOf(routingMap);
+        return routingMap;
     }
 }
