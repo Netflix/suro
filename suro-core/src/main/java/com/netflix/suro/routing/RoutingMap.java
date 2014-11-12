@@ -35,6 +35,8 @@ import java.util.Map;
  */
 @Singleton
 public class RoutingMap {
+    public static final String KEY_FOR_DEFAULT_ROUTING = "__default__";
+
     public static class Route {
         public static final String JSON_PROPERTY_SINK = "sink";
         public static final String JSON_PROPERTY_FILTER = "filter";
@@ -110,17 +112,19 @@ public class RoutingMap {
         }
     }
     
-    private volatile Map<String, RoutingInfo> routingMap = Maps.newHashMap();
+    private volatile ImmutableMap<String, RoutingInfo> routingMap = ImmutableMap.of();
+    private volatile RoutingInfo defaultRoutingInfo = null;
 
     public RoutingInfo getRoutingInfo(String routingKey) {
-        return routingMap.get(routingKey);
+        return routingMap.getOrDefault(routingKey, defaultRoutingInfo);
     }
 
     public void set(Map<String, RoutingInfo> routes) {
-        this.routingMap = ImmutableMap.copyOf(routes);
+        routingMap = ImmutableMap.copyOf(routes);
+        defaultRoutingInfo = routingMap.get(KEY_FOR_DEFAULT_ROUTING);
     }
 
     public Map<String, RoutingInfo> getRoutingMap() {
-        return ImmutableMap.copyOf(routingMap);
+        return routingMap;
     }
 }
