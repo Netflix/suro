@@ -29,6 +29,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Arrays;
+import java.util.HashSet;
 
 import static org.junit.Assert.assertEquals;
 
@@ -78,6 +80,7 @@ public class TestStatusServer {
             e.printStackTrace();
         }
 
-        assertEquals(sb.toString(), "sink1:sink1 open\n\ndefault:default open\n\n");
+        // The order of output lines may change due to implementation of the Map instance. Therefore, we should ignore order of output lines
+        assertEquals(new HashSet<>(Arrays.asList(sb.toString().trim().split("\\n+"))), new HashSet<>(Arrays.asList("sink1:sink1 open\n\ndefault:default open\n\n".trim().split("\\n+"))));
     }
 }
