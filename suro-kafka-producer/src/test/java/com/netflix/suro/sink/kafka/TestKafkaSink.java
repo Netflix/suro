@@ -308,6 +308,7 @@ public class TestKafkaSink {
         final KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
         final CountDownLatch latch = new CountDownLatch(1);
+        final CountDownLatch shutdownLatch = new CountDownLatch(1);
         new Thread(new Runnable() {
 
             @Override
@@ -319,7 +320,11 @@ public class TestKafkaSink {
                         fail("exception thrown: " + e.toString());
                     }
                     if (i == 50) {
-                        kafkaServer.after(); // to simulate kafka latency
+                        try{
+                            kafkaServer.after(); // to simulate kafka latency
+                        }finally {
+                            shutdownLatch.countDown();
+                        }
                     }
                 }
                 latch.countDown();
@@ -328,6 +333,8 @@ public class TestKafkaSink {
         latch.await(3, TimeUnit.SECONDS);
         assertEquals(latch.getCount(), 1); // blocked
 
+        // Make sure the kafka server is restarted only if shutdown is successful.
+        shutdownLatch.await();
         kafkaServer.before();
     }
 
