@@ -104,7 +104,6 @@ project(':suro-client') {
 
     testCompile project(':suro-core').sourceSets.test.output
     testCompile project(':suro-kafka-producer')
-    testCompile project(':suro-kafka-consumer')
   }
 }
 
@@ -121,7 +120,5 @@ project(':suro-kafka-producer') {
 
     testCompile 'org.apache.curator:curator-test:2.4.2'
     testCompile project(':suro-client')
-    testCompile project(':suro-kafka-consumer').sourceSets.test.output
-    testCompile project(':suro-kafka-consumer')
   }
 }
