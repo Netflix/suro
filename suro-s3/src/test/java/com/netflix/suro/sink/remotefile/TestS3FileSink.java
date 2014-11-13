@@ -28,7 +28,6 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.message.StringMessage;
-import com.netflix.suro.queue.TrafficController;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.localfile.LocalFileSink;
 import com.netflix.suro.sink.localfile.LocalFileSink.SpaceChecker;
@@ -330,7 +329,6 @@ public class TestS3FileSink {
                         } catch (Exception e) {
                             Assert.fail(e.getMessage());
                         }
-                        bind(TrafficController.class).toInstance(mock(TrafficController.class));
                         bind(SpaceChecker.class).toInstance(mock(SpaceChecker.class));
                     }
             }

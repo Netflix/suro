@@ -12,8 +12,16 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.sink.Sink;
+import org.apache.commons.collections.iterators.ArrayIterator;
+import org.elasticsearch.action.ActionFuture;
+import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.count.CountResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
@@ -22,15 +30,16 @@ import org.joda.time.DateTime;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.*;
 
 public class TestElasticSearchSink {
     private static Node node;
@@ -57,6 +66,16 @@ public class TestElasticSearchSink {
 
     @Test
     public void testDefaultArgument() throws JsonProcessingException {
+        String index = "topic";
+
+        createDefaultESSink(index);
+
+        node.client().admin().indices().prepareRefresh(index).execute().actionGet();
+        CountResponse response = node.client().prepareCount(index).execute().actionGet();
+        assertEquals(response.getCount(), 100);
+    }
+
+    private ElasticSearchSink createDefaultESSink(String index) throws JsonProcessingException {
         ObjectMapper jsonMapper = new DefaultObjectMapper();
         ElasticSearchSink sink = new ElasticSearchSink(
                 null,
@@ -68,7 +87,7 @@ public class TestElasticSearchSink {
                 "1s",
                 null,
                 null,
-                0,0,0,0,
+                0,0,0,0,false,null,
                 null,
                 jsonMapper,
                 node.client()
@@ -84,16 +103,11 @@ public class TestElasticSearchSink {
                 .put("ts", dt.getMillis())
                 .build();
 
-        String routingKey = "topic";
-        String index = "topic";
         for (int i = 0; i < 100; ++i) {
-            sink.writeTo(new DefaultMessageContainer(new Message(routingKey, jsonMapper.writeValueAsBytes(msg)), jsonMapper));
+            sink.writeTo(new DefaultMessageContainer(new Message(index, jsonMapper.writeValueAsBytes(msg)), jsonMapper));
         }
         sink.close();
-
-        node.client().admin().indices().prepareRefresh(index).execute().actionGet();
-        CountResponse response = node.client().prepareCount(index).execute().actionGet();
-        assertEquals(response.getCount(), 100);
+        return sink;
     }
 
     @Test
@@ -117,7 +131,7 @@ public class TestElasticSearchSink {
                         new IndexSuffixFormatter("date", props),
                         null,
                         jsonMapper),
-                0,0,0,0,
+                0,0,0,0,false,null,
                 null,
                 jsonMapper,
                 node.client()
@@ -200,7 +214,7 @@ public class TestElasticSearchSink {
                 "1s",
                 null,
                 null,
-                0,0,0,0,
+                0,0,0,0,false,null,
                 null,
                 jsonMapper,
                 node.client()
@@ -230,5 +244,153 @@ public class TestElasticSearchSink {
         node.client().admin().indices().prepareRefresh(index).execute().actionGet();
         CountResponse response = node.client().prepareCount(index).execute().actionGet();
         assertEquals(response.getCount(), 100);
+    }
+
+    private ObjectMapper jsonMapper = new DefaultObjectMapper();
+
+    @Test
+    public void testStat() throws JsonProcessingException, InterruptedException {
+        final long ts = System.currentTimeMillis() - 1;
+
+        IndexInfoBuilder indexInfo = mock(IndexInfoBuilder.class);
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                final Message m = (Message) invocation.getArguments()[0];
+                if (m.getRoutingKey().startsWith("parsing_failed")) {
+                    return null;
+                } else {
+                    return new IndexInfo() {
+                        @Override
+                        public String getIndex() {
+                            return m.getRoutingKey();
+                        }
+
+                        @Override
+                        public String getType() {
+                            return "type";
+                        }
+
+                        @Override
+                        public byte[] getSource() {
+                            return m.getPayload();
+                        }
+
+                        @Override
+                        public String getId() {
+                            return null;
+                        }
+
+                        @Override
+                        public long getTimestamp() {
+                            return ts;
+                        }
+                    };
+                }
+            }
+        }).when(indexInfo).create(any(Message.class));
+
+        Client client = mock(Client.class);
+        ActionFuture<BulkResponse> responseActionFuture = mock(ActionFuture.class);
+        BulkResponse response = getBulkItemResponses();
+        doReturn(response).when(responseActionFuture).actionGet();
+        doReturn(responseActionFuture).when(client).bulk(any(BulkRequest.class));
+
+        ActionFuture<IndexResponse> indexResponseActionFuture = mock(ActionFuture.class);
+        doReturn(mock(IndexResponse.class)).when(indexResponseActionFuture).actionGet();
+        doReturn(indexResponseActionFuture).when(client).index(any(IndexRequest.class));
+
+        ElasticSearchSink sink = new ElasticSearchSink(
+                null, // by default it will be memory queue
+                1000,
+                5000,
+                "cluster",
+                false,
+                null,
+                null,
+                null,
+                indexInfo,
+                0,0,0,0,false,null,
+                null,
+                jsonMapper,
+                client);
+        sink.open();
+
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                sink.writeTo(new DefaultMessageContainer(new Message("parsing_failed_topic" + i, getAnyMessage()), jsonMapper));
+            }
+            for (int j = 0; j < 3; ++j) {
+                sink.writeTo(new DefaultMessageContainer(new Message("indexed" + i, getAnyMessage()), jsonMapper));
+            }
+            for (int j = 0; j < 3; ++j) {
+                sink.writeTo(new DefaultMessageContainer(new Message("rejected" + i, getAnyMessage()), jsonMapper));
+            }
+        }
+
+        sink.close();
+        String stat = sink.getStat();
+        System.out.println(stat);
+        int count = 0;
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                if (stat.contains("parsing_failed_topic" + i + ":3")) {
+                    ++count;
+                }
+            }
+            for (int j = 0; j < 3; ++j) {
+                if (stat.contains("indexed" + i + ":3")) {
+                    ++count;
+                }
+            }
+            for (int j = 0; j < 3; ++j) {
+                if (stat.contains("rejected" + i + ":3")) {
+                    ++count;
+                }
+            }
+        }
+        assertEquals(count, 27);
+
+        // check indexDelay section
+        ArrayIterator iterator = new ArrayIterator(stat.split("\n"));
+        while (iterator.hasNext() && !iterator.next().equals("indexDelay"));
+        Set<String> stringSet = new HashSet<>();
+        for (int i = 0; i < 6; ++i) {
+            String s = (String) iterator.next();
+            assertTrue(Long.parseLong(s.split(":")[1]) > 0);
+            stringSet.add(s.split(":")[0]);
+        }
+        assertEquals(stringSet.size(), 6);
+    }
+
+    private BulkResponse getBulkItemResponses() {
+        List<BulkItemResponse> responseList = new ArrayList<>();
+        int id = 0;
+        BulkItemResponse.Failure failure = mock(BulkItemResponse.Failure.class);
+        doReturn("mocked failure message").when(failure).getMessage();
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                responseList.add(new BulkItemResponse(
+                        id++,
+                        "insert",
+                        mock(ActionResponse.class)
+                ));
+            }
+            for (int j = 0; j < 3; ++j) {
+                responseList.add(new BulkItemResponse(
+                        id++,
+                        "insert",
+                        failure
+                        ));
+            }
+        }
+        return new BulkResponse(
+                    responseList.toArray(new BulkItemResponse[responseList.size()]),
+                    1000
+            );
+    }
+
+    private byte[] getAnyMessage() throws JsonProcessingException {
+        return jsonMapper.writeValueAsBytes(new ImmutableMap.Builder<String, Object>().put("f1", "v1").build());
     }
 }

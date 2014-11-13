@@ -1,0 +1,25 @@
+{
+    "default": {
+        "type": "KafkaV2",
+        "client.id": "suroserver-default",
+        "metadata.broker.list": "localhost:9092",
+        "message.send.max.retries": 0,
+        "reconnect.interval": 10000,
+        "jobTimeout": 2000,
+        "//": "corePoolSize defaults to 3 but this is much too small for the KafkaV2 sink because  these threads will block while waiting for the response from Kafka.  So, the pool size limits the number of in-flight Kakfa requests.",
+        "corePoolSize":50,
+        "maxPoolSize":50,
+        "queue4Sink": {
+            "type": "file",
+            "path": "/home/starzia/suroserver",
+            "name" : "sinkQueue",
+            "gcPeriod": "PT10s",
+            "sizeLimit": 999999999999
+        },
+        "kafka.etc": {
+            "reconnect.backoff.ms": 1000,
+            "block.on.buffer.full": false,
+            "metadata.fetch.timeout.ms": 2000
+        }
+    }
+}

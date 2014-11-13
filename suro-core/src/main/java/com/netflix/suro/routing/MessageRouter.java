@@ -24,10 +24,12 @@ import com.netflix.servo.monitor.DynamicCounter;
 import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
+import com.netflix.suro.input.SuroInput;
 import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.routing.RoutingMap.Route;
+import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.SinkManager;
 
 import java.util.List;
@@ -55,7 +57,7 @@ public class MessageRouter {
         Monitors.registerObject(this);
     }
 
-    public void process(MessageContainer msg) throws Exception {
+    public void process(SuroInput input, MessageContainer msg) throws Exception {
         if (Strings.isNullOrEmpty(msg.getRoutingKey())) {
             DynamicCounter.increment(
                     MonitorConfig.builder(TagKey.DROPPED_COUNT).withTag("reason", "emptyRoutingKey").build());
@@ -65,17 +67,21 @@ public class MessageRouter {
         RoutingMap.RoutingInfo info = routingMap.getRoutingInfo(msg.getRoutingKey());
 
         if (info == null) {
-            sinkManager.getSink("default").writeTo(msg);
+            Sink defaultSink = sinkManager.getSink("default");
+            input.setPause(defaultSink.checkPause());
+            defaultSink.writeTo(msg);
         } else if (info.doFilter(msg)) {
             List<Route> routes = info.getWhere();
             for (Route route : routes) {
                 if (route.doFilter(msg)) {
+                    Sink sink = sinkManager.getSink(route.getSink());
+                    input.setPause(sink.checkPause());
                     if (!Strings.isNullOrEmpty(route.getAlias())) {
-                        sinkManager.getSink(route.getSink()).writeTo(
+                        sink.writeTo(
                                 new DefaultMessageContainer(
                                         new Message(route.getAlias(), msg.getMessage().getPayload()), jsonMapper));
                     } else {
-                        sinkManager.getSink(route.getSink()).writeTo(msg);
+                        sink.writeTo(msg);
                     }
                 }
             }

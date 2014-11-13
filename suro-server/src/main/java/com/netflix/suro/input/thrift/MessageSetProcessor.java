@@ -26,6 +26,7 @@ import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.TagKey;
+import com.netflix.suro.input.SuroInput;
 import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageSetBuilder;
@@ -55,7 +56,8 @@ import java.util.concurrent.TimeUnit;
 @LazySingleton
 public class MessageSetProcessor implements SuroServer.Iface {
     private static final Logger log = LoggerFactory.getLogger(MessageSetProcessor.class);
-    
+
+    private SuroInput input;
     private boolean isTakingTraffic = true;
 
     public void stopTakingTraffic(){
@@ -146,12 +148,6 @@ public class MessageSetProcessor implements SuroServer.Iface {
                 return result;
             }
 
-//            if (messageSet.getApp().equals(HealthCheck.APP_NAME)) {
-//                result.setMessage("OK");
-//                result.setResultCode(ResultCode.OK);
-//                return result;
-//            }
-
             MessageSetReader reader = new MessageSetReader(messageSet);
             if (!reader.checkCRC()) {
                 DynamicCounter.increment(dataCorruptionCountMetrics, TagKey.APP, messageSet.getApp());
@@ -236,7 +232,7 @@ public class MessageSetProcessor implements SuroServer.Iface {
 
         for (final Message message : reader) {
             try {
-                router.process(new DefaultMessageContainer(message, jsonMapper));
+                router.process(input, new DefaultMessageContainer(message, jsonMapper));
             } catch (Exception e) {
                 DynamicCounter.increment(messageProcessErrorMetrics,
                     TagKey.APP, tMessageSet.getApp(),
@@ -275,5 +271,9 @@ public class MessageSetProcessor implements SuroServer.Iface {
             Thread.interrupted();
             return new MessageSetBuilder(new ClientConfig()).build();
         }
+    }
+
+    public void setInput(SuroInput input) {
+        this.input = input;
     }
 }

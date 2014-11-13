@@ -21,7 +21,12 @@ if (JavaVersion.current().isJava8Compatible()) {
 
 allprojects {
     repositories { 
-      mavenCentral()
+      mavenLocal()
+      mavenCentral() // maven { url: 'http://jcenter.bintray.com' }
+      maven{
+        name 'github.release.repo'
+        url 'https://raw.github.com/bulldog2011/bulldog-repo/master/repo/releases/'
+      }
       maven {
         url "https://metamx.artifactoryonline.com/metamx/pub-libs-releases-local"
       }
@@ -81,6 +86,9 @@ subprojects {
         forkEvery = 1
         maxParallelForks = 1
     }
+
+    sourceCompatibility = "1.7"
+    targetCompatibility = "1.7"
 }
 
 project(':suro-core') {
@@ -95,22 +103,25 @@ project(':suro-client') {
     compile project(':suro-core')
 
     testCompile project(':suro-core').sourceSets.test.output
-    testCompile project(':suro-kafka')
+    testCompile project(':suro-kafka-producer')
+    testCompile project(':suro-kafka-consumer')
   }
 }
 
-project(':suro-kafka') {
+project(':suro-kafka-producer') {
+   test {
+      maxParallelForks = 1
+      forkEvery = 1
+   }
+
   dependencies {
     compile project(':suro-core')
 
-    compile('org.apache.kafka:kafka_2.9.2:0.8.1.1') {
-      exclude module: 'jms'
-      exclude module: 'jmxtools'
-      exclude module: 'jmxri'
-      exclude module: 'zookeeper'
-    }
+    compile 'org.apache.kafka:kafka-clients:0.8.2-beta'
 
     testCompile 'org.apache.curator:curator-test:2.4.2'
     testCompile project(':suro-client')
+    testCompile project(':suro-kafka-consumer').sourceSets.test.output
+    testCompile project(':suro-kafka-consumer')
   }
 }

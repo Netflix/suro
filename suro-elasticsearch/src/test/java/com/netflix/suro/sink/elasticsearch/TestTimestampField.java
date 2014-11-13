@@ -40,4 +40,24 @@ public class TestTimestampField {
                         .put("ts", "2014-04-05T00:00:00.000Z")
                         .put("field1", "value1").build());
     }
+
+    @Test
+    public void testFormat() {
+        TimestampField field = new TimestampField("ts", "EEE MMM dd HH:mm:ss zzz YYYY");
+        assertEquals(
+                field.get(new ImmutableMap.Builder<String, Object>()
+                        .put("ts", "Fri Oct 03 18:25:08 GMT 2014")
+                        .put("field1", "value1").build()),
+                new DateTime("2014-10-03T18:25:08.000Z").getMillis());
+    }
+
+    @Test
+    public void testFormat2() {
+        TimestampField field = new TimestampField("ts", "YYYY-MM-dd HH:mm:ss.SSS");
+        assertEquals(
+                field.get(new ImmutableMap.Builder<String, Object>()
+                        .put("ts", "2014-10-17 19:53:26.001")
+                        .put("field1", "value1").build()),
+                new DateTime("2014-10-17T19:53:26.001Z").getMillis());
+    }
 }
