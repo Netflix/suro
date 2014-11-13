@@ -172,6 +172,11 @@ project(':suro-integration-test') {
 }
 
 project(':suro-kafka-producer') {
+   test {
+      maxParallelForks = 1
+      forkEvery = 1
+   }
+
   dependencies {
     compile project(':suro-core')
 

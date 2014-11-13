@@ -7,6 +7,8 @@ import org.apache.commons.lang.StringUtils;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.List;
 import java.util.Properties;
 
@@ -14,8 +16,8 @@ public class KafkaServerExternalResource extends ExternalResource {
     public static final int    BROKER_ID1 = 0;
     public static final int    BROKER_ID2 = 1;
 
-    public static final int    KAFKA_PORT1 = 2200;
-    public static final int    KAFKA_PORT2 = 2201;
+    //public static final int    KAFKA_PORT1 = 2200;
+    //public static final int    KAFKA_PORT2 = 2201;
 
     public static final long   TIMEOUT = 10000;
 
@@ -35,16 +37,24 @@ public class KafkaServerExternalResource extends ExternalResource {
         this.zk = zk;
     }
 
+    private static int getUnusedPort() throws IOException {
+        ServerSocket ss = new ServerSocket(0);
+        ss.setReuseAddress(false);
+        int unusedPort = ss.getLocalPort();
+        ss.close();
+        return unusedPort;
+    }
+
     @Override
     protected void before() throws Throwable {
         tempDir.create();
 
         config1 = new KafkaConfig(
-                createBrokerConfig(BROKER_ID1, KAFKA_PORT1, zk.getServerPort(), tempDir.newFolder().getAbsolutePath()));
+                createBrokerConfig(BROKER_ID1, getUnusedPort(), zk.getServerPort(), tempDir.newFolder().getAbsolutePath()));
         server1 = createServer(config1);
 
         config2 = new KafkaConfig(
-                createBrokerConfig(BROKER_ID2, KAFKA_PORT2, zk.getServerPort(), tempDir.newFolder().getAbsolutePath()));
+                createBrokerConfig(BROKER_ID2, getUnusedPort(), zk.getServerPort(), tempDir.newFolder().getAbsolutePath()));
         server2 = createServer(config2);
 
         servers = Lists.newArrayList(server1, server2);
