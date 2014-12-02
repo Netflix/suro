@@ -29,7 +29,7 @@ import java.util.Properties;
 public class KafkaSink implements Sink {
     private static final Logger log = LoggerFactory.getLogger(KafkaSink.class);
 
-    public final static String TYPE = "Kafka";
+    public final static String TYPE = "kafka";
 
     private final Map<String, String> keyTopicMap;
     private final boolean blockOnBufferFull;
@@ -107,13 +107,15 @@ public class KafkaSink implements Sink {
 
     @Override
     public void writeTo(MessageContainer message) {
-        int numPartitions = producer.partitionsFor(message.getRoutingKey()).size();
+        String routingKey = message.getRoutingKey().toLowerCase();
+
+        int numPartitions = producer.partitionsFor(routingKey).size();
         int partition = (int) Math.abs(retentionPartitioner.getKey() % numPartitions);
 
         if (!keyTopicMap.isEmpty()) {
             try {
                 Map<String, Object> msgMap = message.getEntity(new TypeReference<Map<String, Object>>() {});
-                Object keyField = msgMap.get(keyTopicMap.get(message.getRoutingKey()));
+                Object keyField = msgMap.get(keyTopicMap.get(routingKey));
                 if (keyField != null) {
                     long hashCode = keyField.hashCode();
                     partition = Math.abs((int)(hashCode ^ (hashCode >>> 32))) % numPartitions;
@@ -123,7 +125,7 @@ public class KafkaSink implements Sink {
             }
         }
 
-        producer.send(new ProducerRecord(message.getRoutingKey(), partition, null, message.getMessage().getPayload()));
+        producer.send(new ProducerRecord(routingKey, partition, null, message.getMessage().getPayload()));
     }
 
     @Override
