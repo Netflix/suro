@@ -8,6 +8,9 @@ import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.netflix.appinfo.InstanceInfo;
+import com.netflix.discovery.DiscoveryClient;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
@@ -22,19 +25,23 @@ import org.elasticsearch.action.count.CountResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeBuilder;
 import org.joda.time.DateTime;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -247,6 +254,58 @@ public class TestElasticSearchSink {
     }
 
     private ObjectMapper jsonMapper = new DefaultObjectMapper();
+
+    @Test
+    public void testRefreshServerList() throws InterruptedException {
+        DiscoveryClient discovery = mock(DiscoveryClient.class);
+        List<InstanceInfo> instanceInfos = new CopyOnWriteArrayList<>();
+        instanceInfos.add(getMockedInstanceInfo(0));
+        instanceInfos.add(getMockedInstanceInfo(1));
+        instanceInfos.add(getMockedInstanceInfo(2));
+        doReturn(instanceInfos).when(discovery).getInstancesByVipAddress("vipAddress", false);
+
+        TransportClient client = mock(TransportClient.class);
+        doReturn(client).when(client).addTransportAddress(any(InetSocketTransportAddress.class));
+        doReturn(client).when(client).removeTransportAddress(any(InetSocketTransportAddress.class));
+
+        ElasticSearchSink sink = new ElasticSearchSink(
+            null,
+            10,
+            1000,
+            "cluster",
+            null,
+            "1s",
+            "1s",
+            Lists.newArrayList("vipAddress:8080"),
+            null,
+            0,0,0,0,false,null,
+            discovery,
+            jsonMapper,
+            client
+        );
+        sink.refreshIntervalInSec = 1;
+        sink.open();
+
+        Thread.sleep(3000);
+
+        // change the server list
+        instanceInfos.remove(0);
+        instanceInfos.add(getMockedInstanceInfo(3));
+        Thread.sleep(3000);
+
+        ArgumentCaptor<InetSocketTransportAddress> argument = ArgumentCaptor.forClass(InetSocketTransportAddress.class);
+        verify(client, times(1)).addTransportAddress(argument.capture());
+        assertEquals(argument.getValue().address().getHostName(), "host3");
+        verify(client, times(1)).removeTransportAddress(argument.capture());
+        assertEquals(argument.getValue().address().getHostName(), "host0");
+    }
+
+    private InstanceInfo getMockedInstanceInfo(int i) {
+        InstanceInfo instanceInfo = mock(InstanceInfo.class);
+        doReturn("host" + i).when(instanceInfo).getHostName();
+        doReturn(InstanceInfo.InstanceStatus.UP).when(instanceInfo).getStatus();
+        return instanceInfo;
+    }
 
     @Test
     public void testStat() throws JsonProcessingException, InterruptedException {

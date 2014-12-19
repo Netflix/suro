@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.netflix.appinfo.InstanceInfo;
 import com.netflix.discovery.DiscoveryClient;
 import com.netflix.servo.DefaultMonitorRegistry;
@@ -33,7 +35,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private static Logger log = LoggerFactory.getLogger(ElasticSearchSink.class);
@@ -53,6 +60,8 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private final Settings settings;
     private final String clusterName;
     private final ReplicationType replicationType;
+
+    private ScheduledExecutorService refreshServerList;
 
     @JsonCreator
     public ElasticSearchSink(
@@ -118,6 +127,9 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         enqueue(message.getMessage());
     }
 
+    @VisibleForTesting
+    protected int refreshIntervalInSec = 60;
+
     @Override
     public void open() {
         Monitors.registerObject(clusterName, this);
@@ -125,7 +137,11 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         if (client == null) {
             client = new TransportClient(settings);
             if (discoveryClient != null) {
-                getServerListFromDiscovery(addressList, discoveryClient, client);
+                for (String s : getServerListFromDiscovery(addressList, discoveryClient)) {
+                    String[] host_port = s.split(":");
+                    ((TransportClient)client).addTransportAddress(
+                        new InetSocketTransportAddress(host_port[0], Integer.parseInt(host_port[1])));
+                }
             } else {
                 for (String address : addressList) {
                     String[] host_port = address.split(":");
@@ -135,22 +151,53 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             }
         }
 
-        setName(ElasticSearchSink.class.getSimpleName() + "-" + settings.get("cluster.name"));
+        String sinkId = ElasticSearchSink.class.getSimpleName() + "-" + settings.get("cluster.name");
+        if (discoveryClient != null && !settings.getAsBoolean("client.transport.sniff", false)) {
+            refreshServerList = Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setDaemon(true).setNameFormat(sinkId + "-%d").build());
+            refreshServerList.scheduleAtFixedRate(new Runnable() {
+                private Set<String> serverSet;
+
+                @Override
+                public void run() {
+                    if (serverSet == null) {
+                        serverSet = Sets.newHashSet(getServerListFromDiscovery(addressList, discoveryClient));
+                    } else {
+                        Set<String> currentSet = Sets.newHashSet(getServerListFromDiscovery(addressList, discoveryClient));
+                        for (String s : Sets.difference(currentSet, serverSet)) {
+                            String[] host_port = s.split(":");
+                            ((TransportClient)client).addTransportAddress(
+                                new InetSocketTransportAddress(host_port[0], Integer.parseInt(host_port[1])));
+                        }
+                        for (String s : Sets.difference(serverSet, currentSet)) {
+                            String[] host_port = s.split(":");
+                            ((TransportClient)client).removeTransportAddress(
+                                new InetSocketTransportAddress(host_port[0], Integer.parseInt(host_port[1])));
+                        }
+                        serverSet = currentSet;
+                    }
+                }
+            }, refreshIntervalInSec, refreshIntervalInSec, TimeUnit.SECONDS); // every minute refresh
+        }
+
+        setName(sinkId);
         start();
     }
 
-    protected void getServerListFromDiscovery(List<String> addressList, DiscoveryClient discoveryClient, Client client) {
+    protected List<String> getServerListFromDiscovery(List<String> addressList, DiscoveryClient discoveryClient) {
+        List<String> serverList = new ArrayList<>();
         for (String address : addressList) {
             String[] host_port = address.split(":");
 
             List<InstanceInfo> listOfinstanceInfo = discoveryClient.getInstancesByVipAddress(host_port[0], false);
             for (InstanceInfo ii : listOfinstanceInfo) {
                 if (ii.getStatus().equals(InstanceInfo.InstanceStatus.UP)) {
-                    ((TransportClient)client).addTransportAddress(
-                            new InetSocketTransportAddress(ii.getHostName(), Integer.parseInt(host_port[1])));
+                    serverList.add(ii.getHostName() + ":" + host_port[1]);
                 }
             }
         }
+
+        return serverList;
     }
 
     @Override
