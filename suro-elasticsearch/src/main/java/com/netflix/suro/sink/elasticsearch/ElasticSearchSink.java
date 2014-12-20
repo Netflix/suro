@@ -11,7 +11,9 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.netflix.appinfo.InstanceInfo;
 import com.netflix.discovery.DiscoveryClient;
 import com.netflix.servo.DefaultMonitorRegistry;
+import com.netflix.servo.annotations.*;
 import com.netflix.servo.monitor.*;
+import com.netflix.servo.monitor.Monitor;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
@@ -200,6 +202,11 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         return serverList;
     }
 
+    @com.netflix.servo.annotations.Monitor(name = "connectedNodes", type = DataSourceType.GAUGE)
+    private int getConnectedNodesCount() {
+        return ((TransportClient)client).connectedNodes().size();
+    }
+
     @Override
     public String recvNotice() { return null; }
 
@@ -245,6 +252,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             }
         }
 
+        sb.append('\n').append("connected nodes: " ).append(getConnectedNodesCount());
         sb.append('\n').append(INDEX_DELAY).append('\n').append(indexDelay.toString());
         sb.append('\n').append(INDEXED_ROW).append('\n').append(indexed.toString());
         sb.append('\n').append(REJECTED_ROW).append('\n').append(rejected.toString());
