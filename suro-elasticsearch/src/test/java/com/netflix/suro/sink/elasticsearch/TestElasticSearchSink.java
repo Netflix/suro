@@ -24,8 +24,9 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.count.CountResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.common.collect.ImmutableList;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
@@ -349,11 +350,14 @@ public class TestElasticSearchSink {
             }
         }).when(indexInfo).create(any(Message.class));
 
-        Client client = mock(Client.class);
+        TransportClient client = mock(TransportClient.class);
         ActionFuture<BulkResponse> responseActionFuture = mock(ActionFuture.class);
         BulkResponse response = getBulkItemResponses();
         doReturn(response).when(responseActionFuture).actionGet();
         doReturn(responseActionFuture).when(client).bulk(any(BulkRequest.class));
+        ImmutableList<DiscoveryNode> list = mock(ImmutableList.class);
+        doReturn(3).when(list).size();
+        doReturn(list).when(client).connectedNodes();
 
         ActionFuture<IndexResponse> indexResponseActionFuture = mock(ActionFuture.class);
         doReturn(mock(IndexResponse.class)).when(indexResponseActionFuture).actionGet();
