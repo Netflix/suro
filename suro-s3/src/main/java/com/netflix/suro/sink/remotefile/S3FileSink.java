@@ -107,22 +107,18 @@ public class S3FileSink extends RemoteFileSink {
         if (mpUtils == null) { // not injected
             mpUtils = new MultipartUtils(maxPartSize);
         }
-        try {
-            Jets3tProperties properties = new Jets3tProperties();
-            properties.setProperty("s3service.s3-endpoint", s3Endpoint);
-            if (credentialsProvider.getCredentials() instanceof AWSSessionCredentials) {
-                s3Service = new RestS3Service(
-                        new AWSSessionCredentialsAdapter(credentialsProvider),
-                        null, null, properties);
-            } else {
-                s3Service = new RestS3Service(
-                        new AWSCredentials(
-                                credentialsProvider.getCredentials().getAWSAccessKeyId(),
-                                credentialsProvider.getCredentials().getAWSSecretKey()),
-                        null, null, properties);
-            }
-        } catch (S3ServiceException e) {
-            throw new RuntimeException(e);
+        Jets3tProperties properties = new Jets3tProperties();
+        properties.setProperty("s3service.s3-endpoint", s3Endpoint);
+        if (credentialsProvider.getCredentials() instanceof AWSSessionCredentials) {
+            s3Service = new RestS3Service(
+                    new AWSSessionCredentialsAdapter(credentialsProvider),
+                    null, null, properties);
+        } else {
+            s3Service = new RestS3Service(
+                    new AWSCredentials(
+                            credentialsProvider.getCredentials().getAWSAccessKeyId(),
+                            credentialsProvider.getCredentials().getAWSSecretKey()),
+                    null, null, properties);
         }
 
         grantAcl = new GrantAcl(s3Service, s3Acl, s3AclRetries == 0 ? 5 : s3AclRetries);
