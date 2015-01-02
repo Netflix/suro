@@ -47,14 +47,18 @@ public class KafkaServerExternalResource extends ExternalResource {
 
     @Override
     protected void before() throws Throwable {
+        startServer(getUnusedPort(), getUnusedPort());
+    }
+
+    public void startServer(int port1, int port2) throws IOException {
         tempDir.create();
 
         config1 = new KafkaConfig(
-                createBrokerConfig(BROKER_ID1, getUnusedPort(), zk.getServerPort(), tempDir.newFolder().getAbsolutePath()));
+            createBrokerConfig(BROKER_ID1, port1, zk.getServerPort(), tempDir.newFolder().getAbsolutePath()));
         server1 = createServer(config1);
 
         config2 = new KafkaConfig(
-                createBrokerConfig(BROKER_ID2, getUnusedPort(), zk.getServerPort(), tempDir.newFolder().getAbsolutePath()));
+            createBrokerConfig(BROKER_ID2, port2, zk.getServerPort(), tempDir.newFolder().getAbsolutePath()));
         server2 = createServer(config2);
 
         servers = Lists.newArrayList(server1, server2);
@@ -63,6 +67,10 @@ public class KafkaServerExternalResource extends ExternalResource {
 
     @Override
     protected void after() {
+        shutdown();
+    }
+
+    public void shutdown() {
         if (server1 != null) {
             server1.shutdown();
             server1.awaitShutdown();
