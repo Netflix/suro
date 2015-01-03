@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
+import com.google.gson.Gson;
 import com.netflix.suro.input.kafka.KafkaConsumer;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.DefaultMessageContainer;
@@ -24,12 +25,11 @@ import com.netflix.suro.sink.kafka.KafkaRetentionPartitioner;
 import com.netflix.suro.sink.kafka.KafkaServerExternalResource;
 import com.netflix.suro.sink.kafka.KafkaSink;
 import com.netflix.suro.sink.kafka.ZkExternalResource;
+import io.searchbox.action.Action;
+import io.searchbox.client.JestClient;
+import io.searchbox.client.JestResult;
+import io.searchbox.core.Bulk;
 import kafka.admin.TopicCommand;
-import org.elasticsearch.action.ActionFuture;
-import org.elasticsearch.action.bulk.BulkItemResponse;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.client.Client;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -38,12 +38,14 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.*;
 
 public class TestPauseOnLongQueueKafkaConsumer {
@@ -58,31 +60,6 @@ public class TestPauseOnLongQueueKafkaConsumer {
     private static final String TOPIC_NAME = "tpolq_kafka";
 
     private final RateLimiter rateLimiter = RateLimiter.create(20); // setting 10 per second
-
-    private Client createMockedESClient() {
-        Client client = mock(Client.class);
-
-        doAnswer(new Answer() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-                final BulkRequest req = (BulkRequest) invocation.getArguments()[0];
-                rateLimiter.acquire(req.numberOfActions());
-
-                BulkItemResponse[] responses = new BulkItemResponse[req.numberOfActions()];
-                for (int i = 0; i < responses.length; ++i) {
-                    BulkItemResponse response = mock(BulkItemResponse.class);
-                    doReturn(false).when(response).isFailed();
-                    responses[i] = response;
-                }
-                ActionFuture<BulkResponse> actionFuture = mock(ActionFuture.class);
-                doReturn(new BulkResponse(responses,1000)).when(actionFuture).actionGet();
-
-                return actionFuture;
-            }
-        }).when(client).bulk(any(BulkRequest.class));
-
-        return client;
-    }
 
     @Test
     public void test() throws Exception {
@@ -105,23 +82,40 @@ public class TestPauseOnLongQueueKafkaConsumer {
 
         final KafkaSink kafkaSink = createKafkaProducer(jsonMapper, kafkaServer.getBrokerListStr());
 
-        Client client = createMockedESClient();
-
         final ElasticSearchSink sink = new ElasticSearchSink(
                 null,
                 10,
                 1000,
                 null,
-                true,
-                "1s",
-                "1s",
+                Lists.newArrayList("http://localhost:9200"),
                 null,
+                0,0,0,0,
                 null,
-                0,0,0,0,true,null,
-                null,
-                jsonMapper,
-                client
+                jsonMapper
         );
+
+        JestClient client = mock(JestClient.class);
+        doAnswer(new Answer() {
+
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                final Bulk bulk = (Bulk) invocation.getArguments()[0];
+                int numRecords = bulk.getData(new Gson()).toString().split("\n").length / 2;
+                rateLimiter.acquire(numRecords);
+
+                JestResult result = mock(JestResult.class);
+                List list = new ArrayList();
+                for (int i = 0; i < numRecords; ++i) {
+                    list.add(new ImmutableMap.Builder<>().put("create",
+                        new ImmutableMap.Builder<>().put("status", 200.0).build()).build());
+                }
+                doReturn(list).when(result).getValue(anyString());
+
+                return result;
+            }
+        }).when(client).execute(any(Action.class));
+        sink.setClient(client);
+
         sink.open();
 
         RoutingMap map = new RoutingMap();

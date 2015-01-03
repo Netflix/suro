@@ -96,7 +96,7 @@ public abstract class QueuedSink extends Thread {
     @Override
     public void run() {
         isRunning = true;
-        List<Message> msgList = new LinkedList<Message>();
+        List<Message> msgList = new LinkedList<>();
 
         while (isRunning || !msgList.isEmpty()) {
             try {

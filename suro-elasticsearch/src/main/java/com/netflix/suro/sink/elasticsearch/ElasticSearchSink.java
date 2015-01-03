@@ -1,7 +1,6 @@
 package com.netflix.suro.sink.elasticsearch;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -11,9 +10,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.netflix.appinfo.InstanceInfo;
 import com.netflix.discovery.DiscoveryClient;
 import com.netflix.servo.DefaultMonitorRegistry;
-import com.netflix.servo.annotations.*;
 import com.netflix.servo.monitor.*;
-import com.netflix.servo.monitor.Monitor;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
@@ -22,24 +19,23 @@ import com.netflix.suro.queue.MessageQueue4Sink;
 import com.netflix.suro.servo.Servo;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.ThreadPoolQueuedSink;
-import org.elasticsearch.action.bulk.BulkItemResponse;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.replication.ReplicationType;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.Requests;
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.ImmutableSettings;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import com.netflix.util.Pair;
+import io.searchbox.action.BulkableAction;
+import io.searchbox.client.JestClient;
+import io.searchbox.client.JestClientFactory;
+import io.searchbox.client.JestResult;
+import io.searchbox.client.config.HttpClientConfig;
+import io.searchbox.core.Bulk;
+import io.searchbox.core.Index;
+import io.searchbox.params.Parameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -55,145 +51,54 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private static final String INDEX_DELAY = "indexDelay";
     private static final String SINK_ID = "sinkId";
 
-    private Client client;
+    private JestClient client;
     private final List<String> addressList;
     private final IndexInfoBuilder indexInfo;
     private final DiscoveryClient discoveryClient;
-    private final Settings settings;
     private final String clusterName;
-    private final ReplicationType replicationType;
 
     private ScheduledExecutorService refreshServerList;
 
-    @JsonCreator
     public ElasticSearchSink(
-            @JsonProperty("queue4Sink") MessageQueue4Sink queue4Sink,
-            @JsonProperty("batchSize") int batchSize,
-            @JsonProperty("batchTimeout") int batchTimeout,
-            @JsonProperty("cluster.name") String clusterName,
-            @JsonProperty("client.transport.sniff") Boolean sniff,
-            @JsonProperty("client.transport.ping_timeout") String pingTimeout,
-            @JsonProperty("client.transport.nodes_sampler_interval") String nodesSamplerInterval,
-            @JsonProperty("addressList") List<String> addressList,
-            @JsonProperty("indexInfo") @JacksonInject IndexInfoBuilder indexInfo,
-            @JsonProperty("jobQueueSize") int jobQueueSize,
-            @JsonProperty("corePoolSize") int corePoolSize,
-            @JsonProperty("maxPoolSize") int maxPoolSize,
-            @JsonProperty("jobTimeout") long jobTimeout,
-            @JsonProperty("pauseOnLongQueue") boolean pauseOnLongQueue,
-            @JsonProperty("replicationType") String replicationType,
-            @JacksonInject DiscoveryClient discoveryClient,
-            @JacksonInject ObjectMapper jsonMapper,
-            @JacksonInject Client client) {
+        @JsonProperty("queue4Sink") MessageQueue4Sink queue4Sink,
+        @JsonProperty("batchSize") int batchSize,
+        @JsonProperty("batchTimeout") int batchTimeout,
+        @JsonProperty("cluster.name") String clusterName,
+        @JsonProperty("addressList") List<String> addressList,
+        @JsonProperty("indexInfo") @JacksonInject IndexInfoBuilder indexInfo,
+        @JsonProperty("jobQueueSize") int jobQueueSize,
+        @JsonProperty("corePoolSize") int corePoolSize,
+        @JsonProperty("maxPoolSize") int maxPoolSize,
+        @JsonProperty("jobTimeout") long jobTimeout,
+        @JacksonInject DiscoveryClient discoveryClient,
+        @JacksonInject ObjectMapper jsonMapper) {
         super(jobQueueSize, corePoolSize, maxPoolSize, jobTimeout,
-                ElasticSearchSink.class.getSimpleName() + "-" + clusterName);
+            ElasticSearchSink.class.getSimpleName() + "-" + clusterName);
 
         this.indexInfo =
-                indexInfo == null ? new DefaultIndexInfoBuilder(null, null, null, null, null, jsonMapper) : indexInfo;
+            indexInfo == null ? new DefaultIndexInfoBuilder(null, null, null, null, null, jsonMapper) : indexInfo;
 
         initialize(
-                "es_" + clusterName,
-                queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink,
-                batchSize,
-                batchTimeout,
-                pauseOnLongQueue);
+            "es_" + clusterName,
+            queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink,
+            batchSize,
+            batchTimeout,
+            true);
 
-        ImmutableSettings.Builder settingsBuilder = ImmutableSettings.settingsBuilder();
-        if (clusterName != null) {
-            settingsBuilder = settingsBuilder.put("cluster.name", clusterName);
-        } else {
-            clusterName = "NA";
-            settingsBuilder = settingsBuilder.put("client.transport.ignore_cluster_name", true);
-        }
-
-        if (sniff != null) {
-            settingsBuilder = settingsBuilder.put("client.transport.sniff", sniff);
-        }
-        if (pingTimeout != null) {
-            settingsBuilder = settingsBuilder.put("client.transport.ping_timeout", pingTimeout);
-        }
-        if (nodesSamplerInterval != null) {
-            settingsBuilder = settingsBuilder.put("client.transport.nodes_sampler_interval", nodesSamplerInterval);
-        }
-
-        this.client = client;
-        this.settings = settingsBuilder.build();
         this.discoveryClient = discoveryClient;
         this.addressList = addressList;
         this.clusterName = clusterName;
-        this.replicationType = replicationType == null ? ReplicationType.ASYNC : ReplicationType.fromString(replicationType);
-    }
-
-    @Override
-    public void writeTo(MessageContainer message) {
-        enqueue(message.getMessage());
-    }
-
-    @VisibleForTesting
-    protected int refreshIntervalInSec = 60;
-
-    @Override
-    public void open() {
-        Monitors.registerObject(clusterName, this);
-
-        if (client == null) {
-            client = new TransportClient(settings);
-            if (discoveryClient != null) {
-                for (String s : getServerListFromDiscovery(addressList, discoveryClient)) {
-                    String[] host_port = s.split(":");
-                    ((TransportClient)client).addTransportAddress(
-                        new InetSocketTransportAddress(host_port[0], Integer.parseInt(host_port[1])));
-                }
-            } else {
-                for (String address : addressList) {
-                    String[] host_port = address.split(":");
-                    ((TransportClient)client).addTransportAddress(
-                            new InetSocketTransportAddress(host_port[0], Integer.parseInt(host_port[1])));
-                }
-            }
-        }
-
-        String sinkId = ElasticSearchSink.class.getSimpleName() + "-" + settings.get("cluster.name");
-        if (discoveryClient != null && !settings.getAsBoolean("client.transport.sniff", false)) {
-            refreshServerList = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setDaemon(true).setNameFormat(sinkId + "-%d").build());
-            refreshServerList.scheduleAtFixedRate(new Runnable() {
-                private Set<String> serverSet;
-
-                @Override
-                public void run() {
-                    if (serverSet == null) {
-                        serverSet = Sets.newHashSet(getServerListFromDiscovery(addressList, discoveryClient));
-                    } else {
-                        Set<String> currentSet = Sets.newHashSet(getServerListFromDiscovery(addressList, discoveryClient));
-                        for (String s : Sets.difference(currentSet, serverSet)) {
-                            String[] host_port = s.split(":");
-                            ((TransportClient)client).addTransportAddress(
-                                new InetSocketTransportAddress(host_port[0], Integer.parseInt(host_port[1])));
-                        }
-                        for (String s : Sets.difference(serverSet, currentSet)) {
-                            String[] host_port = s.split(":");
-                            ((TransportClient)client).removeTransportAddress(
-                                new InetSocketTransportAddress(host_port[0], Integer.parseInt(host_port[1])));
-                        }
-                        serverSet = currentSet;
-                    }
-                }
-            }, refreshIntervalInSec, refreshIntervalInSec, TimeUnit.SECONDS); // every minute refresh
-        }
-
-        setName(sinkId);
-        start();
     }
 
     protected List<String> getServerListFromDiscovery(List<String> addressList, DiscoveryClient discoveryClient) {
         List<String> serverList = new ArrayList<>();
+
         for (String address : addressList) {
             String[] host_port = address.split(":");
 
-            List<InstanceInfo> listOfinstanceInfo = discoveryClient.getInstancesByVipAddress(host_port[0], false);
+            List<InstanceInfo> listOfinstanceInfo = discoveryClient.getApplication(host_port[0]).getInstances();
             for (InstanceInfo ii : listOfinstanceInfo) {
-                if (ii.getStatus().equals(InstanceInfo.InstanceStatus.UP)) {
+                if (ii.getASGName().endsWith("_data") && ii.getStatus().equals(InstanceInfo.InstanceStatus.UP)) {
                     serverList.add(ii.getHostName() + ":" + host_port[1]);
                 }
             }
@@ -202,9 +107,58 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         return serverList;
     }
 
-    @com.netflix.servo.annotations.Monitor(name = "connectedNodes", type = DataSourceType.GAUGE)
-    private int getConnectedNodesCount() {
-        return ((TransportClient)client).connectedNodes().size();
+    @VisibleForTesting
+    protected int refreshIntervalInSec = 60;
+
+    @Override
+    public void writeTo(MessageContainer message) {
+        enqueue(message.getMessage());
+    }
+
+    // for the testing purpose only
+    public void setClient(JestClient client) {
+        this.client = client;
+    }
+
+    @Override
+    public void open() {
+        Monitors.registerObject(clusterName, this);
+
+        List<String> urls = new ArrayList<String>();
+        if (discoveryClient != null) {
+            for (String s : getServerListFromDiscovery(addressList, discoveryClient)) {
+                urls.add(s);
+            }
+        } else {
+            for (String address : addressList) {
+                urls.add(address);
+            }
+        }
+
+        if (client == null) {
+            JestClientFactory factory = new JestClientFactory();
+            factory.setHttpClientConfig(new HttpClientConfig
+                .Builder(urls)
+                .multiThreaded(true)
+                .build());
+            client = factory.getObject();
+        }
+
+        String sinkId = ElasticSearchSink.class.getSimpleName() + "-" + clusterName;
+        if (discoveryClient != null) {
+            refreshServerList = Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setDaemon(false).setNameFormat(sinkId + "-%d").build());
+            refreshServerList.scheduleAtFixedRate(new Runnable() {
+
+                @Override
+                public void run() {
+                    client.setServers(Sets.newHashSet(getServerListFromDiscovery(addressList, discoveryClient)));
+                }
+            }, refreshIntervalInSec, refreshIntervalInSec, TimeUnit.SECONDS); // every minute refresh
+        }
+
+        setName(sinkId);
+        start();
     }
 
     @Override
@@ -225,17 +179,17 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                 if (!Strings.isNullOrEmpty(sinkId) && sinkId.equals(getSinkId())) {
                     if (counter.getConfig().getName().equals(INDEXED_ROW)) {
                         indexed.append(counter.getConfig().getTags().getValue(TagKey.ROUTING_KEY))
-                                .append(":")
-                                .append(counter.getValue()).append('\n');
+                            .append(":")
+                            .append(counter.getValue()).append('\n');
                     } else if (counter.getConfig().getName().equals(REJECTED_ROW)) {
                         rejected.append(counter.getConfig().getTags().getValue(TagKey.ROUTING_KEY))
-                                .append(":")
-                                .append(counter.getValue()).append('\n');
+                            .append(":")
+                            .append(counter.getValue()).append('\n');
 
                     } else if (counter.getConfig().getName().equals(PARSING_FAILED)) {
                         parsingFailed.append(counter.getConfig().getTags().getValue(TagKey.ROUTING_KEY))
-                                .append(":")
-                                .append(counter.getValue()).append('\n');
+                            .append(":")
+                            .append(counter.getValue()).append('\n');
                     }
                 }
             } else if (m instanceof NumberGauge) {
@@ -244,15 +198,14 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                 if (!Strings.isNullOrEmpty(sinkId) && sinkId.equals(getSinkId())) {
                     if (gauge.getConfig().getName().equals(INDEX_DELAY)) {
                         indexDelay.append(gauge.getConfig().getTags().getValue(TagKey.ROUTING_KEY))
-                                .append(":")
-                                .append(gauge.getValue()).append('\n');
+                            .append(":")
+                            .append(gauge.getValue()).append('\n');
                     }
                 }
 
             }
         }
 
-        sb.append('\n').append("connected nodes: " ).append(getConnectedNodesCount());
         sb.append('\n').append(INDEX_DELAY).append('\n').append(indexDelay.toString());
         sb.append('\n').append(INDEXED_ROW).append('\n').append(indexed.toString());
         sb.append('\n').append(REJECTED_ROW).append('\n').append(rejected.toString());
@@ -264,90 +217,107 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     @Override
     protected void beforePolling() throws IOException {}
 
-    private IndexRequest createIndexRequest(Message m) {
+    private BulkableAction createIndexRequest(Message m) {
         IndexInfo info = indexInfo.create(m);
         if (info == null) {
             Servo.getCounter(
-                    MonitorConfig.builder(PARSING_FAILED)
-                            .withTag(SINK_ID, getSinkId())
-                            .withTag(TagKey.ROUTING_KEY, m.getRoutingKey())
-                            .build()).increment();
+                MonitorConfig.builder(PARSING_FAILED)
+                    .withTag(SINK_ID, getSinkId())
+                    .withTag(TagKey.ROUTING_KEY, m.getRoutingKey())
+                    .build()).increment();
             return null;
         } else {
             Servo.getLongGauge(
-                    MonitorConfig.builder(INDEX_DELAY)
-                            .withTag(SINK_ID, getSinkId())
-                            .withTag(TagKey.ROUTING_KEY, m.getRoutingKey())
-                            .build()).set(System.currentTimeMillis() - info.getTimestamp());
+                MonitorConfig.builder(INDEX_DELAY)
+                    .withTag(SINK_ID, getSinkId())
+                    .withTag(TagKey.ROUTING_KEY, m.getRoutingKey())
+                    .build()).set(System.currentTimeMillis() - info.getTimestamp());
 
-            return Requests.indexRequest(info.getIndex())
-                            .type(info.getType())
-                            .source(info.getSource())
-                            .id(info.getId())
-                            .replicationType(replicationType)
-                            .opType(IndexRequest.OpType.CREATE);
+            return new Index.Builder(info.getSource())
+                .index(info.getIndex())
+                .type(info.getType())
+                .id(info.getId())
+                .setParameter(Parameters.OP_TYPE, "create")
+                .build();
         }
     }
 
     @Override
     protected void write(List<Message> msgList) throws IOException {
-        final BulkRequest request = createBulkRequest(msgList);
+        final Pair<Bulk, List<Message>> request = createBulkRequest(msgList);
 
         senders.execute(createRunnable(request));
     }
 
     @VisibleForTesting
-    protected BulkRequest createBulkRequest(List<Message> msgList) {
-        final BulkRequest request = new BulkRequest();
+    protected Pair<Bulk, List<Message>> createBulkRequest(List<Message> msgList) {
+        List<Message> msgListPayload = new LinkedList<>();
+        Bulk.Builder builder = new Bulk.Builder();
         for (Message m : msgList) {
-            IndexRequest indexRequest = createIndexRequest(m);
+            BulkableAction indexRequest = createIndexRequest(m);
             if (indexRequest != null) {
-                request.add(indexRequest, m);
+                builder.addAction(indexRequest);
+                msgListPayload.add(m);
             }
         }
-        return request;
+        return new Pair<>(builder.build(), msgListPayload);
     }
 
-    private Runnable createRunnable(final BulkRequest request) {
+    private Runnable createRunnable(final Pair<Bulk, List<Message>> request) {
         return new Runnable() {
             @Override
             public void run() {
-                BulkResponse response = client.bulk(request).actionGet();
-                for (BulkItemResponse r : response.getItems()) {
-                    String routingKey = ((Message) request.payloads().get(r.getItemId())).getRoutingKey();
-                    if (r.isFailed() && !r.getFailureMessage().contains("DocumentAlreadyExistsException")) {
-                        log.error("Failed with: " + r.getFailureMessage());
-                        Servo.getCounter(
+                try {
+                    JestResult response = client.execute(request.first());
+                    List items = (List) response.getValue("items");
+                    for (int i = 0; i < items.size(); ++i) {
+                        String routingKey = request.second().get(i).getRoutingKey();
+                        Map<String, Object> resPerMessage = (Map)((Map)(items.get(i))).get("create");
+                        if (isFailed(resPerMessage) && !getErrorMessage(resPerMessage).contains("DocumentAlreadyExistsException")) {
+                            log.error("Failed with: " + resPerMessage.get("error"));
+                            Servo.getCounter(
                                 MonitorConfig.builder(REJECTED_ROW)
-                                        .withTag(SINK_ID, getSinkId())
-                                        .withTag(TagKey.ROUTING_KEY, routingKey)
-                                        .build()).increment();
+                                    .withTag(SINK_ID, getSinkId())
+                                    .withTag(TagKey.ROUTING_KEY, routingKey)
+                                    .build()).increment();
 
-                        recover(r.getItemId(), request);
-                    } else {
-                        Servo.getCounter(
+                            recover(request.second().get(i));
+                        } else {
+                            Servo.getCounter(
                                 MonitorConfig.builder(INDEXED_ROW)
-                                        .withTag(SINK_ID, getSinkId())
-                                        .withTag(TagKey.ROUTING_KEY, routingKey)
-                                        .build()).increment();
+                                    .withTag(SINK_ID, getSinkId())
+                                    .withTag(TagKey.ROUTING_KEY, routingKey)
+                                    .build()).increment();
 
+                        }
                     }
+                    throughput.increment(items.size());
+                } catch (Exception e) {
+                    log.error("Exception on bulk execute: " + e.getMessage(), e);
                 }
 
-                throughput.increment(response.getItems().length);
             }
         };
     }
 
+    private String getErrorMessage(Map<String, Object> resPerMessage) {
+        return (String) resPerMessage.get("error");
+    }
+
+    private boolean isFailed(Map<String, Object> resPerMessage) {
+        return (int)((Double) resPerMessage.get("status") / 100) != 2;
+    }
+
     @VisibleForTesting
-    protected void recover(int itemId, BulkRequest request) {
-        client.index(createIndexRequest((Message) request.payloads().get(itemId))).actionGet();
+    protected void recover(Message message) throws Exception {
+        BulkableAction request = createIndexRequest(message);
+        client.execute(request);
     }
 
     @Override
     protected void innerClose() {
         super.innerClose();
 
-        client.close();
+        client.shutdownClient();
     }
 }
