@@ -16,6 +16,7 @@ import com.netflix.niws.client.http.RestClient;
 import com.netflix.servo.DefaultMonitorRegistry;
 import com.netflix.servo.monitor.*;
 import com.netflix.suro.TagKey;
+import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.queue.MemoryQueue4Sink;
@@ -24,7 +25,6 @@ import com.netflix.suro.servo.Servo;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.ThreadPoolQueuedSink;
 import com.netflix.util.Pair;
-import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -167,9 +167,6 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             ribbonEtc.setProperty(
                 clientName + ".ribbon.NIWSServerListClassName",
                 "com.netflix.niws.loadbalancer.DiscoveryEnabledNIWSServerList");
-            ribbonEtc.setProperty(
-                clientName + ".ribbon.ServerListRefreshInterval",
-                "60000");
             String[] host_port = addressList.get(0).split(":");
             ribbonEtc.setProperty(
                 clientName + ".ribbon.DeploymentContextBasedVipAddresses",
@@ -180,6 +177,9 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         } else {
             ribbonEtc.setProperty(clientName + ".ribbon.listOfServers", Joiner.on(",").join(addressList));
         }
+        ribbonEtc.setProperty(
+            clientName + ".ribbon.EnablePrimeConnections",
+            "true");
         ConfigurationManager.loadProperties(ribbonEtc);
         client = (RestClient) ClientFactory.getNamedClient(clientName);
 
@@ -268,11 +268,12 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             @Override
             public void run() {
                 Stopwatch stopwatch = timer.start();
-
+                HttpResponse response = null;
                 try {
-                    HttpResponse response = client.executeWithLoadBalancer(request.first());
-                    byte[] bytes = IOUtils.toByteArray(response.getInputStream());
-                    Map<String, Object> result = jsonMapper.readValue(bytes, new TypeReference<Map<String, Object>>(){});
+                    response = client.executeWithLoadBalancer(request.first());
+                    Map<String, Object> result = jsonMapper.readValue(
+                        response.getInputStream(),
+                        new TypeReference<Map<String, Object>>(){});
                     List items = (List) result.get("items");
                     for (int i = 0; i < items.size(); ++i) {
                         String routingKey = request.second().get(i).getRoutingKey();
@@ -298,14 +299,14 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                     throughput.increment(items.size());
                 } catch (Exception e) {
                     log.error("Exception on bulk execute: " + e.getMessage(), e);
+                    Servo.getCounter("bulkException").increment();
                     for (Message m : request.second()) {
-                        Servo.getCounter(
-                            MonitorConfig.builder(REJECTED_ROW)
-                                .withTag(SINK_ID, getSinkId())
-                                .withTag(TagKey.ROUTING_KEY, m.getRoutingKey())
-                                .build()).increment();
+                        writeTo(new DefaultMessageContainer(m, jsonMapper));
                     }
                 } finally {
+                    if (response != null) {
+                        response.close();
+                    }
                     stopwatch.stop();
                 }
             }
@@ -339,14 +340,32 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             jsonMapper.writeValueAsString(info.getSource()) :
             info.getSource().toString();
 
-        HttpResponse response = client.executeWithLoadBalancer(
-            HttpRequest.newBuilder()
-                .verb(HttpRequest.Verb.POST)
-                .setRetriable(true)
-                .uri(uri)
-                .entity(entity)
-                .build());
-        IOUtils.toByteArray(response.getInputStream());
+        HttpResponse response = null;
+        try {
+            response = client.executeWithLoadBalancer(
+                HttpRequest.newBuilder()
+                    .verb(HttpRequest.Verb.POST)
+                    .setRetriable(true)
+                    .uri(uri)
+                    .entity(entity)
+                    .build());
+            if (response.getStatus() / 100 != 2) {
+                Servo.getCounter(
+                    MonitorConfig.builder("unrecoverableRow")
+                        .withTag(SINK_ID, getSinkId())
+                        .withTag(TagKey.ROUTING_KEY, message.getRoutingKey())
+                        .build()).increment();
+            }
+        } catch (Exception e) {
+            log.error("Exception while recover: " + e.getMessage(), e);
+            Servo.getCounter("recoverException").increment();
+            writeTo(new DefaultMessageContainer(message, jsonMapper));
+        } finally {
+            if (response != null) {
+                response.close();
+            }
+        }
+
     }
 
     @Override
