@@ -2,13 +2,17 @@ package com.netflix.suro.sink.elasticsearch;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.netflix.appinfo.InstanceInfo;
-import com.netflix.discovery.DiscoveryClient;
+import com.netflix.client.ClientFactory;
+import com.netflix.client.http.HttpRequest;
+import com.netflix.client.http.HttpResponse;
+import com.netflix.config.ConfigurationManager;
+import com.netflix.niws.client.http.RestClient;
 import com.netflix.servo.DefaultMonitorRegistry;
 import com.netflix.servo.monitor.*;
 import com.netflix.suro.TagKey;
@@ -20,25 +24,15 @@ import com.netflix.suro.servo.Servo;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.ThreadPoolQueuedSink;
 import com.netflix.util.Pair;
-import io.searchbox.action.BulkableAction;
-import io.searchbox.client.JestClient;
-import io.searchbox.client.JestClientFactory;
-import io.searchbox.client.JestResult;
-import io.searchbox.client.config.HttpClientConfig;
-import io.searchbox.core.Bulk;
-import io.searchbox.core.Index;
-import io.searchbox.params.Parameters;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.Properties;
 
 public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private static Logger log = LoggerFactory.getLogger(ElasticSearchSink.class);
@@ -51,113 +45,61 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private static final String INDEX_DELAY = "indexDelay";
     private static final String SINK_ID = "sinkId";
 
-    private JestClient client;
+    private RestClient client;
     private final List<String> addressList;
+    private final Properties ribbonEtc;
     private final IndexInfoBuilder indexInfo;
-    private final DiscoveryClient discoveryClient;
-    private final String clusterName;
-
-    private ScheduledExecutorService refreshServerList;
+    private final String clientName;
+    private final ObjectMapper jsonMapper;
 
     public ElasticSearchSink(
+        @JsonProperty("clientName") String clientName,
         @JsonProperty("queue4Sink") MessageQueue4Sink queue4Sink,
         @JsonProperty("batchSize") int batchSize,
         @JsonProperty("batchTimeout") int batchTimeout,
-        @JsonProperty("cluster.name") String clusterName,
         @JsonProperty("addressList") List<String> addressList,
         @JsonProperty("indexInfo") @JacksonInject IndexInfoBuilder indexInfo,
         @JsonProperty("jobQueueSize") int jobQueueSize,
         @JsonProperty("corePoolSize") int corePoolSize,
         @JsonProperty("maxPoolSize") int maxPoolSize,
         @JsonProperty("jobTimeout") long jobTimeout,
-        @JacksonInject DiscoveryClient discoveryClient,
-        @JacksonInject ObjectMapper jsonMapper) {
+        @JsonProperty("ribbon.etc") Properties ribbonEtc,
+        @JacksonInject ObjectMapper jsonMapper,
+        @JacksonInject RestClient client) {
         super(jobQueueSize, corePoolSize, maxPoolSize, jobTimeout,
-            ElasticSearchSink.class.getSimpleName() + "-" + clusterName);
+            ElasticSearchSink.class.getSimpleName() + "-" + clientName);
 
         this.indexInfo =
             indexInfo == null ? new DefaultIndexInfoBuilder(null, null, null, null, null, jsonMapper) : indexInfo;
 
         initialize(
-            "es_" + clusterName,
+            "es_" + clientName,
             queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink,
             batchSize,
             batchTimeout,
             true);
 
-        this.discoveryClient = discoveryClient;
+        this.jsonMapper = jsonMapper;
         this.addressList = addressList;
-        this.clusterName = clusterName;
+        this.ribbonEtc = ribbonEtc == null ? new Properties() : ribbonEtc;
+        this.clientName = clientName;
+        this.client = client;
     }
-
-    protected List<String> getServerListFromDiscovery(List<String> addressList, DiscoveryClient discoveryClient) {
-        List<String> serverList = new ArrayList<>();
-
-        for (String address : addressList) {
-            String[] host_port = address.split(":");
-
-            List<InstanceInfo> listOfinstanceInfo = discoveryClient.getApplication(host_port[0]).getInstances();
-            for (InstanceInfo ii : listOfinstanceInfo) {
-                if (ii.getASGName().endsWith("_data") && ii.getStatus().equals(InstanceInfo.InstanceStatus.UP)) {
-                    serverList.add(ii.getHostName() + ":" + host_port[1]);
-                }
-            }
-        }
-
-        return serverList;
-    }
-
-    @VisibleForTesting
-    protected int refreshIntervalInSec = 60;
 
     @Override
     public void writeTo(MessageContainer message) {
         enqueue(message.getMessage());
     }
 
-    // for the testing purpose only
-    public void setClient(JestClient client) {
-        this.client = client;
-    }
-
     @Override
     public void open() {
-        Monitors.registerObject(clusterName, this);
-
-        List<String> urls = new ArrayList<String>();
-        if (discoveryClient != null) {
-            for (String s : getServerListFromDiscovery(addressList, discoveryClient)) {
-                urls.add(s);
-            }
-        } else {
-            for (String address : addressList) {
-                urls.add(address);
-            }
-        }
+        Monitors.registerObject(clientName, this);
 
         if (client == null) {
-            JestClientFactory factory = new JestClientFactory();
-            factory.setHttpClientConfig(new HttpClientConfig
-                .Builder(urls)
-                .multiThreaded(true)
-                .build());
-            client = factory.getObject();
+            createClient();
         }
 
-        String sinkId = ElasticSearchSink.class.getSimpleName() + "-" + clusterName;
-        if (discoveryClient != null) {
-            refreshServerList = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setDaemon(false).setNameFormat(sinkId + "-%d").build());
-            refreshServerList.scheduleAtFixedRate(new Runnable() {
-
-                @Override
-                public void run() {
-                    client.setServers(Sets.newHashSet(getServerListFromDiscovery(addressList, discoveryClient)));
-                }
-            }, refreshIntervalInSec, refreshIntervalInSec, TimeUnit.SECONDS); // every minute refresh
-        }
-
-        setName(sinkId);
+        setName(ElasticSearchSink.class.getSimpleName() + "-" + clientName);
         start();
     }
 
@@ -217,7 +159,31 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     @Override
     protected void beforePolling() throws IOException {}
 
-    private BulkableAction createIndexRequest(Message m) {
+    private void createClient() {
+        if (ribbonEtc.containsKey("eureka")) {
+            ribbonEtc.setProperty(
+                clientName + ".ribbon.AppName", clientName);
+            ribbonEtc.setProperty(
+                clientName + ".ribbon.NIWSServerListClassName",
+                "com.netflix.niws.loadbalancer.DiscoveryEnabledNIWSServerList");
+            ribbonEtc.setProperty(
+                clientName + ".ribbon.ServerListRefreshInterval",
+                "60000");
+            String[] host_port = addressList.get(0).split(":");
+            ribbonEtc.setProperty(
+                clientName + ".ribbon.DeploymentContextBasedVipAddresses",
+                host_port[0]);
+            ribbonEtc.setProperty(
+                clientName + ".ribbon.Port",
+                host_port[1]);
+        } else {
+            ribbonEtc.setProperty(clientName + ".ribbon.listOfServers", Joiner.on(",").join(addressList));
+        }
+        ConfigurationManager.loadProperties(ribbonEtc);
+        client = (RestClient) ClientFactory.getNamedClient(clientName);
+
+    }
+    private String createIndexRequest(Message m) {
         IndexInfo info = indexInfo.create(m);
         if (info == null) {
             Servo.getCounter(
@@ -233,43 +199,77 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                     .withTag(TagKey.ROUTING_KEY, m.getRoutingKey())
                     .build()).set(System.currentTimeMillis() - info.getTimestamp());
 
-            return new Index.Builder(info.getSource())
-                .index(info.getIndex())
-                .type(info.getType())
-                .id(info.getId())
-                .setParameter(Parameters.OP_TYPE, "create")
-                .build();
+            try {
+
+                StringBuilder sb = new StringBuilder();
+                if (info.getId() != null) {
+                    sb.append(String.format(
+                        "{ \"create\" : { \"_index\" : \"%s\", \"_type\" : \"%s\", \"_id\" : \"%s\" } }",
+                        info.getIndex(), info.getType(), info.getId()));
+                } else {
+                    sb.append(String.format(
+                        "{ \"create\" : { \"_index\" : \"%s\", \"_type\" : \"%s\"} }",
+                        info.getIndex(), info.getType()));
+                }
+                sb.append('\n');
+
+                sb.append(getSource(info));
+                sb.append('\n');
+
+                return sb.toString();
+            } catch (Exception e) {
+                Servo.getCounter(
+                    MonitorConfig.builder(PARSING_FAILED)
+                        .withTag(SINK_ID, getSinkId())
+                        .withTag(TagKey.ROUTING_KEY, m.getRoutingKey())
+                        .build()).increment();
+                return null;
+            }
+        }
+    }
+
+    private String getSource(IndexInfo info) throws JsonProcessingException {
+        if (info.getSource() instanceof Map) {
+            return jsonMapper.writeValueAsString(info.getSource());
+        } else {
+            return info.getSource().toString();
         }
     }
 
     @Override
     protected void write(List<Message> msgList) throws IOException {
-        final Pair<Bulk, List<Message>> request = createBulkRequest(msgList);
-
-        senders.execute(createRunnable(request));
+        senders.execute(createRunnable(createBulkRequest(msgList)));
     }
 
     @VisibleForTesting
-    protected Pair<Bulk, List<Message>> createBulkRequest(List<Message> msgList) {
+    protected Pair<HttpRequest, List<Message>> createBulkRequest(List<Message> msgList) {
         List<Message> msgListPayload = new LinkedList<>();
-        Bulk.Builder builder = new Bulk.Builder();
+        StringBuilder sb = new StringBuilder();
         for (Message m : msgList) {
-            BulkableAction indexRequest = createIndexRequest(m);
+            String indexRequest = createIndexRequest(m);
             if (indexRequest != null) {
-                builder.addAction(indexRequest);
+                sb.append(indexRequest).append('\n');
                 msgListPayload.add(m);
             }
         }
-        return new Pair<>(builder.build(), msgListPayload);
+
+        return new Pair<>(
+            HttpRequest.newBuilder()
+                .verb(HttpRequest.Verb.POST)
+                .uri("/_bulk")
+                .entity(sb.toString()).build(),
+            msgListPayload);
     }
 
-    private Runnable createRunnable(final Pair<Bulk, List<Message>> request) {
+    private Runnable createRunnable(final Pair<HttpRequest, List<Message>> request) {
         return new Runnable() {
             @Override
             public void run() {
                 try {
-                    JestResult response = client.execute(request.first());
-                    List items = (List) response.getValue("items");
+                    HttpResponse response = client.executeWithLoadBalancer(request.first());
+                    byte[] bytes = IOUtils.toByteArray(response.getInputStream());
+                    Map<String, Object> result = jsonMapper.readValue(bytes, new TypeReference<Map<String, Object>>(){});
+                    List items = (List) result.get("items");
                     for (int i = 0; i < items.size(); ++i) {
                         String routingKey = request.second().get(i).getRoutingKey();
                         Map<String, Object> resPerMessage = (Map)((Map)(items.get(i))).get("create");
@@ -305,19 +305,41 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     }
 
     private boolean isFailed(Map<String, Object> resPerMessage) {
-        return (int)((Double) resPerMessage.get("status") / 100) != 2;
+        return (int)resPerMessage.get("status") / 100 != 2;
     }
 
     @VisibleForTesting
     protected void recover(Message message) throws Exception {
-        BulkableAction request = createIndexRequest(message);
-        client.execute(request);
+        IndexInfo info = indexInfo.create(message);
+
+        String uri = info.getId() != null ?
+            String.format(
+                "/%s/%s/%s",
+                info.getIndex(),
+                info.getType(),
+                info.getId()) :
+            String.format(
+                "/%s/%s/",
+                info.getIndex(),
+                info.getType());
+
+        String entity = info.getSource() instanceof Map ?
+            jsonMapper.writeValueAsString(info.getSource()) :
+            info.getSource().toString();
+
+        HttpResponse response = client.executeWithLoadBalancer(
+            new HttpRequest.Builder()
+                .verb(HttpRequest.Verb.POST)
+                .uri(uri)
+                .entity(entity)
+                .build());
+        IOUtils.toByteArray(response.getInputStream());
     }
 
     @Override
     protected void innerClose() {
         super.innerClose();
 
-        client.shutdownClient();
+        client.shutdown();
     }
 }

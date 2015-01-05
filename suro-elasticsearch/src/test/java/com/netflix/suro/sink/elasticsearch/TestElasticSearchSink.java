@@ -13,17 +13,13 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.sink.Sink;
-import io.searchbox.client.JestClientFactory;
-import io.searchbox.client.config.HttpClientConfig;
-import io.searchbox.client.http.JestHttpClient;
-import io.searchbox.core.Count;
-import io.searchbox.core.CountResult;
 import org.apache.commons.collections.iterators.ArrayIterator;
+import org.elasticsearch.action.count.CountRequest;
+import org.elasticsearch.action.count.CountResponse;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.joda.time.DateTime;
-import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -35,10 +31,8 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
-@ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.TEST, numDataNodes = 1)
+@ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.TEST, numNodes = 1)
 public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
-    protected JestClientFactory factory;
-    protected JestHttpClient client;
 
     protected String getPort() {
         return "9200";
@@ -52,17 +46,6 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
             .put(super.nodeSettings(nodeOrdinal)).build();
     }
 
-    @Before
-    public void setUp() throws Exception {
-        super.setUp();
-        factory = new JestClientFactory();
-        HttpClientConfig httpClientConfig = new HttpClientConfig.Builder("http://localhost:" + getPort()).multiThreaded(true).build();
-
-        factory.setHttpClientConfig(httpClientConfig);
-
-        client = (JestHttpClient) factory.getObject();
-    }
-
     @Test
     public void testDefaultArgument() throws IOException {
         String index = "topic";
@@ -70,25 +53,23 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
         createDefaultESSink(index);
 
         refresh();
-        Count count = new Count.Builder()
-            .addIndex(index)
-            .build();
-        CountResult result = client.execute(count);
-        assertEquals(result.getCount().doubleValue(), 100.0, 0.0001);
+        CountResponse countResponse = client().count(new CountRequest(index)).actionGet();
+        assertEquals(countResponse.getCount(), 100);
     }
 
     private ElasticSearchSink createDefaultESSink(String index) throws JsonProcessingException {
         ObjectMapper jsonMapper = new DefaultObjectMapper();
         ElasticSearchSink sink = new ElasticSearchSink(
+            index,
             null,
             10,
             1000,
-            null,
-            Lists.newArrayList("http://localhost:" + getPort()),
+            Lists.newArrayList("localhost:" + getPort()),
             null,
             0,0,0,0,
             null,
-            jsonMapper
+            jsonMapper,
+            null
         );
         sink.open();
 
@@ -105,6 +86,7 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
             sink.writeTo(new DefaultMessageContainer(new Message(index, jsonMapper.writeValueAsBytes(msg)), jsonMapper));
         }
         sink.close();
+
         return sink;
     }
 
@@ -114,11 +96,11 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
         Properties props = new Properties();
         props.setProperty("dateFormat", "YYYYMMdd");
         ElasticSearchSink sink = new ElasticSearchSink(
+            "testIndexInfoBuilder",
             null,
             1,
             1000,
-            null,
-            Lists.newArrayList("http://localhost:" + getPort()),
+            Lists.newArrayList("localhost:" + getPort()),
             new DefaultIndexInfoBuilder(
                 null,
                 null,
@@ -128,7 +110,8 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
                 jsonMapper),
             0,0,0,0,
             null,
-            jsonMapper
+            jsonMapper,
+            null
         );
         sink.open();
 
@@ -149,11 +132,8 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
         sink.close();
 
         refresh();
-        Count count = new Count.Builder()
-            .addIndex(index)
-            .build();
-        CountResult result = client.execute(count);
-        assertEquals(result.getCount().doubleValue(), 100.0, 0.0001);
+        CountResponse countResponse = client().count(new CountRequest(index)).actionGet();
+        assertEquals(countResponse.getCount(), 100);
     }
 
     @Test
@@ -199,15 +179,16 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
     public void testRecover() throws Exception {
         ObjectMapper jsonMapper = new DefaultObjectMapper();
         ElasticSearchSink sink = new ElasticSearchSink(
+            "default",
             null,
             10,
             1000,
-            null,
-            Lists.newArrayList("http://localhost:" + getPort()),
+            Lists.newArrayList("localhost:" + getPort()),
             null,
             0,0,0,0,
             null,
-            jsonMapper
+            jsonMapper,
+            null
         );
         sink.open();
 
@@ -232,11 +213,8 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
         }
 
         refresh();
-        Count count = new Count.Builder()
-            .addIndex(index)
-            .build();
-        CountResult result = client.execute(count);
-        assertEquals(result.getCount().doubleValue(), 100.0, 0.0001);
+        CountResponse countResponse = client().count(new CountRequest(index)).actionGet();
+        assertEquals(countResponse.getCount(), 100);
     }
 
     private ObjectMapper jsonMapper = new DefaultObjectMapper();
@@ -288,15 +266,16 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
         }).when(indexInfo).create(any(Message.class));
 
         ElasticSearchSink sink = new ElasticSearchSink(
+            "testStat",
             null, // by default it will be memory queue
             1000,
             5000,
-            "cluster",
-            Lists.newArrayList("http://localhost:" + getPort()),
+            Lists.newArrayList("localhost:" + getPort()),
             indexInfo,
             0,0,0,0,
             null,
-            jsonMapper);
+            jsonMapper,
+            null);
         sink.open();
 
         for (int i = 0; i < 3; ++i) {
