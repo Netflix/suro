@@ -51,6 +51,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private final IndexInfoBuilder indexInfo;
     private final String clientName;
     private final ObjectMapper jsonMapper;
+    private final Timer timer;
 
     public ElasticSearchSink(
         @JsonProperty("clientName") String clientName,
@@ -66,14 +67,13 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         @JsonProperty("ribbon.etc") Properties ribbonEtc,
         @JacksonInject ObjectMapper jsonMapper,
         @JacksonInject RestClient client) {
-        super(jobQueueSize, corePoolSize, maxPoolSize, jobTimeout,
-            ElasticSearchSink.class.getSimpleName() + "-" + clientName);
+        super(jobQueueSize, corePoolSize, maxPoolSize, jobTimeout, clientName);
 
         this.indexInfo =
             indexInfo == null ? new DefaultIndexInfoBuilder(null, null, null, null, null, jsonMapper) : indexInfo;
 
         initialize(
-            "es_" + clientName,
+            clientName,
             queue4Sink == null ? new MemoryQueue4Sink(10000) : queue4Sink,
             batchSize,
             batchTimeout,
@@ -84,6 +84,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         this.ribbonEtc = ribbonEtc == null ? new Properties() : ribbonEtc;
         this.clientName = clientName;
         this.client = client;
+        this.timer = Servo.getTimer(clientName + "_latency");
     }
 
     @Override
@@ -99,7 +100,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             createClient();
         }
 
-        setName(ElasticSearchSink.class.getSimpleName() + "-" + clientName);
+        setName(clientName);
         start();
     }
 
@@ -257,6 +258,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             HttpRequest.newBuilder()
                 .verb(HttpRequest.Verb.POST)
                 .uri("/_bulk")
+                .setRetriable(true)
                 .entity(sb.toString()).build(),
             msgListPayload);
     }
@@ -265,6 +267,8 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         return new Runnable() {
             @Override
             public void run() {
+                Stopwatch stopwatch = timer.start();
+
                 try {
                     HttpResponse response = client.executeWithLoadBalancer(request.first());
                     byte[] bytes = IOUtils.toByteArray(response.getInputStream());
@@ -294,8 +298,16 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                     throughput.increment(items.size());
                 } catch (Exception e) {
                     log.error("Exception on bulk execute: " + e.getMessage(), e);
+                    for (Message m : request.second()) {
+                        Servo.getCounter(
+                            MonitorConfig.builder(REJECTED_ROW)
+                                .withTag(SINK_ID, getSinkId())
+                                .withTag(TagKey.ROUTING_KEY, m.getRoutingKey())
+                                .build()).increment();
+                    }
+                } finally {
+                    stopwatch.stop();
                 }
-
             }
         };
     }
@@ -328,8 +340,9 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             info.getSource().toString();
 
         HttpResponse response = client.executeWithLoadBalancer(
-            new HttpRequest.Builder()
+            HttpRequest.newBuilder()
                 .verb(HttpRequest.Verb.POST)
+                .setRetriable(true)
                 .uri(uri)
                 .entity(entity)
                 .build());
