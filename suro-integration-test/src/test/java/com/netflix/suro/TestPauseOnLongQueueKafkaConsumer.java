@@ -1,5 +1,6 @@
 package com.netflix.suro;
 
+import com.amazonaws.util.StringInputStream;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.BeanProperty;
@@ -10,7 +11,9 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
-import com.google.gson.Gson;
+import com.netflix.client.http.HttpRequest;
+import com.netflix.client.http.HttpResponse;
+import com.netflix.niws.client.http.RestClient;
 import com.netflix.suro.input.kafka.KafkaConsumer;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.DefaultMessageContainer;
@@ -25,10 +28,6 @@ import com.netflix.suro.sink.kafka.KafkaRetentionPartitioner;
 import com.netflix.suro.sink.kafka.KafkaServerExternalResource;
 import com.netflix.suro.sink.kafka.KafkaSink;
 import com.netflix.suro.sink.kafka.ZkExternalResource;
-import io.searchbox.action.Action;
-import io.searchbox.client.JestClient;
-import io.searchbox.client.JestResult;
-import io.searchbox.core.Bulk;
 import kafka.admin.TopicCommand;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -45,7 +44,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.*;
 
 public class TestPauseOnLongQueueKafkaConsumer {
@@ -82,39 +80,46 @@ public class TestPauseOnLongQueueKafkaConsumer {
 
         final KafkaSink kafkaSink = createKafkaProducer(jsonMapper, kafkaServer.getBrokerListStr());
 
+        RestClient client = mock(RestClient.class);
+
         final ElasticSearchSink sink = new ElasticSearchSink(
+                "tpolq",
                 null,
                 10,
                 1000,
-                null,
-                Lists.newArrayList("http://localhost:9200"),
+                Lists.newArrayList("localhost:9200"),
                 null,
                 0,0,0,0,
                 null,
-                jsonMapper
+                jsonMapper,
+                client
         );
 
-        JestClient client = mock(JestClient.class);
         doAnswer(new Answer() {
 
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
-                final Bulk bulk = (Bulk) invocation.getArguments()[0];
-                int numRecords = bulk.getData(new Gson()).toString().split("\n").length / 2;
+                final HttpRequest bulk = (HttpRequest) invocation.getArguments()[0];
+                int numRecords = bulk.getEntity().toString().split("\n").length / 2;
                 rateLimiter.acquire(numRecords);
 
-                JestResult result = mock(JestResult.class);
+                HttpResponse result = mock(HttpResponse.class);
                 List list = new ArrayList();
                 for (int i = 0; i < numRecords; ++i) {
                     list.add(new ImmutableMap.Builder<>().put("create",
-                        new ImmutableMap.Builder<>().put("status", 200.0).build()).build());
+                        new ImmutableMap.Builder<>().put("status", 200).build()).build());
                 }
-                doReturn(list).when(result).getValue(anyString());
+
+                doReturn(new StringInputStream(
+                    jsonMapper.writeValueAsString(
+                        new ImmutableMap.Builder<>()
+                            .put("took", 1000)
+                            .put("items", list)
+                            .build()))).when(result).getInputStream();
 
                 return result;
             }
-        }).when(client).execute(any(Action.class));
-        sink.setClient(client);
+        }).when(client).executeWithLoadBalancer(any(HttpRequest.class));
 
         sink.open();
 
@@ -154,7 +159,7 @@ public class TestPauseOnLongQueueKafkaConsumer {
         }
 
         // get the number of pending messages for 10 seconds
-        ArrayList<Integer> countList = new ArrayList<Integer>();
+        ArrayList<Integer> countList = new ArrayList<>();
         for (int i = 0; i < 10; ++i) {
             countList.add((int) sink.getNumOfPendingMessages());
             Thread.sleep(1000);

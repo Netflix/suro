@@ -248,7 +248,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         for (Message m : msgList) {
             String indexRequest = createIndexRequest(m);
             if (indexRequest != null) {
-                sb.append(indexRequest).append('\n');
+                sb.append(indexRequest);
                 msgListPayload.add(m);
             }
         }
