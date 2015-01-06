@@ -3,7 +3,6 @@ package com.netflix.suro.sink.elasticsearch;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
@@ -90,16 +89,11 @@ public class DefaultIndexInfoBuilder implements IndexInfoBuilder {
                 }
 
                 @Override
-                public byte[] getSource() {
+                public Object getSource() {
                     if (dataConverter != null) {
-                        try {
-                            return jsonMapper.writeValueAsBytes(msgMap);
-                        } catch (JsonProcessingException e) {
-                            log.error("Exception on converting", e);
-                            throw new RuntimeException(e);
-                        }
+                        return msgMap;
                     } else {
-                        return msg.getPayload();
+                        return new String(msg.getPayload());
                     }
                 }
 
