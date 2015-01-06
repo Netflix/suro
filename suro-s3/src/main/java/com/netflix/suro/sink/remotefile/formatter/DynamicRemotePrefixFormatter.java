@@ -1,6 +1,5 @@
 package com.netflix.suro.sink.remotefile.formatter;
 
-import com.amazonaws.services.cloudfront.model.InvalidArgumentException;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.netflix.suro.sink.remotefile.RemotePrefixFormatter;
@@ -46,7 +45,7 @@ public class DynamicRemotePrefixFormatter implements RemotePrefixFormatter {
         } else if (name.equals("property")) {
             return new PropertyPrefixFormatter(param);
         } else {
-            throw new InvalidArgumentException(name + " cannot be supported");
+            throw new IllegalArgumentException(name + " cannot be supported");
         }
     }
 }

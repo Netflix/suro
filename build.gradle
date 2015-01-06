@@ -124,7 +124,7 @@ project(':suro-server') {
     compile 'com.sun.jersey.contribs:jersey-guice:1.11'
     compile 'com.sun.jersey:jersey-bundle:1.11'
     compile 'javax.servlet:servlet-api:2.5'
-    compile 'com.amazonaws:aws-java-sdk:1.4.7'
+    compile 'com.amazonaws:aws-java-sdk-sqs:1.9.3'
 
     compile 'commons-cli:commons-cli:1.2'
     
@@ -211,7 +211,7 @@ project(':suro-s3') {
         compile project(':suro-localfile')
 
         compile 'net.java.dev.jets3t:jets3t:0.9.2'
-        compile 'com.amazonaws:aws-java-sdk:1.4.7'
+        compile 'com.amazonaws:aws-java-sdk-s3:1.9.3'
 
         testCompile project(':suro-client').sourceSets.test.output
     }

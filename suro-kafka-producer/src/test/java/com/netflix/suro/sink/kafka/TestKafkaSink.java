@@ -1,5 +1,6 @@
 package com.netflix.suro.sink.kafka;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.BeanProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -25,7 +26,6 @@ import kafka.message.MessageAndMetadata;
 import kafka.message.MessageAndOffset;
 import kafka.server.KafkaConfig;
 import kafka.utils.ZkUtils;
-import org.apache.kafka.clients.producer.BufferExhaustedException;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -33,6 +33,7 @@ import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
+import rx.functions.Action3;
 import scala.Option;
 
 import java.io.IOException;
@@ -40,6 +41,8 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
 
@@ -140,36 +143,13 @@ public class TestKafkaSink {
         });
         sink.open();
         int msgCount = 10000;
-        for (int i = 0; i < msgCount; ++i) {
-            Map<String, Object> msgMap = new ImmutableMap.Builder<String, Object>()
-                    .put("key", Integer.toString(i))
-                    .put("value", "message:" + i).build();
-            sink.writeTo(new DefaultMessageContainer(
-                    new Message(TOPIC_NAME_MULTITHREAD, jsonMapper.writeValueAsBytes(msgMap)),
-                    jsonMapper));
-        }
+        sendMessages(TOPIC_NAME_MULTITHREAD, sink, msgCount);
         assertTrue(sink.getNumOfPendingMessages() > 0);
         sink.close();
         System.out.println(sink.getStat());
         assertEquals(sink.getNumOfPendingMessages(), 0);
 
-        ConsumerConnector consumer = kafka.consumer.Consumer.createJavaConsumerConnector(
-                createConsumerConfig("localhost:" + zk.getServerPort(), "gropuid_multhread"));
-        Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
-        topicCountMap.put(TOPIC_NAME_MULTITHREAD, 1);
-        Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
-        KafkaStream<byte[], byte[]> stream = consumerMap.get(TOPIC_NAME_MULTITHREAD).get(0);
-        for (int i = 0; i < msgCount; ++i) {
-            stream.iterator().next();
-        }
-
-        try {
-            stream.iterator().next();
-            fail();
-        } catch (ConsumerTimeoutException e) {
-            //this is expected
-            consumer.shutdown();
-        }
+        checkConsumer(TOPIC_NAME_MULTITHREAD, msgCount);
     }
 
     @Test
@@ -264,28 +244,35 @@ public class TestKafkaSink {
 
         final KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
-        boolean exceptionCaught = false;
-        boolean checkPaused = false;
-        boolean pending = false;
 
-        for (int i = 0; i < 100; ++i) {
-            try {
-                sink.writeTo(new DefaultMessageContainer(new Message(TOPIC_NAME + "check_pause", getBigData()), jsonMapper));
-            } catch (BufferExhaustedException e) {
-                exceptionCaught = true;
-                if (sink.checkPause() > 0) {
-                    checkPaused = true;
+        final AtomicBoolean exceptionCaught = new AtomicBoolean(false);
+        final AtomicBoolean checkPaused = new AtomicBoolean(false);
+        final AtomicBoolean pending = new AtomicBoolean(false);
+        final CountDownLatch latch = new CountDownLatch(1);
+
+        sink.setRecordCounterListener(new Action3<Long, Long, Long>() {
+
+            @Override
+            public void call(Long queued, Long sent, Long dropped) {
+                if (dropped > 0) {
+                    exceptionCaught.set(true);
+                    if (sink.checkPause() > 0) {
+                        checkPaused.set(true);
+                    }
+                    if (sink.getNumOfPendingMessages() > 0) {
+                        pending.set(true);
+                    }
+                    latch.countDown();
                 }
-                if (sink.getNumOfPendingMessages() > 0) {
-                    pending = true;
-                }
-            } catch (Exception e) {
-                fail("invalid exception:" + e.toString());
             }
+        });
+        for (int i = 0; i < 100; ++i) {
+            sink.writeTo(new DefaultMessageContainer(new Message(TOPIC_NAME + "check_pause", getBigData()), jsonMapper));
         }
-        assertTrue(exceptionCaught);
-        assertTrue(checkPaused);
-        assertTrue(pending);
+        assertTrue(latch.await(10, TimeUnit.SECONDS));
+        assertTrue(exceptionCaught.get());
+        assertTrue(checkPaused.get());
+        assertTrue(pending.get());
     }
 
     @Test
@@ -321,7 +308,7 @@ public class TestKafkaSink {
                     }
                     if (i == 50) {
                         try{
-                            kafkaServer.after(); // to simulate kafka latency
+                            kafkaServer.shutdown(); // to simulate kafka latency
                         }finally {
                             shutdownLatch.countDown();
                         }
@@ -433,6 +420,160 @@ public class TestKafkaSink {
         try {
             stream.iterator().next();
             fail(); // there should be no data left to consume
+        } catch (ConsumerTimeoutException e) {
+            //this is expected
+            consumer.shutdown();
+        }
+    }
+
+    @Test
+    public void testStartWithKafkaOutage() throws Throwable {
+        String topicName = TOPIC_NAME + "kafkaoutage";
+
+        TopicCommand.createTopic(zk.getZkClient(),
+            new TopicCommand.TopicCommandOptions(new String[]{
+                "--zookeeper", "dummy", "--create", "--topic", topicName,
+                "--replication-factor", "2", "--partitions", "1"}));
+
+        String[] brokerList = kafkaServer.getBrokerListStr().split(",");
+        int port1 = Integer.parseInt(brokerList[0].split(":")[1]);
+        int port2 = Integer.parseInt(brokerList[1].split(":")[1]);
+
+        String description = "{\n" +
+            "    \"type\": \"kafka\",\n" +
+            "    \"client.id\": \"kafkasink\",\n" +
+            "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
+            "    \"acks\": 1\n" +
+            "    }" +
+            "}";
+
+        kafkaServer.shutdown();
+
+
+        final KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
+        sink.open();
+
+        final int msgCount = 10000;
+        final CountDownLatch latch = new CountDownLatch(1);
+        sink.setRecordCounterListener(new Action3<Long, Long, Long>() {
+
+            @Override
+            public void call(Long queued, Long sent, Long dropped) {
+                if (sent == msgCount) {
+                    latch.countDown();
+                }
+            }
+        });
+
+        sendMessages(topicName, sink, msgCount);
+
+        kafkaServer.startServer(port1, port2); // running up
+        assertTrue(latch.await(10, TimeUnit.SECONDS));
+
+        sendMessages(topicName, sink, msgCount);
+        sink.close();
+
+        checkConsumer(topicName, 2 * msgCount);
+    }
+
+    @Test
+    public void testRunningKafkaOutage() throws IOException, InterruptedException {
+        String topicName1 = TOPIC_NAME + "kafkaoutage2";
+        final String topicName2 = TOPIC_NAME + "kafkaoutage3";
+
+        TopicCommand.createTopic(zk.getZkClient(),
+            new TopicCommand.TopicCommandOptions(new String[]{
+                "--zookeeper", "dummy", "--create", "--topic", topicName1,
+                "--replication-factor", "2", "--partitions", "1"}));
+        TopicCommand.createTopic(zk.getZkClient(),
+            new TopicCommand.TopicCommandOptions(new String[]{
+                "--zookeeper", "dummy", "--create", "--topic", topicName2,
+                "--replication-factor", "2", "--partitions", "1"}));
+
+        String[] brokerList = kafkaServer.getBrokerListStr().split(",");
+        int port1 = Integer.parseInt(brokerList[0].split(":")[1]);
+        int port2 = Integer.parseInt(brokerList[1].split(":")[1]);
+
+        String description = "{\n" +
+            "    \"type\": \"kafka\",\n" +
+            "    \"client.id\": \"kafkasink\",\n" +
+            "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
+            "    \"acks\": 1\n" +
+            "}";
+
+        final KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
+        sink.open();
+
+        final CountDownLatch latch = new CountDownLatch(1);
+        final int msgCount = 10000;
+        sink.setRecordCounterListener(new Action3<Long, Long, Long>() {
+            @Override
+            public void call(Long queued, Long sent, Long dropped) {
+                if (sent == msgCount) {
+                    latch.countDown();
+                }
+            }
+        });
+
+        sendMessages(topicName1, sink, msgCount);
+        assertTrue(latch.await(10, TimeUnit.SECONDS));
+        checkConsumer(topicName1, msgCount);
+
+        kafkaServer.shutdown();
+
+        sendMessages(topicName2, sink, msgCount);
+
+        kafkaServer.startServer(port1, port2);
+
+        final CountDownLatch latch2 = new CountDownLatch(1);
+        final AtomicInteger numSent = new AtomicInteger();
+        sink.setRecordCounterListener(new Action3<Long, Long, Long>() {
+            @Override
+            public void call(Long queued, Long sent, Long dropped) {
+                if (sent + dropped == 3 * msgCount) {
+                    numSent.set((int) (2 * msgCount - dropped));
+                    latch2.countDown();
+                }
+            }
+        });
+
+        sendMessages(topicName2, sink, msgCount);
+        sink.close();
+
+        assertTrue(latch2.await(10, TimeUnit.SECONDS));
+        assertTrue(numSent.get() > 0);
+        checkConsumer(topicName2, numSent.get());
+    }
+
+    private void sendMessages(String topicName, KafkaSink sink, int msgCount) throws JsonProcessingException {
+        for (int i = 0; i < msgCount; ++i) {
+            Map<String, Object> msgMap = new ImmutableMap.Builder<String, Object>()
+                .put("key", Integer.toString(i))
+                .put("value", "message:" + i).build();
+            sink.writeTo(new DefaultMessageContainer(
+                new Message(topicName, jsonMapper.writeValueAsBytes(msgMap)),
+                jsonMapper));
+        }
+    }
+
+    private void checkConsumer(String topicName, int msgCount) throws IOException {
+        ConsumerConnector consumer = kafka.consumer.Consumer.createJavaConsumerConnector(
+            createConsumerConfig("localhost:" + zk.getServerPort(), "gropuid"));
+        Map<String, Integer> topicCountMap = new HashMap<>();
+        topicCountMap.put(topicName, 1);
+        Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
+        KafkaStream<byte[], byte[]> stream = consumerMap.get(topicName).get(0);
+        for (int i = 0; i < msgCount; ++i) {
+            try {
+                stream.iterator().next();
+            } catch (ConsumerTimeoutException e) {
+                fail(String.format("%d messages are consumed among %d", i, msgCount));
+            }
+        }
+
+        try {
+            stream.iterator().next();
+            fail();
         } catch (ConsumerTimeoutException e) {
             //this is expected
             consumer.shutdown();
