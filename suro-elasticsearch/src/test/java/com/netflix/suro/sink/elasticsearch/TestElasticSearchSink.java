@@ -8,27 +8,18 @@ import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.sink.Sink;
 import org.apache.commons.collections.iterators.ArrayIterator;
-import org.elasticsearch.action.ActionFuture;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.bulk.BulkItemResponse;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.count.CountRequest;
 import org.elasticsearch.action.count.CountResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.node.Node;
-import org.elasticsearch.node.NodeBuilder;
+import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.joda.time.DateTime;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -36,77 +27,66 @@ import org.mockito.stubbing.Answer;
 import java.io.IOException;
 import java.util.*;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 
-public class TestElasticSearchSink {
-    private static Node node;
-    private static Settings nodeSettings() {
-        return ImmutableSettings.settingsBuilder().build();
+@ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.TEST, numNodes = 1)
+public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
+
+    protected String getPort() {
+        return "9200";
     }
 
-    @BeforeClass
-    public static void setup() {
-        Settings settings = ImmutableSettings.settingsBuilder()
-                .put("gateway.type", "none")
-                .put("index.store.type", "memory")
-                .put("index.number_of_shards", 1)
-                .put("index.number_of_replicas", 0)
-                .put(nodeSettings())
-                .build();
-        node = NodeBuilder.nodeBuilder().local(true).settings(settings).node();
-    }
-
-    @AfterClass
-    public static void cleardown() {
-        node.close();
+    @Override
+    protected Settings nodeSettings(int nodeOrdinal) {
+        return ImmutableSettings.settingsBuilder()
+            .put("index.number_of_shards", 1)
+            .put("index.number_of_replicas", 1)
+            .put(super.nodeSettings(nodeOrdinal)).build();
     }
 
     @Test
-    public void testDefaultArgument() throws JsonProcessingException {
+    public void testDefaultArgument() throws IOException {
         String index = "topic";
 
         createDefaultESSink(index);
 
-        node.client().admin().indices().prepareRefresh(index).execute().actionGet();
-        CountResponse response = node.client().prepareCount(index).execute().actionGet();
-        assertEquals(response.getCount(), 100);
+        refresh();
+        CountResponse countResponse = client().count(new CountRequest(index)).actionGet();
+        assertEquals(countResponse.getCount(), 100);
     }
 
     private ElasticSearchSink createDefaultESSink(String index) throws JsonProcessingException {
         ObjectMapper jsonMapper = new DefaultObjectMapper();
         ElasticSearchSink sink = new ElasticSearchSink(
-                null,
-                10,
-                1000,
-                null,
-                true,
-                "1s",
-                "1s",
-                null,
-                null,
-                0,0,0,0,false,null,
-                null,
-                jsonMapper,
-                node.client()
+            index,
+            null,
+            10,
+            1000,
+            Lists.newArrayList("localhost:" + getPort()),
+            null,
+            0,0,0,0,
+            null,
+            jsonMapper,
+            null
         );
         sink.open();
 
         DateTime dt = new DateTime("2014-10-12T12:12:12.000Z");
 
         Map<String, Object> msg = new ImmutableMap.Builder<String, Object>()
-                .put("f1", "v1")
-                .put("f2", "v2")
-                .put("f3", "v3")
-                .put("ts", dt.getMillis())
-                .build();
+            .put("f1", "v1")
+            .put("f2", "v2")
+            .put("f3", "v3")
+            .put("ts", dt.getMillis())
+            .build();
 
         for (int i = 0; i < 100; ++i) {
             sink.writeTo(new DefaultMessageContainer(new Message(index, jsonMapper.writeValueAsBytes(msg)), jsonMapper));
         }
         sink.close();
+
         return sink;
     }
 
@@ -116,36 +96,33 @@ public class TestElasticSearchSink {
         Properties props = new Properties();
         props.setProperty("dateFormat", "YYYYMMdd");
         ElasticSearchSink sink = new ElasticSearchSink(
+            "testIndexInfoBuilder",
+            null,
+            1,
+            1000,
+            Lists.newArrayList("localhost:" + getPort()),
+            new DefaultIndexInfoBuilder(
                 null,
-                1,
-                1000,
                 null,
-                true,
-                "1s",
-                "1s",
+                new TimestampField("ts", null),
+                new IndexSuffixFormatter("date", props),
                 null,
-                new DefaultIndexInfoBuilder(
-                        null,
-                        null,
-                        new TimestampField("ts", null),
-                        new IndexSuffixFormatter("date", props),
-                        null,
-                        jsonMapper),
-                0,0,0,0,false,null,
-                null,
-                jsonMapper,
-                node.client()
+                jsonMapper),
+            0,0,0,0,
+            null,
+            jsonMapper,
+            null
         );
         sink.open();
 
         DateTime dt = new DateTime("2014-10-12T12:12:12.000Z");
 
         Map<String, Object> msg = new ImmutableMap.Builder<String, Object>()
-                .put("f1", "v1")
-                .put("f2", "v2")
-                .put("f3", "v3")
-                .put("ts", dt.getMillis())
-                .build();
+            .put("f1", "v1")
+            .put("f2", "v2")
+            .put("f3", "v3")
+            .put("ts", dt.getMillis())
+            .build();
 
         String routingKey = "topic";
         String index = "topic20141012";
@@ -154,40 +131,37 @@ public class TestElasticSearchSink {
         }
         sink.close();
 
-        node.client().admin().indices().prepareRefresh(index).execute().actionGet();
-        CountResponse response = node.client().prepareCount(index).execute().actionGet();
-        assertEquals(response.getCount(), 100);
+        refresh();
+        CountResponse countResponse = client().count(new CountRequest(index)).actionGet();
+        assertEquals(countResponse.getCount(), 100);
     }
 
     @Test
     public void testCreate() throws IOException {
         String desc = "    {\n" +
-                "        \"type\": \"elasticsearch\",\n" +
-                "        \"queue4Sink\":{\"type\": \"memory\", \"capacity\": 10000 },\n" +
-                "        \"batchSize\": 100,\n" +
-                "        \"batchTimeout\": 1000,\n" +
-                "        \"cluster.name\": \"es_test\",\n" +
-                "        \"client.transport.sniff\": true,\n" +
-                "        \"client.transport.ping_timeout\": \"60s\",\n" +
-                "        \"client.transport_nodes_sampler_interval\": \"60s\",\n" +
-                "        \"addressList\": [\"host1:port1\", \"host2:port2\"],\n" +
-                "        \"indexInfo\":{\n" +
-                "            \"type\": \"default\",\n" +
-                "            \"indexTypeMap\":{\"routingkey1\":\"index1:type1\", \"routingkey2\":\"index2:type2\"},\n" +
-                "            \"idFields\":{\"index\":[\"f1\", \"f2\"]},\n" +
-                "            \"timestamp\": {\"field\":\"ts\"},\n" +
-                "            \"indexSuffixFormatter\":{\"type\": \"date\", \"properties\":{\"dateFormat\":\"YYYYMMdd\"}}\n" +
-                "        }\n" +
-                "    }";
+            "        \"type\": \"elasticsearch\",\n" +
+            "        \"queue4Sink\":{\"type\": \"memory\", \"capacity\": 10000 },\n" +
+            "        \"batchSize\": 100,\n" +
+            "        \"batchTimeout\": 1000,\n" +
+            "        \"cluster.name\": \"es_test\",\n" +
+            "        \"addressList\": [\"http://host1:port1\", \"http://host2:port2\"],\n" +
+            "        \"indexInfo\":{\n" +
+            "            \"type\": \"default\",\n" +
+            "            \"indexTypeMap\":{\"routingkey1\":\"index1:type1\", \"routingkey2\":\"index2:type2\"},\n" +
+            "            \"idFields\":{\"index\":[\"f1\", \"f2\"]},\n" +
+            "            \"timestamp\": {\"field\":\"ts\"},\n" +
+            "            \"indexSuffixFormatter\":{\"type\": \"date\", \"properties\":{\"dateFormat\":\"YYYYMMdd\"}}\n" +
+            "        }\n" +
+            "    }";
         final ObjectMapper jsonMapper = new DefaultObjectMapper();
         jsonMapper.registerSubtypes(new NamedType(ElasticSearchSink.class, "elasticsearch"));
         jsonMapper.setInjectableValues(new InjectableValues() {
             @Override
             public Object findInjectableValue(
-                    Object valueId,
-                    DeserializationContext ctxt,
-                    BeanProperty forProperty,
-                    Object beanInstance
+                Object valueId,
+                DeserializationContext ctxt,
+                BeanProperty forProperty,
+                Object beanInstance
             ) {
                 if (valueId.equals(ObjectMapper.class.getCanonicalName())) {
                     return jsonMapper;
@@ -202,48 +176,45 @@ public class TestElasticSearchSink {
     }
 
     @Test
-    public void testRecover() throws JsonProcessingException {
+    public void testRecover() throws Exception {
         ObjectMapper jsonMapper = new DefaultObjectMapper();
         ElasticSearchSink sink = new ElasticSearchSink(
-                null,
-                10,
-                1000,
-                null,
-                true,
-                "1s",
-                "1s",
-                null,
-                null,
-                0,0,0,0,false,null,
-                null,
-                jsonMapper,
-                node.client()
+            "default",
+            null,
+            10,
+            1000,
+            Lists.newArrayList("localhost:" + getPort()),
+            null,
+            0,0,0,0,
+            null,
+            jsonMapper,
+            null
         );
+        sink.open();
 
         DateTime dt = new DateTime("2014-10-12T12:12:12.000Z");
 
         Map<String, Object> msg = new ImmutableMap.Builder<String, Object>()
-                .put("f1", "v1")
-                .put("f2", "v2")
-                .put("f3", "v3")
-                .put("ts", dt.getMillis())
-                .build();
+            .put("f1", "v1")
+            .put("f2", "v2")
+            .put("f3", "v3")
+            .put("ts", dt.getMillis())
+            .build();
         String routingKey = "topicrecover";
         String index = "topicrecover";
-        List<Message> msgList = new ArrayList<Message>();
+        List<Message> msgList = new ArrayList<>();
         int msgCount = 100;
         for (int i = 0; i < msgCount; ++i) {
             msgList.add(new Message(routingKey, jsonMapper.writeValueAsBytes(msg)));
         }
 
-        BulkRequest request = sink.createBulkRequest(msgList);
-        for (int i = 0; i < msgCount; ++i) {
-            sink.recover(i, request);
+        for (Message m : msgList) {
+            sink.recover(m);
         }
 
-        node.client().admin().indices().prepareRefresh(index).execute().actionGet();
-        CountResponse response = node.client().prepareCount(index).execute().actionGet();
-        assertEquals(response.getCount(), 100);
+        refresh();
+        CountResponse countResponse = client().count(new CountRequest(index)).actionGet();
+        assertEquals(countResponse.getCount(), 100);
     }
 
     private ObjectMapper jsonMapper = new DefaultObjectMapper();
@@ -272,8 +243,12 @@ public class TestElasticSearchSink {
                         }
 
                         @Override
-                        public byte[] getSource() {
-                            return m.getPayload();
+                        public Object getSource() {
+                            if (m.getRoutingKey().startsWith("rejected")) {
+                                return m.getPayload();
+                            } else {
+                                return new String(m.getPayload());
+                            }
                         }
 
                         @Override
@@ -290,30 +265,17 @@ public class TestElasticSearchSink {
             }
         }).when(indexInfo).create(any(Message.class));
 
-        Client client = mock(Client.class);
-        ActionFuture<BulkResponse> responseActionFuture = mock(ActionFuture.class);
-        BulkResponse response = getBulkItemResponses();
-        doReturn(response).when(responseActionFuture).actionGet();
-        doReturn(responseActionFuture).when(client).bulk(any(BulkRequest.class));
-
-        ActionFuture<IndexResponse> indexResponseActionFuture = mock(ActionFuture.class);
-        doReturn(mock(IndexResponse.class)).when(indexResponseActionFuture).actionGet();
-        doReturn(indexResponseActionFuture).when(client).index(any(IndexRequest.class));
-
         ElasticSearchSink sink = new ElasticSearchSink(
-                null, // by default it will be memory queue
-                1000,
-                5000,
-                "cluster",
-                false,
-                null,
-                null,
-                null,
-                indexInfo,
-                0,0,0,0,false,null,
-                null,
-                jsonMapper,
-                client);
+            "testStat",
+            null, // by default it will be memory queue
+            1000,
+            5000,
+            Lists.newArrayList("localhost:" + getPort()),
+            indexInfo,
+            0,0,0,0,
+            null,
+            jsonMapper,
+            null);
         sink.open();
 
         for (int i = 0; i < 3; ++i) {
@@ -361,33 +323,6 @@ public class TestElasticSearchSink {
             stringSet.add(s.split(":")[0]);
         }
         assertEquals(stringSet.size(), 6);
-    }
-
-    private BulkResponse getBulkItemResponses() {
-        List<BulkItemResponse> responseList = new ArrayList<>();
-        int id = 0;
-        BulkItemResponse.Failure failure = mock(BulkItemResponse.Failure.class);
-        doReturn("mocked failure message").when(failure).getMessage();
-        for (int i = 0; i < 3; ++i) {
-            for (int j = 0; j < 3; ++j) {
-                responseList.add(new BulkItemResponse(
-                        id++,
-                        "insert",
-                        mock(ActionResponse.class)
-                ));
-            }
-            for (int j = 0; j < 3; ++j) {
-                responseList.add(new BulkItemResponse(
-                        id++,
-                        "insert",
-                        failure
-                        ));
-            }
-        }
-        return new BulkResponse(
-                    responseList.toArray(new BulkItemResponse[responseList.size()]),
-                    1000
-            );
     }
 
     private byte[] getAnyMessage() throws JsonProcessingException {

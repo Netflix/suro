@@ -21,7 +21,6 @@ import com.netflix.suro.sink.remotefile.AWSSessionCredentialsAdapter;
 import com.netflix.util.Pair;
 import org.apache.commons.io.FileUtils;
 import org.jets3t.service.Jets3tProperties;
-import org.jets3t.service.S3ServiceException;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.model.S3Object;
 import org.jets3t.service.security.AWSCredentials;
@@ -96,42 +95,38 @@ public class S3Consumer implements SuroInput {
 
     @Override
     public void start() throws Exception {
-        try {
-            if (s3Service == null) {
-                Jets3tProperties properties = new Jets3tProperties();
-                properties.setProperty("s3service.s3-endpoint", s3Endpoint);
-                if (credentialsProvider.getCredentials() instanceof AWSSessionCredentials) {
-                    s3Service = new RestS3Service(
-                            new AWSSessionCredentialsAdapter(credentialsProvider),
-                            null, null, properties);
-                } else {
-                    s3Service = new RestS3Service(
-                            new AWSCredentials(
-                                    credentialsProvider.getCredentials().getAWSAccessKeyId(),
-                                    credentialsProvider.getCredentials().getAWSSecretKey()),
-                            null, null, properties);
-                }
+        if (s3Service == null) {
+            Jets3tProperties properties = new Jets3tProperties();
+            properties.setProperty("s3service.s3-endpoint", s3Endpoint);
+            if (credentialsProvider.getCredentials() instanceof AWSSessionCredentials) {
+                s3Service = new RestS3Service(
+                        new AWSSessionCredentialsAdapter(credentialsProvider),
+                        null, null, properties);
+            } else {
+                s3Service = new RestS3Service(
+                        new AWSCredentials(
+                                credentialsProvider.getCredentials().getAWSAccessKeyId(),
+                                credentialsProvider.getCredentials().getAWSSecretKey()),
+                        null, null, properties);
             }
-
-            executor = new ThreadPoolExecutor(
-                    concurrentDownload + 1,
-                    concurrentDownload + 1,
-                    0, TimeUnit.MILLISECONDS,
-                    new ArrayBlockingQueue<Runnable>(concurrentDownload) {
-                        @Override
-                        public boolean offer(Runnable runnable) {
-                            try {
-                                put(runnable); // not to reject the task, slowing down
-                            } catch (InterruptedException e) {
-                                // do nothing
-                            }
-                            return true;
-                        }
-                    },
-                    new ThreadFactoryBuilder().setDaemon(true).setNameFormat("S3Consumer-%d").build());
-        } catch (S3ServiceException e) {
-            throw new RuntimeException(e);
         }
+
+        executor = new ThreadPoolExecutor(
+                concurrentDownload + 1,
+                concurrentDownload + 1,
+                0, TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<Runnable>(concurrentDownload) {
+                    @Override
+                    public boolean offer(Runnable runnable) {
+                        try {
+                            put(runnable); // not to reject the task, slowing down
+                        } catch (InterruptedException e) {
+                            // do nothing
+                        }
+                        return true;
+                    }
+                },
+                new ThreadFactoryBuilder().setDaemon(true).setNameFormat("S3Consumer-%d").build());
 
         notice.init();
 
@@ -258,34 +253,36 @@ public class S3Consumer implements SuroInput {
                     }
                 }
 
-                for (String path : downloadedFiles) {
-                    try {
-                        BufferedReader br = new BufferedReader(
+                if (s3ObjectKeyClone.size() == downloadedFiles.size()) {
+                    for (String path : downloadedFiles) {
+                        try {
+                            BufferedReader br = new BufferedReader(
                                 new InputStreamReader(
-                                        createInputStream(path)));
-                        String data = null;
-                        while ((data = br.readLine()) != null) {
-                            try {
-                                if (data.trim().length() > 0) {
-                                    for (MessageContainer msg : recordParser.parse(data)) {
-                                        router.process(S3Consumer.this, msg);
+                                    createInputStream(path)));
+                            String data = null;
+                            while ((data = br.readLine()) != null) {
+                                try {
+                                    if (data.trim().length() > 0) {
+                                        for (MessageContainer msg : recordParser.parse(data)) {
+                                            router.process(S3Consumer.this, msg);
+                                        }
                                     }
+                                } catch (Exception e) {
+                                    log.error("Exception on parsing and processing: " + e.getMessage(), e);
                                 }
-                            } catch (Exception e) {
-                                log.error("Exception on parsing and processing: " + e.getMessage(), e);
                             }
-                        }
-                        br.close();
-                        deleteFile(path);
-                    } catch (Exception e) {
-                        log.error("Exception on processing downloaded file: " + e.getMessage(), e);
-                        DynamicCounter.increment(
+                            br.close();
+                            deleteFile(path);
+                        } catch (Exception e) {
+                            log.error("Exception on processing downloaded file: " + e.getMessage(), e);
+                            DynamicCounter.increment(
                                 MonitorConfig.builder("processingException").withTag("consumerId", id).build()
-                        );
+                            );
+                        }
                     }
-                }
 
-                notice.remove(msg.first());
+                    notice.remove(msg.first());
+                }
             }
         };
     }

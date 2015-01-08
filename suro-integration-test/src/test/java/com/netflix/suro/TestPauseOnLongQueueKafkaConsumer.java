@@ -1,5 +1,6 @@
 package com.netflix.suro;
 
+import com.amazonaws.util.StringInputStream;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.BeanProperty;
@@ -10,6 +11,9 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
+import com.netflix.client.http.HttpRequest;
+import com.netflix.client.http.HttpResponse;
+import com.netflix.niws.client.http.RestClient;
 import com.netflix.suro.input.kafka.KafkaConsumer;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.DefaultMessageContainer;
@@ -25,11 +29,6 @@ import com.netflix.suro.sink.kafka.KafkaServerExternalResource;
 import com.netflix.suro.sink.kafka.KafkaSink;
 import com.netflix.suro.sink.kafka.ZkExternalResource;
 import kafka.admin.TopicCommand;
-import org.elasticsearch.action.ActionFuture;
-import org.elasticsearch.action.bulk.BulkItemResponse;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.client.Client;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -38,6 +37,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -58,31 +58,6 @@ public class TestPauseOnLongQueueKafkaConsumer {
     private static final String TOPIC_NAME = "tpolq_kafka";
 
     private final RateLimiter rateLimiter = RateLimiter.create(20); // setting 10 per second
-
-    private Client createMockedESClient() {
-        Client client = mock(Client.class);
-
-        doAnswer(new Answer() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-                final BulkRequest req = (BulkRequest) invocation.getArguments()[0];
-                rateLimiter.acquire(req.numberOfActions());
-
-                BulkItemResponse[] responses = new BulkItemResponse[req.numberOfActions()];
-                for (int i = 0; i < responses.length; ++i) {
-                    BulkItemResponse response = mock(BulkItemResponse.class);
-                    doReturn(false).when(response).isFailed();
-                    responses[i] = response;
-                }
-                ActionFuture<BulkResponse> actionFuture = mock(ActionFuture.class);
-                doReturn(new BulkResponse(responses,1000)).when(actionFuture).actionGet();
-
-                return actionFuture;
-            }
-        }).when(client).bulk(any(BulkRequest.class));
-
-        return client;
-    }
 
     @Test
     public void test() throws Exception {
@@ -105,23 +80,47 @@ public class TestPauseOnLongQueueKafkaConsumer {
 
         final KafkaSink kafkaSink = createKafkaProducer(jsonMapper, kafkaServer.getBrokerListStr());
 
-        Client client = createMockedESClient();
+        RestClient client = mock(RestClient.class);
 
         final ElasticSearchSink sink = new ElasticSearchSink(
+                "tpolq",
                 null,
                 10,
                 1000,
+                Lists.newArrayList("localhost:9200"),
                 null,
-                true,
-                "1s",
-                "1s",
-                null,
-                null,
-                0,0,0,0,true,null,
+                0,0,0,0,
                 null,
                 jsonMapper,
                 client
         );
+
+        doAnswer(new Answer() {
+
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                final HttpRequest bulk = (HttpRequest) invocation.getArguments()[0];
+                int numRecords = bulk.getEntity().toString().split("\n").length / 2;
+                rateLimiter.acquire(numRecords);
+
+                HttpResponse result = mock(HttpResponse.class);
+                List list = new ArrayList();
+                for (int i = 0; i < numRecords; ++i) {
+                    list.add(new ImmutableMap.Builder<>().put("create",
+                        new ImmutableMap.Builder<>().put("status", 200).build()).build());
+                }
+
+                doReturn(new StringInputStream(
+                    jsonMapper.writeValueAsString(
+                        new ImmutableMap.Builder<>()
+                            .put("took", 1000)
+                            .put("items", list)
+                            .build()))).when(result).getInputStream();
+
+                return result;
+            }
+        }).when(client).executeWithLoadBalancer(any(HttpRequest.class));
+
         sink.open();
 
         RoutingMap map = new RoutingMap();
@@ -160,7 +159,7 @@ public class TestPauseOnLongQueueKafkaConsumer {
         }
 
         // get the number of pending messages for 10 seconds
-        ArrayList<Integer> countList = new ArrayList<Integer>();
+        ArrayList<Integer> countList = new ArrayList<>();
         for (int i = 0; i < 10; ++i) {
             countList.add((int) sink.getNumOfPendingMessages());
             Thread.sleep(1000);

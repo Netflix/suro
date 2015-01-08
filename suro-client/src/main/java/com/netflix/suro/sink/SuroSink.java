@@ -52,9 +52,4 @@ public class SuroSink implements Sink {
     public long getNumOfPendingMessages() {
         return client.getNumOfPendingMessages();
     }
-
-    @Override
-    public long checkPause() {
-        return 0;
-    }
 }

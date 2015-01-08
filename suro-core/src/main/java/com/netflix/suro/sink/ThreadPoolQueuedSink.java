@@ -50,7 +50,7 @@ public abstract class ThreadPoolQueuedSink extends QueuedSink {
         try {
             senders.awaitTermination(jobTimeout == 0 ? Long.MAX_VALUE : jobTimeout, TimeUnit.MILLISECONDS);
             if (!senders.isTerminated()) {
-                log.error("KafkaSink not terminated gracefully");
+                log.error(this.getClass().getSimpleName() + " not terminated gracefully");
             }
         } catch (InterruptedException e) {
             log.error("Interrupted: " + e.getMessage());

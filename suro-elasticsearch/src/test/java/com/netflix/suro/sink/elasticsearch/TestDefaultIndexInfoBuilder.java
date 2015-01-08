@@ -135,7 +135,7 @@ public class TestDefaultIndexInfoBuilder {
                 .put("f1", "v1").build();
 
         IndexInfo info = builder.create(new Message("routingkey", jsonMapper.writeValueAsBytes(msg)));
-        Map<String, Object> source = jsonMapper.readValue(info.getSource(), new TypeReference<Map<String, Object>>() {});
+        Map<String, Object> source = (Map<String, Object>) info.getSource();
         assertEquals(source.get("app"), "app");
         assertEquals(source.get("f1"), "v1");
 
@@ -151,7 +151,7 @@ public class TestDefaultIndexInfoBuilder {
                 .put("f1", "v1").build();
 
         info = builder.create(new Message("routingkey", jsonMapper.writeValueAsBytes(msg)));
-        source = jsonMapper.readValue(info.getSource(), new TypeReference<Map<String, Object>>() {});
+        source = jsonMapper.readValue((String)info.getSource(), new TypeReference<Map<String, Object>>() {});
         assertNull(source.get("app"));
         assertEquals(source.get("f1"), "v1");
     }

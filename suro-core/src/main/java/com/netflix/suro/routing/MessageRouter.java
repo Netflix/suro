@@ -24,7 +24,6 @@ import com.netflix.servo.monitor.DynamicCounter;
 import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.TagKey;
-import com.netflix.suro.input.SuroInput;
 import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.message.MessageContainer;
@@ -57,7 +56,7 @@ public class MessageRouter {
         Monitors.registerObject(this);
     }
 
-    public void process(SuroInput input, MessageContainer msg) throws Exception {
+    public void process(MessageContainer msg) throws Exception {
         if (Strings.isNullOrEmpty(msg.getRoutingKey())) {
             DynamicCounter.increment(
                     MonitorConfig.builder(TagKey.DROPPED_COUNT).withTag("reason", "emptyRoutingKey").build());
@@ -68,14 +67,12 @@ public class MessageRouter {
 
         if (info == null) {
             Sink defaultSink = sinkManager.getSink("default");
-            input.setPause(defaultSink.checkPause());
             defaultSink.writeTo(msg);
         } else if (info.doFilter(msg)) {
             List<Route> routes = info.getWhere();
             for (Route route : routes) {
                 if (route.doFilter(msg)) {
                     Sink sink = sinkManager.getSink(route.getSink());
-                    input.setPause(sink.checkPause());
                     if (!Strings.isNullOrEmpty(route.getAlias())) {
                         sink.writeTo(
                                 new DefaultMessageContainer(
