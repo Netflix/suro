@@ -233,7 +233,6 @@ public class KafkaSink implements Sink {
                             @Override
                             public void call(final MessageContainer message) {
                                 try {
-                                    metadataWaitingQueuePolicy.release();
                                     if (!metadataFetchedTopicSet.contains(message.getRoutingKey())) {
                                         producer.partitionsFor(message.getRoutingKey());
                                         metadataFetchedTopicSet.add(message.getRoutingKey());
@@ -242,6 +241,8 @@ public class KafkaSink implements Sink {
                                 } catch (Exception e) {
                                     log.error("Exception on waiting for metadata", e);
                                     stream.onNext(message); // try again
+                                } finally {
+                                    metadataWaitingQueuePolicy.release();
                                 }
                             }
                         },
