@@ -22,6 +22,7 @@ import rx.Subscription;
 import rx.functions.Action1;
 import rx.functions.Action3;
 import rx.functions.Func1;
+import rx.schedulers.Schedulers;
 import rx.subjects.PublishSubject;
 
 import java.lang.reflect.Field;
@@ -215,49 +216,43 @@ public class KafkaSink implements Sink {
     public void open() {
         producer = new KafkaProducer(props);
         subscription = stream
-            .filter(new Func1<MessageContainer, Boolean>() {
-                @Override
-                public Boolean call(MessageContainer message) {
-                    if (!metadataWaitingQueuePolicy.acquire()) {
-                        dropMessage(message);
-                        return false;
-                    } else {
-                        return true;
-                    }
-                }
-            })
-            .subscribe(
-                new Action1<MessageContainer>() {
+                .filter(new Func1<MessageContainer, Boolean>() {
                     @Override
-                    public void call(final MessageContainer message) {
-                        Runnable r = new Runnable() {
-
+                    public Boolean call(MessageContainer message) {
+                        if (!metadataWaitingQueuePolicy.acquire()) {
+                            dropMessage(message);
+                            return false;
+                        } else {
+                            return true;
+                        }
+                    }
+                })
+                .observeOn(Schedulers.from(executor))
+                .subscribe(
+                        new Action1<MessageContainer>() {
                             @Override
-                            public void run() {
+                            public void call(final MessageContainer message) {
                                 try {
                                     if (!metadataFetchedTopicSet.contains(message.getRoutingKey())) {
                                         producer.partitionsFor(message.getRoutingKey());
                                         metadataFetchedTopicSet.add(message.getRoutingKey());
                                     }
                                     sendMessage(message);
-                                    metadataWaitingQueuePolicy.release();
                                 } catch (Exception e) {
                                     log.error("Exception on waiting for metadata", e);
-                                    metadataWaitingQueuePolicy.release();
                                     stream.onNext(message); // try again
+                                } finally {
+                                    metadataWaitingQueuePolicy.release();
                                 }
                             }
-                        };
-                        executor.execute(r);
-                    }
-                },
-                new Action1<Throwable>() {
-                    @Override
-                    public void call(Throwable throwable) {
-                        log.error("Exception on stream", throwable);
-                    }
-                }
-            );
+                        },
+                        new Action1<Throwable>() {
+                            @Override
+                            public void call(Throwable throwable) {
+                                log.error("Exception on stream", throwable);
+                            }
+                        }
+                );
     }
 
     @Override
