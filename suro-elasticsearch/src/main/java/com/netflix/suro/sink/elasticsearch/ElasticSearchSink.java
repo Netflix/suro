@@ -303,6 +303,12 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                     for (Message m : request.second()) {
                         writeTo(new DefaultMessageContainer(m, jsonMapper));
                     }
+                    // sleep on exception for not pushing too much stress
+                    try {
+                        Thread.sleep(60000);
+                    } catch (InterruptedException e1) {
+                        // do nothing
+                    }
                 } finally {
                     if (response != null) {
                         response.close();
