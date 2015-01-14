@@ -24,7 +24,8 @@ import com.netflix.suro.input.thrift.MessageSetProcessor;
 import com.netflix.suro.server.StatusServer;
 import com.netflix.suro.input.thrift.ThriftServer;
 import com.netflix.suro.sink.SinkManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -38,7 +39,7 @@ import javax.annotation.PreDestroy;
  */
 @Singleton
 public class SuroService {
-    static Logger log = Logger.getLogger(SuroServer.class);
+    static Logger log = LoggerFactory.getLogger(SuroServer.class);
 
     private final StatusServer statusServer;
     private final InputManager inputManager;
