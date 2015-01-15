@@ -93,6 +93,8 @@ public class S3Consumer implements SuroInput {
         return id;
     }
 
+    private static final long MAX_PAUSE = 10000;
+
     @Override
     public void start() throws Exception {
         if (s3Service == null) {
@@ -126,7 +128,7 @@ public class S3Consumer implements SuroInput {
                         return true;
                     }
                 },
-                new ThreadFactoryBuilder().setDaemon(true).setNameFormat("S3Consumer-%d").build());
+                new ThreadFactoryBuilder().setDaemon(true).setNameFormat("S3Consumer-" + id + "-%d").build());
 
         notice.init();
 
@@ -136,10 +138,10 @@ public class S3Consumer implements SuroInput {
             public void run() {
                 while (running) {
                     try {
-                        long pause = pausedTime.get();
+                        long pause = Math.min(pausedTime.get(), MAX_PAUSE);
                         if (pause > 0) {
                             Thread.sleep(pause);
-                            pausedTime.addAndGet(-pause);
+                            pausedTime.set(0);
                         }
                         Pair<String, String> msg = notice.peek();
                         if (msg != null) {

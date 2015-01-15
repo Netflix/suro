@@ -76,6 +76,7 @@ public class TestKafkaConsumer {
 
         properties.setProperty("consumer.timeout.ms", "1000");
         KafkaConsumer consumer = new KafkaConsumer(properties, TOPIC_NAME, numPartitions, router, jsonMapper);
+        KafkaConsumer.MAX_PAUSE = 10000; // for testing
 
         consumer.start();
         latch.await(1000 * 5, TimeUnit.MILLISECONDS);
