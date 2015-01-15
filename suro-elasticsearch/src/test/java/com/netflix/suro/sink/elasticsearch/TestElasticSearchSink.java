@@ -66,7 +66,7 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
             1000,
             Lists.newArrayList("localhost:" + getPort()),
             null,
-            0,0,0,0,
+            0,0,0,0,1000,
             null,
             jsonMapper,
             null
@@ -108,7 +108,7 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
                 new IndexSuffixFormatter("date", props),
                 null,
                 jsonMapper),
-            0,0,0,0,
+            0,0,0,0,0,
             null,
             jsonMapper,
             null
@@ -186,6 +186,7 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
             Lists.newArrayList("localhost:" + getPort()),
             null,
             0,0,0,0,
+            0,
             null,
             jsonMapper,
             null
@@ -272,7 +273,7 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
             5000,
             Lists.newArrayList("localhost:" + getPort()),
             indexInfo,
-            0,0,0,0,
+            0,0,0,0,0,
             null,
             jsonMapper,
             null);
