@@ -71,7 +71,7 @@ public class KafkaConsumer implements SuroInput {
 
     private AtomicLong pausedTime = new AtomicLong(0);
 
-    private static final long MAX_PAUSE = 1000;
+    public static long MAX_PAUSE = 1000; // not final for the test
 
     @Override
     public void start() throws Exception {
