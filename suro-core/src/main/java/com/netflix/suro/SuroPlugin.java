@@ -8,7 +8,8 @@ import com.netflix.suro.routing.Filter;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.sink.notice.Notice;
 import com.netflix.suro.sink.remotefile.RemotePrefixFormatter;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Guice based suro plugin with convenience methods for adding pluggable components
@@ -18,7 +19,7 @@ import org.apache.log4j.Logger;
  *
  */
 public abstract class SuroPlugin extends AbstractModule {
-    protected static final Logger LOG = Logger.getLogger(SuroPlugin.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(SuroPlugin.class);
     
     /**
      * Add a sink implementation to Suro.  typeName is the expected value of the

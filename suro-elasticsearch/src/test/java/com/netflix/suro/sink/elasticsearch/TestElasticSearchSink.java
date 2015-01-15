@@ -13,7 +13,6 @@ import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.sink.Sink;
-import org.apache.commons.collections.iterators.ArrayIterator;
 import org.elasticsearch.action.count.CountRequest;
 import org.elasticsearch.action.count.CountResponse;
 import org.elasticsearch.common.settings.ImmutableSettings;
@@ -21,15 +20,12 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.joda.time.DateTime;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
-import java.util.*;
-
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 @ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.TEST, numNodes = 1)
 public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
@@ -66,7 +62,7 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
             1000,
             Lists.newArrayList("localhost:" + getPort()),
             null,
-            0,0,0,0,
+            0,0,0,0,1000,
             null,
             jsonMapper,
             null
@@ -108,7 +104,7 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
                 new IndexSuffixFormatter("date", props),
                 null,
                 jsonMapper),
-            0,0,0,0,
+            0,0,0,0,0,
             null,
             jsonMapper,
             null
@@ -186,6 +182,7 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
             Lists.newArrayList("localhost:" + getPort()),
             null,
             0,0,0,0,
+            0,
             null,
             jsonMapper,
             null
@@ -272,7 +269,7 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
 //            5000,
 //            Lists.newArrayList("localhost:" + getPort()),
 //            indexInfo,
-//            0,0,0,0,
+//            0,0,0,0,0,
 //            null,
 //            jsonMapper,
 //            null);
