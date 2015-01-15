@@ -71,6 +71,8 @@ public class KafkaConsumer implements SuroInput {
 
     private AtomicLong pausedTime = new AtomicLong(0);
 
+    private static final long MAX_PAUSE = 1000;
+
     @Override
     public void start() throws Exception {
         executor = Executors.newCachedThreadPool(
@@ -93,10 +95,10 @@ public class KafkaConsumer implements SuroInput {
                         public void run() {
                             while (running) {
                                 try {
-                                    long pause = pausedTime.get();
+                                    long pause = Math.min(pausedTime.get(), MAX_PAUSE);
                                     if (pause > 0) {
                                         Thread.sleep(pause);
-                                        pausedTime.addAndGet(-pause);
+                                        pausedTime.set(0);
                                     }
                                     byte[] message = iterator.next().message();
                                     router.process(
