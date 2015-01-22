@@ -13,7 +13,11 @@ import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.sink.Sink;
-import org.apache.kafka.clients.producer.*;
+import org.apache.kafka.clients.producer.Callback;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.config.ConfigDef;
 import org.slf4j.Logger;
@@ -28,7 +32,12 @@ import rx.subjects.PublishSubject;
 import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.*;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -128,7 +137,7 @@ public class KafkaSink implements Sink {
         this.recordCounterListener = action;
     }
 
-    private ConcurrentSkipListSet<String> metadataFetchedTopicSet = new ConcurrentSkipListSet<>();
+    private Set<String> metadataFetchedTopicSet = new CopyOnWriteArraySet<String>();
     private PublishSubject<MessageContainer> stream = PublishSubject.create();
     private Subscription subscription;
     private ExecutorService executor = Executors.newSingleThreadExecutor(

@@ -89,7 +89,7 @@ public class TestPauseOnLongQueueKafkaConsumer {
                 1000,
                 Lists.newArrayList("localhost:9200"),
                 null,
-                0,0,0,0,
+                0,0,0,0,0,
                 null,
                 jsonMapper,
                 client
@@ -104,6 +104,7 @@ public class TestPauseOnLongQueueKafkaConsumer {
                 rateLimiter.acquire(numRecords);
 
                 HttpResponse result = mock(HttpResponse.class);
+                doReturn(200).when(result).getStatus();
                 List list = new ArrayList();
                 for (int i = 0; i < numRecords; ++i) {
                     list.add(new ImmutableMap.Builder<>().put("create",

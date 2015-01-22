@@ -83,7 +83,7 @@ public class DefaultIndexInfoBuilder implements IndexInfoBuilder {
                 }
 
                 @Override
-                public String getType() {
+                    public String getType() {
                     String type = typeMap.get(msg.getRoutingKey());
                     return type == null ? "default" : type;
                 }

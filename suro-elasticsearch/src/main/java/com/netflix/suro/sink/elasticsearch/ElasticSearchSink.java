@@ -52,6 +52,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private final String clientName;
     private final ObjectMapper jsonMapper;
     private final Timer timer;
+    private final int sleepOverClientException;
 
     public ElasticSearchSink(
         @JsonProperty("clientName") String clientName,
@@ -64,6 +65,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         @JsonProperty("corePoolSize") int corePoolSize,
         @JsonProperty("maxPoolSize") int maxPoolSize,
         @JsonProperty("jobTimeout") long jobTimeout,
+        @JsonProperty("sleepOverClientException") int sleepOverClientException,
         @JsonProperty("ribbon.etc") Properties ribbonEtc,
         @JacksonInject ObjectMapper jsonMapper,
         @JacksonInject RestClient client) {
@@ -85,6 +87,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         this.clientName = clientName;
         this.client = client;
         this.timer = Servo.getTimer(clientName + "_latency");
+        this.sleepOverClientException = sleepOverClientException == 0 ? 60000 : sleepOverClientException;
     }
 
     @Override
@@ -271,32 +274,37 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                 HttpResponse response = null;
                 try {
                     response = client.executeWithLoadBalancer(request.first());
-                    Map<String, Object> result = jsonMapper.readValue(
-                        response.getInputStream(),
-                        new TypeReference<Map<String, Object>>(){});
-                    List items = (List) result.get("items");
-                    for (int i = 0; i < items.size(); ++i) {
-                        String routingKey = request.second().get(i).getRoutingKey();
-                        Map<String, Object> resPerMessage = (Map)((Map)(items.get(i))).get("create");
-                        if (isFailed(resPerMessage) && !getErrorMessage(resPerMessage).contains("DocumentAlreadyExistsException")) {
-                            log.error("Failed with: " + resPerMessage.get("error"));
-                            Servo.getCounter(
-                                MonitorConfig.builder(REJECTED_ROW)
-                                    .withTag(SINK_ID, getSinkId())
-                                    .withTag(TagKey.ROUTING_KEY, routingKey)
-                                    .build()).increment();
+                    if (response.getStatus() / 100 == 2) {
+                        Map<String, Object> result = jsonMapper.readValue(
+                            response.getInputStream(),
+                            new TypeReference<Map<String, Object>>() {
+                            });
+                        List items = (List) result.get("items");
+                        for (int i = 0; i < items.size(); ++i) {
+                            String routingKey = request.second().get(i).getRoutingKey();
+                            Map<String, Object> resPerMessage = (Map) ((Map) (items.get(i))).get("create");
+                            if (isFailed(resPerMessage) && !getErrorMessage(resPerMessage).contains("DocumentAlreadyExistsException")) {
+                                log.error("Failed with: " + resPerMessage.get("error"));
+                                Servo.getCounter(
+                                    MonitorConfig.builder(REJECTED_ROW)
+                                        .withTag(SINK_ID, getSinkId())
+                                        .withTag(TagKey.ROUTING_KEY, routingKey)
+                                        .build()).increment();
 
-                            recover(request.second().get(i));
-                        } else {
-                            Servo.getCounter(
-                                MonitorConfig.builder(INDEXED_ROW)
-                                    .withTag(SINK_ID, getSinkId())
-                                    .withTag(TagKey.ROUTING_KEY, routingKey)
-                                    .build()).increment();
+                                recover(request.second().get(i));
+                            } else {
+                                Servo.getCounter(
+                                    MonitorConfig.builder(INDEXED_ROW)
+                                        .withTag(SINK_ID, getSinkId())
+                                        .withTag(TagKey.ROUTING_KEY, routingKey)
+                                        .build()).increment();
 
+                            }
                         }
+                        throughput.increment(items.size());
+                    } else {
+                        throw new RuntimeException("status is not OK");
                     }
-                    throughput.increment(items.size());
                 } catch (Exception e) {
                     log.error("Exception on bulk execute: " + e.getMessage(), e);
                     Servo.getCounter("bulkException").increment();
@@ -305,7 +313,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                     }
                     // sleep on exception for not pushing too much stress
                     try {
-                        Thread.sleep(60000);
+                        Thread.sleep(sleepOverClientException);
                     } catch (InterruptedException e1) {
                         // do nothing
                     }
