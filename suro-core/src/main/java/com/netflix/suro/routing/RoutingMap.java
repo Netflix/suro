@@ -19,7 +19,6 @@ package com.netflix.suro.routing;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.google.inject.Singleton;
 import com.netflix.suro.message.MessageContainer;
 
@@ -125,9 +124,14 @@ public class RoutingMap {
     }
 
     public void set(Map<String, RoutingInfo> routes) {
+        ImmutableMap.Builder<String, RoutingInfo> builder = ImmutableMap.builder();
+        for(Map.Entry<String, RoutingInfo> entry : routes.entrySet()) {
+            // normalize routingKey to lower case
+            builder.put(entry.getKey().toLowerCase(), entry.getValue());
+        }
         // We assume only a single thread will call this method, so
         // there's no need to synchronize this method
-        routingMap = ImmutableMap.copyOf(routes);
+        routingMap = builder.build();
         defaultRoutingInfo = routingMap.get(KEY_FOR_DEFAULT_ROUTING);
     }
 
