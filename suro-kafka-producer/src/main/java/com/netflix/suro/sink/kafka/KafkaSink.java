@@ -1,6 +1,5 @@
 package com.netflix.suro.sink.kafka;
 
-import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -55,7 +54,6 @@ public class KafkaSink implements Sink {
     private final Properties props;
 
     private KafkaProducer producer;
-    private final KafkaRetentionPartitioner retentionPartitioner;
     private final MetadataWaitingQueuePolicy metadataWaitingQueuePolicy;
 
     @JsonCreator
@@ -73,8 +71,7 @@ public class KafkaSink implements Sink {
             @JsonProperty("block.on.buffer.full") boolean blockOnBufferFull,
             @JsonProperty("metadata.waiting.queue.size") int metadataWaitingQueueSize,
             @JsonProperty("kafka.etc") Properties etcProps,
-            @JsonProperty("keyTopicMap") Map<String, String> keyTopicMap,
-            @JacksonInject KafkaRetentionPartitioner retentionPartitioner
+            @JsonProperty("keyTopicMap") Map<String, String> keyTopicMap
     ) {
         Preconditions.checkArgument(bootstrapServers != null | brokerList != null);
         Preconditions.checkNotNull(clientId);
@@ -109,7 +106,6 @@ public class KafkaSink implements Sink {
 
         this.keyTopicMap = keyTopicMap != null ? keyTopicMap : Maps.<String, String>newHashMap();
 
-        this.retentionPartitioner = retentionPartitioner;
         this.metadataWaitingQueuePolicy = new MetadataWaitingQueuePolicy(
             metadataWaitingQueueSize == 0 ? 10000 : metadataWaitingQueueSize,
             blockOnBufferFull);
@@ -162,17 +158,14 @@ public class KafkaSink implements Sink {
     }
 
     private void sendMessage(final MessageContainer message) {
-        int numPartitions = producer.partitionsFor(message.getRoutingKey()).size();
-        int partition = (int) Math.abs(retentionPartitioner.getKey() % numPartitions);
-
-        if (!keyTopicMap.isEmpty()) {
+        byte[] key = null;
+        if (!keyTopicMap.isEmpty() && keyTopicMap.get(message.getRoutingKey()) != null) {
             try {
                 Map<String, Object> msgMap = message.getEntity(new TypeReference<Map<String, Object>>() {
                 });
                 Object keyField = msgMap.get(keyTopicMap.get(message.getRoutingKey()));
                 if (keyField != null) {
-                    long hashCode = keyField.hashCode();
-                    partition = Math.abs((int) (hashCode ^ (hashCode >>> 32))) % numPartitions;
+                    key = keyField.toString().getBytes();
                 }
             } catch (Exception e) {
                 log.error("Exception on getting key field: " + e.getMessage());
@@ -181,7 +174,7 @@ public class KafkaSink implements Sink {
 
         try {
             producer.send(
-                new ProducerRecord(message.getRoutingKey(), partition, null, message.getMessage().getPayload()),
+                new ProducerRecord(message.getRoutingKey(), null, key, message.getMessage().getPayload()),
                 new Callback() {
                     @Override
                     public void onCompletion(RecordMetadata metadata, Exception e) {
