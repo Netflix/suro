@@ -1,0 +1,12 @@
+dependencies {
+  compile project(':suro-core')
+  compile project(':suro-client')
+
+  compile (
+    [group: 'org.apache.hadoop', name: 'hadoop-core', version: '0.20.205.0', transitive: false]
+  )
+  compile 'commons-io:commons-io:2.4'
+
+  testCompile 'junit:junit:4.11'
+  testCompile project(path: ':suro-client', configuration: 'test')
+}

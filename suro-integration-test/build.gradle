@@ -1,0 +1,11 @@
+dependencies {
+  testCompile 'junit:junit:4.11'
+  testCompile project(':suro-core')
+  testCompile project(':suro-client')
+  testCompile project(':suro-server')
+  testCompile project(path: ':suro-client', configuration: 'test')
+  testCompile project(path: ':suro-server', configuration: 'test')
+  testCompile project(path: ':suro-kafka-producer', configuration: 'test')
+  testCompile project(path: ':suro-kafka-consumer', configuration: 'test')
+  testCompile 'org.apache.curator:curator-test:2.4.2'
+}

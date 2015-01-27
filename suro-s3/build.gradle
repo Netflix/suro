@@ -1,0 +1,10 @@
+dependencies {
+  compile project(':suro-core')
+  compile project(':suro-localfile')
+
+  compile 'net.java.dev.jets3t:jets3t:0.9.2'
+  compile 'com.amazonaws:aws-java-sdk-s3:1.9.3'
+
+  testCompile 'junit:junit:4.11'
+  testCompile project(path: ':suro-client', configuration: 'test')
+}
