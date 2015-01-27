@@ -1,0 +1,37 @@
+dependencies {
+  compile project(':suro-core')
+  compile project(':suro-client')
+
+  compile (
+    [group: 'org.apache.hadoop', name: 'hadoop-core', version: '0.20.205.0', transitive: false]
+  )
+  compile 'commons-io:commons-io:2.4'
+
+//  compile 'com.netflix.archaius:archaius-core:0.5.11'
+//  compile 'com.netflix.servo:servo-core:0.4.32'
+//  compile 'com.netflix.governator:governator:1.2.3'
+//  compile 'com.netflix.eureka:eureka-client:1.1.109'
+//  compile 'com.netflix.ribbon:ribbon-core:2.0-RC9'
+//  compile 'com.netflix.ribbon:ribbon-eureka:2.0-RC9'
+//  compile 'log4j:log4j:1.2.17'
+
+//  compile 'org.apache.thrift:libthrift:0.9.1'
+//  compile 'org.slf4j:slf4j-api:1.6.4'
+//  compile 'com.google.guava:guava:11.0.2'
+//  compile 'joda-time:joda-time:2.3'
+//  compile 'com.fasterxml.jackson.core:jackson-databind:2.1.4'
+//  compile 'com.fasterxml.jackson.core:jackson-annotations:2.1.4'
+//  compile 'com.fasterxml.jackson.core:jackson-core:2.1.4'
+//  compile 'com.fasterxml.jackson.datatype:jackson-datatype-guava:2.2.0'
+
+//  compile 'com.ning:compress-lzf:0.9.5'
+//  compile 'com.leansoft:bigqueue:0.7.0'
+
+
+//  runtime 'com.netflix.netflix-commons:netflix-commons-util:0.1.1'
+//  runtime 'org.slf4j:slf4j-log4j12:1.6.4'
+
+//  testCompile 'org.mockito:mockito-core:1.9.5'
+  testCompile 'junit:junit:4.11'
+  testCompile project(path: ':suro-client', configuration: 'test')
+}

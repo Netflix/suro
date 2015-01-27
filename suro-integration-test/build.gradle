@@ -1,0 +1,15 @@
+dependencies {
+//  runtime 'com.netflix.netflix-commons:netflix-commons-util:0.1.1'
+//  runtime 'org.slf4j:slf4j-log4j12:1.6.4'
+
+//  testCompile 'org.mockito:mockito-core:1.9.5'
+  testCompile 'junit:junit:4.11'
+  testCompile project(':suro-core')
+  testCompile project(':suro-client')
+  testCompile project(':suro-server')
+  testCompile project(path: ':suro-client', configuration: 'test')
+  testCompile project(path: ':suro-server', configuration: 'test')
+  testCompile project(path: ':suro-kafka-producer', configuration: 'test')
+  testCompile project(path: ':suro-kafka-consumer', configuration: 'test')
+  testCompile 'org.apache.curator:curator-test:2.4.2'
+}

@@ -1,248 +1,43 @@
+plugins {
+  id 'nebula.netflixoss' version '2.2.5'
+}
+
 ext.githubProjectName = rootProject.name
 
-buildscript {
-    repositories {
-      mavenLocal()
-      mavenCentral() // maven { url 'http://jcenter.bintray.com' }
-    }
-    apply from: file('gradle/buildscript.gradle'), to: buildscript 
-}
-
-if (JavaVersion.current().isJava8Compatible()) {
-    allprojects {
-        //noinspection SpellCheckingInspection
-        tasks.withType(Javadoc) {
-            // disable the crazy super-strict doclint tool in Java 8
-            //noinspection SpellCheckingInspection
-            options.addStringOption('Xdoclint:none', '-quiet')
-        }
-    }
-}
-
 allprojects {
-    repositories { 
-      mavenLocal()
-      mavenCentral() // maven { url: 'http://jcenter.bintray.com' }
-      maven{
-        name 'github.release.repo'
-        url 'https://raw.github.com/bulldog2011/bulldog-repo/master/repo/releases/'
-      }
-      maven {
-        url "https://metamx.artifactoryonline.com/metamx/pub-libs-releases-local"
-      }
-      maven{
-        name 'sonatype'
-        url 'https://oss.sonatype.org/content/groups/public/'
-      }
-    }
+    
 }
-
-apply from: file('gradle/convention.gradle')
-apply from: file('gradle/maven.gradle')
-//apply from: file('gradle/check.gradle')
-apply from: file('gradle/license.gradle')
-apply from: file('gradle/release.gradle')
 
 subprojects {
-    apply plugin: 'idea'
-    apply plugin: 'project-report'
+  apply plugin: 'nebula.netflixoss'
+  apply plugin: 'java'
+  apply plugin: 'project-report'
 
-    group = "com.netflix.${githubProjectName}"
+  group = "com.netflix.${githubProjectName}"
 
-    configurations {
-      all*.exclude group: 'org.codehaus.jackson', module: 'jackson-mapper'
-      all*.exclude group: 'org.codehaus.jackson', module: 'jackson-core'
+  repositories { 
+    mavenLocal()
+    jcenter()
+    maven{
+      name 'github.release.repo'
+      url 'https://raw.github.com/bulldog2011/bulldog-repo/master/repo/releases/'
     }
-
-    dependencies {
-      compile 'com.netflix.archaius:archaius-core:0.5.11'
-      compile 'com.netflix.servo:servo-core:0.4.32'
-      compile 'com.netflix.governator:governator:1.2.3'
-      compile 'com.netflix.eureka:eureka-client:1.1.109'
-      compile 'com.netflix.ribbon:ribbon-core:2.0-RC9'
-      compile 'com.netflix.ribbon:ribbon-eureka:2.0-RC9'
-      compile 'log4j:log4j:1.2.17'
-
-      compile 'org.apache.thrift:libthrift:0.9.1'
-      compile 'org.slf4j:slf4j-api:1.6.4'
-      compile 'com.google.guava:guava:11.0.2'
-      compile 'joda-time:joda-time:2.3'
-      compile 'com.fasterxml.jackson.core:jackson-databind:2.1.4'
-      compile 'com.fasterxml.jackson.core:jackson-annotations:2.1.4'
-      compile 'com.fasterxml.jackson.core:jackson-core:2.1.4'
-      compile 'com.fasterxml.jackson.datatype:jackson-datatype-guava:2.2.0'
-
-      compile 'com.ning:compress-lzf:0.9.5'
-      compile 'com.leansoft:bigqueue:0.7.0'
-      compile 'commons-io:commons-io:2.4'
-
-      runtime 'com.netflix.netflix-commons:netflix-commons-util:0.1.1'
-      runtime 'org.slf4j:slf4j-log4j12:1.6.4'
-
-      testCompile 'org.mockito:mockito-core:1.9.5'
-      testCompile 'junit:junit:4.11'
+    maven {
+      url "https://metamx.artifactoryonline.com/metamx/pub-libs-releases-local"
     }
-
-    test {
-        forkEvery = 1
-        maxParallelForks = 1
-    }
-
-    sourceCompatibility = "1.7"
-    targetCompatibility = "1.7"
-}
-
-project(':suro-core') {
-    dependencies {
-        compile 'org.antlr:antlr-runtime:3.4'
-        compile 'commons-jxpath:commons-jxpath:1.3'
-    }
-}
-
-project(':suro-client') {
-  dependencies {
-    compile project(':suro-core')
-
-    testCompile project(':suro-core').sourceSets.test.output
-    testCompile project(':suro-kafka-producer')
-    testCompile project(':suro-kafka-consumer')
-  }
-}
-
-project(':suro-server') {
-  apply plugin: 'application'
-	
-  dependencies {
-    compile project(':suro-core')
-    compile project(':suro-client')
-    compile project(':suro-kafka-producer')
-    compile project(':suro-kafka-consumer')
-    compile project(':suro-localfile')
-    compile project(':suro-s3')
-    compile project(':suro-elasticsearch')
-
-    compile 'org.eclipse.jetty:jetty-servlet:7.6.7.v20120910'
-    compile 'com.sun.jersey.contribs:jersey-guice:1.11'
-    compile 'com.sun.jersey:jersey-bundle:1.11'
-    compile 'javax.servlet:servlet-api:2.5'
-    compile 'com.amazonaws:aws-java-sdk-sqs:1.9.3'
-
-    compile 'commons-cli:commons-cli:1.2'
-    
-    testCompile 'org.apache.curator:curator-test:2.4.2'
-    testCompile project(':suro-client').sourceSets.test.output
-    testCompile project(':suro-kafka-producer').sourceSets.test.output
-    testCompile project(':suro-kafka-consumer').sourceSets.test.output
-  }
-
-  mainClassName = "com.netflix.suro.SuroServer"
-  task (runServer, type: JavaExec, dependsOn: jar) {
-    main = "com.netflix.suro.SuroServer"
-    classpath = sourceSets.main.runtimeClasspath
-    classpath += sourceSets.main.compileClasspath
-    args = ['-m', 'conf/routingmap.json', '-s', 'conf/sink.json', '-i', 'conf/input.json']
-    systemProperty 'log4j.properties', 'conf/log4j.properties'
-  }
-  installApp {
-    into('build/install/'+applicationName + '-' + version){
-      from ('conf').into '/conf'
+    maven{
+      name 'sonatype'
+      url 'https://oss.sonatype.org/content/groups/public/'
     }
   }
-  distZip {
-    into(applicationName){
-      from ('conf').into applicationName + '-' + version + '/conf'
-    }	
-  }
-  distTar {
-    into(applicationName){
-      from ('conf').into applicationName + '-' + version + '/conf'
-    }	
-  }
-}
 
-project(':suro-integration-test') {
-  dependencies {
-    testCompile project(':suro-core')
-    testCompile project(':suro-client')
-    testCompile project(':suro-server')
-    testCompile project(':suro-client').sourceSets.test.output
-    testCompile project(':suro-server').sourceSets.test.output
-    testCompile project(':suro-kafka-producer').sourceSets.test.output
-    testCompile project(':suro-kafka-consumer').sourceSets.test.output
-    testCompile 'org.apache.curator:curator-test:2.4.2'
+  configurations {
+    all*.exclude group: 'org.codehaus.jackson', module: 'jackson-mapper'
+    all*.exclude group: 'org.codehaus.jackson', module: 'jackson-core'
   }
-}
 
-project(':suro-kafka-producer') {
-   test {
-      maxParallelForks = 1
+  test {
       forkEvery = 1
-   }
-
-  dependencies {
-    compile project(':suro-core')
-
-    compile 'org.apache.kafka:kafka-clients:0.8.2-beta'
-
-    testCompile 'org.apache.curator:curator-test:2.4.2'
-    testCompile project(':suro-client')
-    testCompile project(':suro-kafka-consumer').sourceSets.test.output
-    testCompile project(':suro-kafka-consumer')
+      maxParallelForks = 1
   }
-}
-
-project(':suro-kafka-consumer') {
-  dependencies {
-    compile project(':suro-core')
-
-    compile('org.apache.kafka:kafka_2.9.2:0.8.2-beta') {
-      exclude module: 'jms'
-      exclude module: 'jmxtools'
-      exclude module: 'jmxri'
-      exclude module: 'zookeeper'
-    }
-
-    testCompile 'org.apache.curator:curator-test:2.4.2'
-    testCompile project(':suro-client')
-  }
-}
-
-project(':suro-s3') {
-    dependencies {
-        compile project(':suro-core')
-        compile project(':suro-localfile')
-
-        compile 'net.java.dev.jets3t:jets3t:0.9.2'
-        compile 'com.amazonaws:aws-java-sdk-s3:1.9.3'
-
-        testCompile project(':suro-client').sourceSets.test.output
-    }
-}
-
-project(':suro-localfile') {
-    dependencies {
-        compile project(':suro-core')
-        compile project(':suro-client')
-
-        compile (
-          [group: 'org.apache.hadoop', name: 'hadoop-core', version: '0.20.205.0', transitive: false]
-        )
-
-        testCompile project(':suro-client').sourceSets.test.output
-    }
-}
-
-project(':suro-elasticsearch') {
-    dependencies {
-        compile project(':suro-core')
-        compile 'com.netflix.ribbon:ribbon-httpclient:2.0-RC9'
-
-        testCompile 'com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.1.1'
-        testCompile 'org.apache.lucene:lucene-test-framework:4.7.0'
-        testCompile 'org.elasticsearch:elasticsearch:1.1.0:tests'
-        testCompile 'org.elasticsearch:elasticsearch:1.1.0'
-        testCompile 'org.hamcrest:hamcrest-all:1.3'
-        testCompile project(':suro-client')
-
-    }
 }

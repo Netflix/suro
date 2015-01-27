@@ -1,0 +1,17 @@
+apply plugin: 'nebula-test-jar'
+
+dependencies {
+  compile project(':suro-core')
+
+  compile('org.apache.kafka:kafka_2.9.2:0.8.2-beta') {
+    exclude module: 'jms'
+    exclude module: 'jmxtools'
+    exclude module: 'jmxri'
+    exclude module: 'zookeeper'
+  }
+
+  testCompile 'org.mockito:mockito-core:1.9.5'
+  testCompile 'junit:junit:4.11'
+  testCompile 'org.apache.curator:curator-test:2.4.2'
+  testCompile project(':suro-client')
+}
