@@ -12,6 +12,7 @@ import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.sink.Sink;
+import org.apache.commons.lang.StringUtils;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -123,6 +124,17 @@ public class KafkaSink implements Sink {
             // swallow exception
         }
         props.put(ServoReporter.class.getName(), ServoReporter.class);
+    }
+
+    /**
+     * this will override previous value if set already
+     * @param bootstreapServers
+     */
+    protected void setBootstreapServers(String bootstreapServers) {
+        if(StringUtils.isBlank(bootstreapServers)) {
+            throw new IllegalArgumentException("blank bootstreapServers");
+        }
+        props.put("bootstrap.servers", bootstreapServers);
     }
 
     private AtomicLong queuedRecords = new AtomicLong(0);
