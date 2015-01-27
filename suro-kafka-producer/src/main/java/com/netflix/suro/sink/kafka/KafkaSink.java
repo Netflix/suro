@@ -125,6 +125,14 @@ public class KafkaSink implements Sink {
         props.put(ServoReporter.class.getName(), ServoReporter.class);
     }
 
+    /**
+     * this will override previous value
+     * @param bootstreapServers
+     */
+    protected void setBootstreapServers(String bootstreapServers) {
+        props.put("bootstrap.servers", bootstreapServers);
+    }
+
     private AtomicLong queuedRecords = new AtomicLong(0);
     private AtomicLong sentRecords = new AtomicLong(0);
     private AtomicLong droppedRecords = new AtomicLong(0);
