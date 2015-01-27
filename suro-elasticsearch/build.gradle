@@ -2,9 +2,6 @@ dependencies {
   compile project(':suro-core')
   compile 'com.netflix.ribbon:ribbon-httpclient:2.0-RC9'
 
-//  runtime 'com.netflix.netflix-commons:netflix-commons-util:0.1.1'
-//  runtime 'org.slf4j:slf4j-log4j12:1.6.4'
-
   testCompile 'org.mockito:mockito-core:1.9.5'
   testCompile 'junit:junit:4.11'
   testCompile 'com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.1.1'
