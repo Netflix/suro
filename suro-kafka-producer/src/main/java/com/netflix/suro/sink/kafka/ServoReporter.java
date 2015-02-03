@@ -19,7 +19,7 @@ public class ServoReporter implements MetricsReporter {
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder().setDaemon(false).setNameFormat("ServoReporter-%d").build());
     private String clientId;
-    private ConcurrentMap<DoubleGauge, KafkaMetric> gauges = new ConcurrentHashMap<>();
+    private ConcurrentMap<DoubleGauge, KafkaMetric> gauges = new ConcurrentHashMap<DoubleGauge, KafkaMetric>();
 
     @Override
     public void init(List<KafkaMetric> metrics) {

@@ -9,10 +9,10 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 public class Servo {
-    private static final ConcurrentMap<MonitorConfig, Counter> counters = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<MonitorConfig, Timer> timers = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<MonitorConfig, LongGauge> longGauges = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<MonitorConfig, DoubleGauge> doubleGauges = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<MonitorConfig, Counter> counters = new ConcurrentHashMap<MonitorConfig, Counter>();
+    private static final ConcurrentMap<MonitorConfig, Timer> timers = new ConcurrentHashMap<MonitorConfig, Timer>();
+    private static final ConcurrentMap<MonitorConfig, LongGauge> longGauges = new ConcurrentHashMap<MonitorConfig, LongGauge>();
+    private static final ConcurrentMap<MonitorConfig, DoubleGauge> doubleGauges = new ConcurrentHashMap<MonitorConfig, DoubleGauge>();
 
     private Servo() {
     }
