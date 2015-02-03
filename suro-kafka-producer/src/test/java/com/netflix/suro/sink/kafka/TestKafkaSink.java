@@ -11,7 +11,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.message.*;
+import com.netflix.suro.message.Compression;
+import com.netflix.suro.message.DefaultMessageContainer;
+import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageSetBuilder;
+import com.netflix.suro.message.MessageSetReader;
+import com.netflix.suro.message.StringMessage;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.thrift.TMessageSet;
 import kafka.admin.TopicCommand;
@@ -38,10 +43,17 @@ import scala.Option;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
@@ -175,7 +187,7 @@ public class TestKafkaSink {
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
 
-        int messageCount = 10;
+        int messageCount = 20;
         for (int i = 0; i < messageCount; ++i) {
             Map<String, Object> msgMap = new ImmutableMap.Builder<String, Object>()
                     .put("key", Integer.toString(i % numPartitions))
@@ -193,29 +205,29 @@ public class TestKafkaSink {
         topicCountMap.put(TOPIC_NAME_PARTITION_BY_KEY, 1);
         Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
         KafkaStream<byte[], byte[]> stream = consumerMap.get(TOPIC_NAME_PARTITION_BY_KEY).get(0);
-        Map<Integer, Set<Map<String, Object>>> resultSet = new HashMap<Integer, Set<Map<String, Object>>>();
+        // map from string key to set of partitions that messages contains this key
+        int recvCount = 0;
+        Map<String, Set<Integer>> resultMap = new HashMap<String, Set<Integer>>();
         for (int i = 0; i < messageCount; ++i) {
             MessageAndMetadata<byte[], byte[]> msgAndMeta = stream.iterator().next();
-            System.out.println(new String(msgAndMeta.message()));
-
+            recvCount++;
+            System.out.println(String.format("partition: %d, msg: %s", msgAndMeta.partition(), new String(msgAndMeta.message())));
             Map<String, Object> msg = jsonMapper.readValue(new String(msgAndMeta.message()), new TypeReference<Map<String, Object>>() {});
-            Set<Map<String, Object>> s = resultSet.get(msgAndMeta.partition());
-            if (s == null) {
-                s = new HashSet<Map<String, Object>>();
-                resultSet.put(msgAndMeta.partition(), s);
+            final String key = (String) msg.get("key");
+            Set<Integer> partSet = resultMap.get(key);
+            if (partSet == null) {
+                partSet = new HashSet<Integer>();
+                resultMap.put(key, partSet);
             }
-            s.add(msg);
+            partSet.add(msgAndMeta.partition());
         }
 
-        int sizeSum = 0;
-        for (Map.Entry<Integer, Set<Map<String, Object>>> e : resultSet.entrySet()) {
-            sizeSum += e.getValue().size();
-            String key = (String) e.getValue().iterator().next().get("key");
-            for (Map<String, Object> ss : e.getValue()) {
-                assertEquals(key, (String) ss.get("key"));
-            }
+        for (Map.Entry<String, Set<Integer>> e : resultMap.entrySet()) {
+            final String errMsg = String.format("all msgs for the same key should go to the same partitions: key = %s, partCount = %d",
+                    e.getKey(), e.getValue().size());
+            assertEquals(errMsg, 1, e.getValue().size());
         }
-        assertEquals(sizeSum, messageCount);
+        assertEquals(messageCount, recvCount);
 
         try {
             stream.iterator().next();
@@ -224,55 +236,6 @@ public class TestKafkaSink {
             //this is expected
             consumer.shutdown();
         }
-    }
-
-    @Test
-    public void testCheckPause() throws IOException, InterruptedException {
-        TopicCommand.createTopic(zk.getZkClient(),
-                new TopicCommand.TopicCommandOptions(new String[]{
-                        "--zookeeper", "dummy", "--create", "--topic", TOPIC_NAME + "check_pause",
-                        "--replication-factor", "2", "--partitions", "1"}));
-        String description = "{\n" +
-                "    \"type\": \"kafka\",\n" +
-                "    \"client.id\": \"kafkasink\",\n" +
-                "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"acks\": 1,\n" +
-                "    \"buffer.memory\": 1000,\n" +
-                "    \"batch.size\": 1000\n" +
-                "}";
-
-
-        final KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
-        sink.open();
-
-        final AtomicBoolean exceptionCaught = new AtomicBoolean(false);
-        final AtomicBoolean checkPaused = new AtomicBoolean(false);
-        final AtomicBoolean pending = new AtomicBoolean(false);
-        final CountDownLatch latch = new CountDownLatch(1);
-
-        sink.setRecordCounterListener(new Action3<Long, Long, Long>() {
-
-            @Override
-            public void call(Long queued, Long sent, Long dropped) {
-                if (dropped > 0) {
-                    exceptionCaught.set(true);
-                    if (sink.checkPause() > 0) {
-                        checkPaused.set(true);
-                    }
-                    if (sink.getNumOfPendingMessages() > 0) {
-                        pending.set(true);
-                    }
-                    latch.countDown();
-                }
-            }
-        });
-        for (int i = 0; i < 100; ++i) {
-            sink.writeTo(new DefaultMessageContainer(new Message(TOPIC_NAME + "check_pause", getBigData()), jsonMapper));
-        }
-        assertTrue(latch.await(10, TimeUnit.SECONDS));
-        assertTrue(exceptionCaught.get());
-        assertTrue(checkPaused.get());
-        assertTrue(pending.get());
     }
 
     @Test
