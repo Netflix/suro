@@ -19,7 +19,9 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Metric;
+import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Subscription;
@@ -54,7 +56,7 @@ public class KafkaSink implements Sink {
     private final boolean blockOnBufferFull;
     private final Properties props;
 
-    private KafkaProducer producer;
+    private KafkaProducer<byte[], byte[]> producer;
     private final MetadataWaitingQueuePolicy metadataWaitingQueuePolicy;
 
     @JsonCreator
@@ -228,7 +230,7 @@ public class KafkaSink implements Sink {
 
     @Override
     public void open() {
-        producer = new KafkaProducer(props);
+        producer = new KafkaProducer<byte[], byte[]>(props, new ByteArraySerializer(), new ByteArraySerializer());
         subscription = stream
                 .filter(new Func1<MessageContainer, Boolean>() {
                     @Override
@@ -287,10 +289,10 @@ public class KafkaSink implements Sink {
 
     @Override
     public String getStat() {
-        Map<String,? extends Metric> metrics = producer.metrics();
+        Map<MetricName, ? extends Metric> metrics = producer.metrics();
         StringBuilder sb = new StringBuilder();
         // add kafka producer stats, which are rates
-        for( Map.Entry<String,? extends Metric> e : metrics.entrySet() ){
+        for( Map.Entry<MetricName, ? extends Metric> e : metrics.entrySet() ){
             sb.append("kafka.").append(e.getKey()).append(": ").append(e.getValue().value()).append('\n');
         }
 

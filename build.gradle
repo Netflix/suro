@@ -120,8 +120,9 @@ project(':suro-kafka-producer') {
   dependencies {
     compile project(':suro-core')
 
-    compile 'org.apache.kafka:kafka-clients:0.8.2-beta'
+    compile 'org.apache.kafka:kafka-clients:0.8.2.0'
 
+    testCompile 'org.apache.kafka:kafka_2.9.2:0.8.2.0'
     testCompile 'org.apache.curator:curator-test:2.4.2'
     testCompile project(':suro-client')
   }
