@@ -18,6 +18,7 @@ dependencies {
   compile 'commons-cli:commons-cli:1.2'
   
   testCompile 'junit:junit:4.11'
+  testCompile 'org.mockito:mockito-core:1.9.5'
   testCompile 'org.apache.curator:curator-test:2.4.2'
   testCompile project(path: ':suro-client', configuration: 'test')
   testCompile project(path: ':suro-kafka-producer', configuration: 'test')

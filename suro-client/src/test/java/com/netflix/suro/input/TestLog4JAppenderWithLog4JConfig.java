@@ -24,10 +24,10 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.ByteArrayInputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
 
@@ -44,17 +44,18 @@ public class TestLog4JAppenderWithLog4JConfig {
     public void setup() throws Exception {
         servers = TestConnectionPool.startServers(1);
 
-        String log4jConfig = "log4j.logger.com.netflix.suro.input=WARN,SURO\n" +
-            "log4j.appender.stdout.layout.ConversionPattern=%5p [%t] (%F:%L) - %m%n\n" +
-            "log4j.appender.SURO=com.netflix.suro.input.Log4jAppender\n" +
-            "log4j.appender.SURO.app=ajjainApp\n" +
-            "log4j.appender.SURO.routingKey=ajjainroutingkey\n" +
-            "log4j.appender.SURO.loadBalancerType=static\n" +
-            "log4j.appender.SURO.loadBalancerServer=" + TestConnectionPool.createConnectionString(servers) + "\n" +
-            "log4j.appender.SURO.compression=0\n" +
-            "log4j.appender.SURO.clientType=sync";
+        Properties props = new Properties();
+        props.setProperty("log4j.logger.com.netflix.suro.input","WARN,SURO");
+        props.setProperty("log4j.appender.stdout.layout.ConversionPattern", "%5p [%t] (%F:%L) - %m%n");
+        props.setProperty("log4j.appender.SURO", "com.netflix.suro.input.Log4jAppender");
+        props.setProperty("log4j.appender.SURO.app", "ajjainApp");
+        props.setProperty("log4j.appender.SURO.routingKey", "ajjainroutingkey");
+        props.setProperty("log4j.appender.SURO.loadBalancerType", "static");
+        props.setProperty("log4j.appender.SURO.loadBalancerServer", TestConnectionPool.createConnectionString(servers));
+        props.setProperty("log4j.appender.SURO.compression", "0");
+        props.setProperty("log4j.appender.SURO.clientType", "sync");
 
-        PropertyConfigurator.configure(new ByteArrayInputStream(log4jConfig.getBytes()));
+        PropertyConfigurator.configure(props);
     }
 
     @After

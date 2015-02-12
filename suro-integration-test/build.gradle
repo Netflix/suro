@@ -8,4 +8,5 @@ dependencies {
   testCompile project(path: ':suro-kafka-producer', configuration: 'test')
   testCompile project(path: ':suro-kafka-consumer', configuration: 'test')
   testCompile 'org.apache.curator:curator-test:2.4.2'
+  testCompile 'org.mockito:mockito-core:1.9.5'
 }
