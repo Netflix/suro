@@ -16,6 +16,10 @@
 
 package com.netflix.suro;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import com.google.inject.Injector;
 import com.google.inject.Module;
@@ -34,9 +38,11 @@ import com.netflix.suro.sink.ServerSinkPlugin;
 import org.apache.commons.cli.*;
 import org.apache.commons.io.FileUtils;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -84,7 +90,34 @@ public class SuroServer {
                 }
             }
 
-            create(injector, properties);
+            List<Module> extensionModules = null;
+            if (line.hasOption('x')) {
+                String moduleFile = line.getOptionValue('x');
+                List<String> extensionModuleClasses = new ObjectMapper().readValue(
+                        FileUtils.readFileToString(new File(moduleFile)),
+                        new TypeReference<List<String>>(){});
+
+                if(extensionModuleClasses != null){
+                    extensionModules = Lists.transform(extensionModuleClasses, new Function<String, Module>() {
+                        @Nullable
+                        @Override
+                        public Module apply(String input) {
+                            try {
+                                return (Module)Class.forName(input).newInstance();
+                            } catch (Throwable e) {
+                                throw new RuntimeException(String.format("Unable to load module class %s", input), e);
+                            }
+                        }
+                    });
+                }
+            }
+
+            if(extensionModules == null) { //catch-all for either no configuration or empty configuration file
+                extensionModules = Lists.newArrayList();
+            }
+
+            create(injector, properties, extensionModules.toArray(new Module[extensionModules.size()]));
+
             injector.get().getInstance(LifecycleManager.class).start();
 
             Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -183,10 +216,16 @@ public class SuroServer {
                 .create('k');
 
         Option controlPort = OptionBuilder.withArgName(OPT_CONTROL_PORT)
-            .hasArg()
-            .isRequired(false)
-            .withDescription("The port used to send command to this server")
-            .create('c');
+                .hasArg()
+                .isRequired(false)
+                .withDescription("The port used to send command to this server")
+                .create('c');
+
+        Option extensions = OptionBuilder.withArgName("extensions")
+                .hasArg()
+                .isRequired(false)
+                .withDescription("extension module list configuration file")
+                .create('x');
 
         Options options = new Options();
         options.addOption(propertyFile);
@@ -196,6 +235,7 @@ public class SuroServer {
         options.addOption(accessKey);
         options.addOption(secretKey);
         options.addOption(controlPort);
+        options.addOption(extensions);
 
         return options;
     }
