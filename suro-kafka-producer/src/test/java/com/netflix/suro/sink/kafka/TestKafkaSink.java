@@ -256,9 +256,6 @@ public class TestKafkaSink {
             public void call(Long queued, Long sent, Long dropped) {
                 if (dropped > 0) {
                     exceptionCaught.set(true);
-                    if (sink.checkPause() > 0) {
-                        checkPaused.set(true);
-                    }
                     if (sink.getNumOfPendingMessages() > 0) {
                         pending.set(true);
                     }
