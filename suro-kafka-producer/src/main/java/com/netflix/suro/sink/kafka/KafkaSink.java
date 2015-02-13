@@ -59,6 +59,7 @@ public class KafkaSink implements Sink {
     private final boolean normalizeRoutingKey;
     private final String bootstrapServers;
     private final String vipAddress;
+    private final Partitioner partitioner;
     private final MetadataWaitingQueuePolicy metadataWaitingQueuePolicy;
     private final Properties props;
     private final Map<String, String> keyTopicMap;
@@ -71,6 +72,8 @@ public class KafkaSink implements Sink {
             @JsonProperty("client.id") String clientId,
             @JsonProperty("bootstrap.servers") String bootstrapServers,
             @JsonProperty("vipAddress") String vipAddress,
+            @JsonProperty("partitioner") String partitionerSelector,
+            @JsonProperty("partitioner.sticky.interval") int stickyInterval,
             @JsonProperty("block.on.metadata.queue.full") boolean blockOnMetadataQueueFull,
             @JsonProperty("metadata.waiting.queue.size") int metadataWaitingQueueSize,
             @JsonProperty("keyTopicMap") Map<String, String> keyTopicMap,
@@ -83,6 +86,16 @@ public class KafkaSink implements Sink {
         this.normalizeRoutingKey = normalizeRoutingKey;
         this.bootstrapServers = bootstrapServers;
         this.vipAddress = vipAddress;
+
+        if(StickyPartitioner.NAME.equals(partitionerSelector)) {
+            log.info("apply sticky partitioner");
+            int intervalMs = stickyInterval > 0 ? stickyInterval : 1000;
+            partitioner = StickyPartitioner.builder()
+                .withInterval(intervalMs, TimeUnit.MILLISECONDS)
+                .build();
+        } else {
+            partitioner = new DefaultPartitioner();
+        }
 
         this.metadataWaitingQueuePolicy = new MetadataWaitingQueuePolicy(
                 metadataWaitingQueueSize <= 0 ? 10000 : metadataWaitingQueueSize,
@@ -193,12 +206,13 @@ public class KafkaSink implements Sink {
     }
 
     private void sendMessage(final MessageContainer message) {
+        final String topic = getRoutingKey(message);
         byte[] key = null;
-        if (!keyTopicMap.isEmpty() && keyTopicMap.get(getRoutingKey(message)) != null) {
+        if (!keyTopicMap.isEmpty() && keyTopicMap.get(topic) != null) {
             try {
                 Map<String, Object> msgMap = message.getEntity(new TypeReference<Map<String, Object>>() {
                 });
-                Object keyField = msgMap.get(keyTopicMap.get(getRoutingKey(message)));
+                Object keyField = msgMap.get(keyTopicMap.get(topic));
                 if (keyField != null) {
                     key = keyField.toString().getBytes();
                 }
@@ -208,8 +222,9 @@ public class KafkaSink implements Sink {
         }
 
         try {
+            Integer part = partitioner.partition(topic, key, producer.partitionsFor(topic));
             producer.send(
-                new ProducerRecord(getRoutingKey(message), null, key, message.getMessage().getPayload()),
+                new ProducerRecord(topic, part, key, message.getMessage().getPayload()),
                 new Callback() {
                     @Override
                     public void onCompletion(RecordMetadata metadata, Exception e) {
@@ -218,7 +233,7 @@ public class KafkaSink implements Sink {
                             DynamicCounter.increment(
                                     MonitorConfig
                                             .builder("failedRecord")
-                                            .withTag(TagKey.ROUTING_KEY, getRoutingKey(message))
+                                            .withTag(TagKey.ROUTING_KEY, topic)
                                             .build());
                             droppedRecords.incrementAndGet();
                             runRecordCounterListener();
@@ -226,7 +241,7 @@ public class KafkaSink implements Sink {
                             DynamicCounter.increment(
                                     MonitorConfig
                                             .builder("sentRecord")
-                                            .withTag(TagKey.ROUTING_KEY, getRoutingKey(message))
+                                            .withTag(TagKey.ROUTING_KEY, topic)
                                             .build());
                             sentRecords.incrementAndGet();
                             runRecordCounterListener();
