@@ -136,8 +136,9 @@ public class KafkaSink implements Sink {
 
     private String getRoutingKey(final MessageContainer message) {
         String routingKey = message.getRoutingKey();
+        Preconditions.checkArgument(routingKey != null);
         if(normalizeRoutingKey) {
-            routingKey = routingKey == null ? routingKey: routingKey.toLowerCase();
+            routingKey = routingKey.toLowerCase();
         }
         return routingKey;
     }
