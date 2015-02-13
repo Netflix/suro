@@ -100,7 +100,7 @@ public class TestKafkaSink {
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
                 "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"props\": {\n" +
+                "    \"kafka.etc\": {\n" +
                 "          \"acks\": \"1\"\n" +
                 "      }\n" +
                 "}";
@@ -148,7 +148,7 @@ public class TestKafkaSink {
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
                 "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"props\": {\n" +
+                "    \"kafka.etc\": {\n" +
                 "          \"acks\": \"1\"\n" +
                 "      }\n" +
                 "}";
@@ -182,7 +182,7 @@ public class TestKafkaSink {
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
                 "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"props\": {\n" +
+                "    \"kafka.etc\": {\n" +
                 "          \"acks\": \"1\"\n" +
                 "      },\n" +
                 keyTopicMap + "\n" +
@@ -253,7 +253,7 @@ public class TestKafkaSink {
                 "    \"client.id\": \"kafkasink\",\n" +
                 "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
                 "    \"block.on.metadata.queue.full\": true,\n" +
-                "    \"props\": {\n" +
+                "    \"kafka.etc\": {\n" +
                 "          \"block.on.buffer.full\": true,\n" +
                 "          \"buffer.memory\": 1000,\n" +
                 "          \"batch.size\": 1000,\n" +
@@ -311,7 +311,7 @@ public class TestKafkaSink {
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
                 "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"props\": {\n" +
+                "    \"kafka.etc\": {\n" +
                 "          \"acks\": \"1\"\n" +
                 "      }\n" +
                 "}";
@@ -367,7 +367,7 @@ public class TestKafkaSink {
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
                 "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"props\": {\n" +
+                "    \"kafka.etc\": {\n" +
                 "          \"acks\": \"1\"\n" +
                 "      }\n" +
                 "}";
@@ -427,7 +427,7 @@ public class TestKafkaSink {
                 "    \"normalizeRoutingKey\": true,\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
                 "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"props\": {\n" +
+                "    \"kafka.etc\": {\n" +
                 "          \"acks\": \"1\"\n" +
                 "      }\n" +
                 "}";
