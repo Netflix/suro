@@ -134,10 +134,10 @@ public class TestAsyncSuroClient {
         props.setProperty(ClientConfig.ASYNC_TIMEOUT, "1");
         setupFile(props);
 
-        int messageCount = 30;
+        int messageCount = 3;
         AsyncSuroClient client = injector.getInstance(AsyncSuroClient.class);
 
-        final CountDownLatch restoreLatch = new CountDownLatch(messageCount / 10);
+        final CountDownLatch restoreLatch = new CountDownLatch(messageCount / 3);
         final CountDownLatch sentLatch = new CountDownLatch(messageCount);
         client.addListener(new AsyncSuroClient.Listener() {
             @Override
