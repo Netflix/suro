@@ -3,7 +3,7 @@ apply plugin: 'nebula-test-jar'
 dependencies {
     compile 'com.netflix.archaius:archaius-core:0.5.11'
     compile 'com.netflix.netflix-commons:netflix-commons-util:0.1.1'
-    compile 'com.netflix.servo:servo-core:0.4.32'
+    compile 'com.netflix.servo:servo-core:0.7.4'
     compile 'com.netflix.governator:governator:1.2.3'
     compile 'org.slf4j:slf4j-api:1.6.4'
     compile 'com.google.guava:guava:14.0.1'

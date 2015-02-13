@@ -1,7 +1,6 @@
 package com.netflix.suro;
 
 import com.amazonaws.util.StringInputStream;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.BeanProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -39,6 +38,7 @@ import org.mockito.stubbing.Answer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
@@ -57,7 +57,7 @@ public class TestPauseOnLongQueueKafkaConsumer {
 
     private static final String TOPIC_NAME = "tpolq_kafka";
 
-    private final RateLimiter rateLimiter = RateLimiter.create(20); // setting 10 per second
+    private final CountDownLatch latch = new CountDownLatch(1);
 
     @Test
     public void test() throws Exception {
@@ -101,7 +101,7 @@ public class TestPauseOnLongQueueKafkaConsumer {
             public Object answer(InvocationOnMock invocation) throws Throwable {
                 final HttpRequest bulk = (HttpRequest) invocation.getArguments()[0];
                 int numRecords = bulk.getEntity().toString().split("\n").length / 2;
-                rateLimiter.acquire(numRecords);
+                latch.await();
 
                 HttpResponse result = mock(HttpResponse.class);
                 doReturn(200).when(result).getStatus();
@@ -146,13 +146,14 @@ public class TestPauseOnLongQueueKafkaConsumer {
         consumer.start();
 
         // set the pause threshold to 100
-        QueuedSink.MAX_PENDING_MESSAGES_TO_PAUSE = 100;
+        QueuedSink.MAX_PENDING_MESSAGES_TO_PAUSE = 10;
 
         Thread t = createProducerThread(jsonMapper, kafkaSink, TOPIC_NAME);
 
         // wait until queue's is full over the threshold
         int count = 0;
         while (count < 3) {
+            System.out.println("pending messages:" + sink.getNumOfPendingMessages());
             if (sink.getNumOfPendingMessages() >= QueuedSink.MAX_PENDING_MESSAGES_TO_PAUSE) {
                 ++count;
             }
@@ -170,7 +171,7 @@ public class TestPauseOnLongQueueKafkaConsumer {
             assertEquals(countList.get(i), countList.get(i + 1), 5);
         }
 
-        rateLimiter.setRate(Double.MAX_VALUE);
+        latch.countDown();
 
         run.set(false);
         t.join();
@@ -200,7 +201,7 @@ public class TestPauseOnLongQueueKafkaConsumer {
 
     private Thread createProducerThread(final ObjectMapper jsonMapper, final KafkaSink kafkaSink, final String topicName) {
         Thread t = new Thread(new Runnable() {
-            private final RateLimiter rateLimiter = RateLimiter.create(100); // 100 per seconds
+            private final RateLimiter rateLimiter = RateLimiter.create(10);
 
             @Override
             public void run() {
@@ -216,7 +217,7 @@ public class TestPauseOnLongQueueKafkaConsumer {
                                                         .put("f2", "v2")
                                                         .build())),
                                 jsonMapper));
-                    } catch (JsonProcessingException e) {
+                    } catch (Exception e) {
                         fail();
                     }
                 }

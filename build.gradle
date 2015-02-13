@@ -22,9 +22,6 @@ subprojects {
       name 'github.release.repo'
       url 'https://raw.github.com/bulldog2011/bulldog-repo/master/repo/releases/'
     }
-    maven {
-      url "https://metamx.artifactoryonline.com/metamx/pub-libs-releases-local"
-    }
     maven{
       name 'sonatype'
       url 'https://oss.sonatype.org/content/groups/public/'
@@ -37,7 +34,11 @@ subprojects {
   }
 
   test {
-      forkEvery = 1
-      maxParallelForks = 1
+    forkEvery = 1
+    maxParallelForks = 1
+    testLogging {
+      events 'failed', 'skipped', 'started'
+      exceptionFormat 'full'
+    }
   }
 }
