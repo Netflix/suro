@@ -1,12 +1,16 @@
 package com.netflix.suro.sink.kafka;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.netflix.appinfo.InstanceInfo;
+import com.netflix.discovery.DiscoveryClient;
 import com.netflix.servo.monitor.DynamicCounter;
 import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.suro.TagKey;
@@ -30,6 +34,8 @@ import rx.schedulers.Schedulers;
 import rx.subjects.PublishSubject;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -50,68 +56,95 @@ public class KafkaSink implements Sink {
 
     public final static String TYPE = "kafka";
 
-    private final Map<String, String> keyTopicMap;
-    private final boolean blockOnBufferFull;
+    private final boolean normalizeRoutingKey;
+    private final String bootstrapServers;
+    private final String vipAddress;
+    private final MetadataWaitingQueuePolicy metadataWaitingQueuePolicy;
     private final Properties props;
+    private final Map<String, String> keyTopicMap;
 
     private KafkaProducer producer;
-    private final MetadataWaitingQueuePolicy metadataWaitingQueuePolicy;
 
     @JsonCreator
     public KafkaSink(
+            @JsonProperty("normalizeRoutingKey") boolean normalizeRoutingKey,
             @JsonProperty("client.id") String clientId,
-            @JsonProperty("metadata.broker.list") String brokerList,
             @JsonProperty("bootstrap.servers") String bootstrapServers,
-            @JsonProperty("request.required.acks") Integer requiredAcks,
-            @JsonProperty("acks") String acks,
-            @JsonProperty("buffer.memory") long bufferMemory,
-            @JsonProperty("batch.size") int batchSize,
-            @JsonProperty("compression.codec") String codec,
-            @JsonProperty("compression.type") String compression,
-            @JsonProperty("retries") int retries,
-            @JsonProperty("block.on.buffer.full") boolean blockOnBufferFull,
+            @JsonProperty("vipAddress") String vipAddress,
+            @JsonProperty("block.on.metadata.queue.full") boolean blockOnMetadataQueueFull,
             @JsonProperty("metadata.waiting.queue.size") int metadataWaitingQueueSize,
+            @JsonProperty("keyTopicMap") Map<String, String> keyTopicMap,
             @JsonProperty("kafka.etc") Properties etcProps,
-            @JsonProperty("keyTopicMap") Map<String, String> keyTopicMap
+            @JacksonInject DiscoveryClient discoveryClient
     ) {
-        Preconditions.checkArgument(bootstrapServers != null | brokerList != null);
-        Preconditions.checkNotNull(clientId);
+        Preconditions.checkArgument(bootstrapServers != null);
+        Preconditions.checkArgument(clientId != null);
 
-        props = new Properties();
-        props.put("client.id", clientId);
-        props.put("bootstrap.servers", brokerList != null ? brokerList : bootstrapServers);
-
-        if (acks != null || requiredAcks != null) {
-            props.put("acks", requiredAcks != null ? requiredAcks.toString() : acks);
-        }
-        if (bufferMemory > 0) {
-            props.put("buffer.memory", bufferMemory);
-        }
-        if (batchSize > 0) {
-            props.put("batch.size", batchSize);
-        }
-        if (compression != null || codec != null) {
-            props.put("compression.type", codec != null ? codec : compression);
-        }
-        if (retries > 0) {
-            props.put("retries", retries);
-        }
-
-        this.blockOnBufferFull = blockOnBufferFull;
-        props.put("block.on.buffer.full", blockOnBufferFull);
-        setServoReporter();
-
-        if (etcProps != null) {
-            props.putAll(etcProps);
-        }
-
-        this.keyTopicMap = keyTopicMap != null ? keyTopicMap : Maps.<String, String>newHashMap();
+        this.normalizeRoutingKey = normalizeRoutingKey;
+        this.bootstrapServers = bootstrapServers;
+        this.vipAddress = vipAddress;
 
         this.metadataWaitingQueuePolicy = new MetadataWaitingQueuePolicy(
-            metadataWaitingQueueSize == 0 ? 10000 : metadataWaitingQueueSize,
-            blockOnBufferFull);
+                metadataWaitingQueueSize <= 0 ? 10000 : metadataWaitingQueueSize,
+                blockOnMetadataQueueFull);
+        this.keyTopicMap = keyTopicMap != null ? keyTopicMap : Maps.<String, String>newHashMap();
+
+        this.props = new Properties();
+        if(etcProps != null) {
+            this.props.putAll(etcProps);
+        }
+        this.props.setProperty(ProducerConfig.CLIENT_ID_CONFIG, clientId);
+        this.props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        if(StringUtils.isNotBlank(vipAddress)) {
+            List<String> hostPortList = extractBootstrapServers(vipAddress, discoveryClient);
+            // only override if we found UP brokers from discovery client
+            if(hostPortList.isEmpty()) {
+                log.warn("cannot find UP brokers for vipAddress: {}", vipAddress);
+            } else {
+                final String vipBootstrapServers = StringUtils.join(hostPortList, ",");
+                this.props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, vipBootstrapServers);
+                log.info("set {} bootstrap servers: {}", hostPortList.size(), vipBootstrapServers);
+            }
+        }
+        setServoReporter();
     }
 
+    private List<String> extractBootstrapServers(final String vipAddress, final DiscoveryClient discoveryClient) {
+        int port = 7101;
+        int sepIndex = vipAddress.indexOf(":");
+        if(sepIndex > 0 && sepIndex < vipAddress.length() - 1) {
+            // vipAddress contains port number
+            try {
+                port = Integer.valueOf(vipAddress.substring(sepIndex+1));
+            } catch (NumberFormatException e) {
+                log.error("fall back to port 7101 because vipAddress contains invalid port string: {}", vipAddress);
+            }
+        } else {
+            log.info("use default port 7101 because vipAddress doesn't contain port number: {}", vipAddress);
+        }
+        // Allen mentioned that discovery client already shuffled/randomized the list
+        List<InstanceInfo> instanceInfoList = discoveryClient.getInstancesByVipAddress(vipAddress, false);
+        // extract UP instances
+        List<String> hostPortList = new ArrayList<String>(instanceInfoList.size());
+        for(InstanceInfo instanceInfo : instanceInfoList) {
+            if(instanceInfo.getStatus() == InstanceInfo.InstanceStatus.UP) {
+                hostPortList.add(String.format("%s:%d", instanceInfo.getHostName(), port));
+            }
+        }
+        return hostPortList;
+    }
+
+    private String getRoutingKey(final MessageContainer message) {
+        String routingKey = message.getRoutingKey();
+        if(normalizeRoutingKey) {
+            routingKey = routingKey == null ? routingKey: routingKey.toLowerCase();
+        }
+        return routingKey;
+    }
+
+    /**
+     * we shouldn't need this hack after moving to 0.8.2.0
+     */
     private void setServoReporter() {
         props.put("metric.reporters", Lists.newArrayList(ServoReporter.class.getName()));
         // this should be needed because ProducerConfig cannot retrieve undefined key
@@ -124,17 +157,6 @@ public class KafkaSink implements Sink {
             // swallow exception
         }
         props.put(ServoReporter.class.getName(), ServoReporter.class);
-    }
-
-    /**
-     * this will override previous value if set already
-     * @param bootstreapServers
-     */
-    protected void setBootstreapServers(String bootstreapServers) {
-        if(StringUtils.isBlank(bootstreapServers)) {
-            throw new IllegalArgumentException("blank bootstreapServers");
-        }
-        props.put("bootstrap.servers", bootstreapServers);
     }
 
     private AtomicLong queuedRecords = new AtomicLong(0);
@@ -156,7 +178,7 @@ public class KafkaSink implements Sink {
         queuedRecords.incrementAndGet();
         runRecordCounterListener();
 
-        if (metadataFetchedTopicSet.contains(message.getRoutingKey())) {
+        if (metadataFetchedTopicSet.contains(getRoutingKey(message))) {
             sendMessage(message);
         } else {
             stream.onNext(message);
@@ -171,11 +193,11 @@ public class KafkaSink implements Sink {
 
     private void sendMessage(final MessageContainer message) {
         byte[] key = null;
-        if (!keyTopicMap.isEmpty() && keyTopicMap.get(message.getRoutingKey()) != null) {
+        if (!keyTopicMap.isEmpty() && keyTopicMap.get(getRoutingKey(message)) != null) {
             try {
                 Map<String, Object> msgMap = message.getEntity(new TypeReference<Map<String, Object>>() {
                 });
-                Object keyField = msgMap.get(keyTopicMap.get(message.getRoutingKey()));
+                Object keyField = msgMap.get(keyTopicMap.get(getRoutingKey(message)));
                 if (keyField != null) {
                     key = keyField.toString().getBytes();
                 }
@@ -186,25 +208,25 @@ public class KafkaSink implements Sink {
 
         try {
             producer.send(
-                new ProducerRecord(message.getRoutingKey(), null, key, message.getMessage().getPayload()),
+                new ProducerRecord(getRoutingKey(message), null, key, message.getMessage().getPayload()),
                 new Callback() {
                     @Override
                     public void onCompletion(RecordMetadata metadata, Exception e) {
                         if (e != null) {
                             log.error("Exception while sending", e);
                             DynamicCounter.increment(
-                                MonitorConfig
-                                    .builder("failedRecord")
-                                    .withTag(TagKey.ROUTING_KEY, message.getRoutingKey())
-                                    .build());
+                                    MonitorConfig
+                                            .builder("failedRecord")
+                                            .withTag(TagKey.ROUTING_KEY, getRoutingKey(message))
+                                            .build());
                             droppedRecords.incrementAndGet();
                             runRecordCounterListener();
                         } else {
                             DynamicCounter.increment(
-                                MonitorConfig
-                                    .builder("sentRecord")
-                                    .withTag(TagKey.ROUTING_KEY, message.getRoutingKey())
-                                    .build());
+                                    MonitorConfig
+                                            .builder("sentRecord")
+                                            .withTag(TagKey.ROUTING_KEY, getRoutingKey(message))
+                                            .build());
                             sentRecords.incrementAndGet();
                             runRecordCounterListener();
                         }
@@ -220,7 +242,7 @@ public class KafkaSink implements Sink {
         DynamicCounter.increment(
             MonitorConfig
                 .builder("droppedRecord")
-                .withTag(TagKey.ROUTING_KEY, message.getRoutingKey())
+                .withTag(TagKey.ROUTING_KEY, getRoutingKey(message))
                 .build());
         droppedRecords.incrementAndGet();
         runRecordCounterListener();
@@ -247,9 +269,9 @@ public class KafkaSink implements Sink {
                             @Override
                             public void call(final MessageContainer message) {
                                 try {
-                                    if (!metadataFetchedTopicSet.contains(message.getRoutingKey())) {
-                                        producer.partitionsFor(message.getRoutingKey());
-                                        metadataFetchedTopicSet.add(message.getRoutingKey());
+                                    if (!metadataFetchedTopicSet.contains(getRoutingKey(message))) {
+                                        producer.partitionsFor(getRoutingKey(message));
+                                        metadataFetchedTopicSet.add(getRoutingKey(message));
                                     }
                                     sendMessage(message);
                                 } catch (Exception e) {
@@ -328,5 +350,20 @@ public class KafkaSink implements Sink {
             semaphore.release();
         }
 
+    }
+
+    @VisibleForTesting
+    public String getBootstrapServers() {
+        return bootstrapServers;
+    }
+
+    @VisibleForTesting
+    public String getVipAddress() {
+        return vipAddress;
+    }
+
+    @VisibleForTesting
+    public Properties getProperties() {
+        return props;
     }
 }

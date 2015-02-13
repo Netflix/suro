@@ -11,7 +11,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.netflix.suro.ClientConfig;
 import com.netflix.suro.jackson.DefaultObjectMapper;
-import com.netflix.suro.message.*;
+import com.netflix.suro.message.Compression;
+import com.netflix.suro.message.DefaultMessageContainer;
+import com.netflix.suro.message.Message;
+import com.netflix.suro.message.MessageSetBuilder;
+import com.netflix.suro.message.MessageSetReader;
+import com.netflix.suro.message.StringMessage;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.thrift.TMessageSet;
 import kafka.admin.TopicCommand;
@@ -38,10 +43,15 @@ import scala.Option;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
@@ -61,7 +71,7 @@ public class TestKafkaSink {
     private static final String TOPIC_NAME = "routingKey";
     private static final String TOPIC_NAME_MULTITHREAD = "routingKeyMultithread";
     private static final String TOPIC_NAME_PARTITION_BY_KEY = "routingKey_partitionByKey";
-    private static final String TOPIC_NAME_BACKWARD_COMPAT = "routingKey_backwardCompat";
+    private static final String TOPIC_NORMALIZED = "routingkey_normalized";
 
     private static ObjectMapper jsonMapper = new DefaultObjectMapper();
 
@@ -90,7 +100,9 @@ public class TestKafkaSink {
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
                 "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"acks\": 1\n" +
+                "    \"props\": {\n" +
+                "          \"acks\": \"1\"\n" +
+                "      }\n" +
                 "}";
 
 
@@ -136,7 +148,9 @@ public class TestKafkaSink {
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
                 "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"acks\": 1\n" +
+                "    \"props\": {\n" +
+                "          \"acks\": \"1\"\n" +
+                "      }\n" +
                 "}";
 
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>() {
@@ -168,14 +182,16 @@ public class TestKafkaSink {
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
                 "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"acks\": 1,\n" +
+                "    \"props\": {\n" +
+                "          \"acks\": \"1\"\n" +
+                "      },\n" +
                 keyTopicMap + "\n" +
                 "}";
 
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
 
-        int messageCount = 10;
+        int messageCount = 20;
         for (int i = 0; i < messageCount; ++i) {
             Map<String, Object> msgMap = new ImmutableMap.Builder<String, Object>()
                     .put("key", Integer.toString(i % numPartitions))
@@ -193,29 +209,29 @@ public class TestKafkaSink {
         topicCountMap.put(TOPIC_NAME_PARTITION_BY_KEY, 1);
         Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
         KafkaStream<byte[], byte[]> stream = consumerMap.get(TOPIC_NAME_PARTITION_BY_KEY).get(0);
-        Map<Integer, Set<Map<String, Object>>> resultSet = new HashMap<Integer, Set<Map<String, Object>>>();
+        // map from string key to set of partitions that messages contains this key
+        int recvCount = 0;
+        Map<String, Set<Integer>> resultMap = new HashMap<String, Set<Integer>>();
         for (int i = 0; i < messageCount; ++i) {
             MessageAndMetadata<byte[], byte[]> msgAndMeta = stream.iterator().next();
-            System.out.println(new String(msgAndMeta.message()));
-
+            recvCount++;
+            System.out.println(String.format("partition: %d, msg: %s", msgAndMeta.partition(), new String(msgAndMeta.message())));
             Map<String, Object> msg = jsonMapper.readValue(new String(msgAndMeta.message()), new TypeReference<Map<String, Object>>() {});
-            Set<Map<String, Object>> s = resultSet.get(msgAndMeta.partition());
-            if (s == null) {
-                s = new HashSet<Map<String, Object>>();
-                resultSet.put(msgAndMeta.partition(), s);
+            final String key = (String) msg.get("key");
+            Set<Integer> partSet = resultMap.get(key);
+            if (partSet == null) {
+                partSet = new HashSet<Integer>();
+                resultMap.put(key, partSet);
             }
-            s.add(msg);
+            partSet.add(msgAndMeta.partition());
         }
 
-        int sizeSum = 0;
-        for (Map.Entry<Integer, Set<Map<String, Object>>> e : resultSet.entrySet()) {
-            sizeSum += e.getValue().size();
-            String key = (String) e.getValue().iterator().next().get("key");
-            for (Map<String, Object> ss : e.getValue()) {
-                assertEquals(key, (String) ss.get("key"));
-            }
+        for (Map.Entry<String, Set<Integer>> e : resultMap.entrySet()) {
+            final String errMsg = String.format("all msgs for the same key should go to the same partitions: key = %s, partCount = %d",
+                    e.getKey(), e.getValue().size());
+            assertEquals(errMsg, 1, e.getValue().size());
         }
-        assertEquals(sizeSum, messageCount);
+        assertEquals(messageCount, recvCount);
 
         try {
             stream.iterator().next();
@@ -224,52 +240,6 @@ public class TestKafkaSink {
             //this is expected
             consumer.shutdown();
         }
-    }
-
-    @Test
-    public void testCheckPause() throws IOException, InterruptedException {
-        TopicCommand.createTopic(zk.getZkClient(),
-                new TopicCommand.TopicCommandOptions(new String[]{
-                        "--zookeeper", "dummy", "--create", "--topic", TOPIC_NAME + "check_pause",
-                        "--replication-factor", "2", "--partitions", "1"}));
-        String description = "{\n" +
-                "    \"type\": \"kafka\",\n" +
-                "    \"client.id\": \"kafkasink\",\n" +
-                "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"acks\": 1,\n" +
-                "    \"buffer.memory\": 1000,\n" +
-                "    \"batch.size\": 1000\n" +
-                "}";
-
-
-        final KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
-        sink.open();
-
-        final AtomicBoolean exceptionCaught = new AtomicBoolean(false);
-        final AtomicBoolean checkPaused = new AtomicBoolean(false);
-        final AtomicBoolean pending = new AtomicBoolean(false);
-        final CountDownLatch latch = new CountDownLatch(1);
-
-        sink.setRecordCounterListener(new Action3<Long, Long, Long>() {
-
-            @Override
-            public void call(Long queued, Long sent, Long dropped) {
-                if (dropped > 0) {
-                    exceptionCaught.set(true);
-                    if (sink.getNumOfPendingMessages() > 0) {
-                        pending.set(true);
-                    }
-                    latch.countDown();
-                }
-            }
-        });
-        for (int i = 0; i < 100; ++i) {
-            sink.writeTo(new DefaultMessageContainer(new Message(TOPIC_NAME + "check_pause", getBigData()), jsonMapper));
-        }
-        assertTrue(latch.await(10, TimeUnit.SECONDS));
-        assertTrue(exceptionCaught.get());
-        assertTrue(checkPaused.get());
-        assertTrue(pending.get());
     }
 
     @Test
@@ -282,12 +252,14 @@ public class TestKafkaSink {
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
                 "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"acks\": 1,\n" +
-                "    \"block.on.buffer.full\": true,\n" +
-                "    \"buffer.memory\": 1000,\n" +
-                "    \"batch.size\": 1000\n" +
+                "    \"block.on.metadata.queue.full\": true,\n" +
+                "    \"props\": {\n" +
+                "          \"block.on.buffer.full\": true,\n" +
+                "          \"buffer.memory\": 1000,\n" +
+                "          \"batch.size\": 1000,\n" +
+                "          \"acks\": \"1\"\n" +
+                "      }\n" +
                 "}";
-
 
         final KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
@@ -315,112 +287,11 @@ public class TestKafkaSink {
             }
         }).start();
         latch.await(3, TimeUnit.SECONDS);
-        assertEquals(latch.getCount(), 1); // blocked
+        assertEquals(1, latch.getCount()); // blocked
 
         // Make sure the kafka server is restarted only if shutdown is successful.
         shutdownLatch.await();
         kafkaServer.before();
-    }
-
-    @Test
-    public void testConfigBackwardCompatible() throws IOException {
-        int numPartitions = 9;
-
-        TopicCommand.createTopic(zk.getZkClient(),
-                new TopicCommand.TopicCommandOptions(new String[]{
-                        "--zookeeper", "dummy", "--create", "--topic", TOPIC_NAME_BACKWARD_COMPAT,
-                        "--replication-factor", "2", "--partitions", Integer.toString(numPartitions)}));
-        String keyTopicMap = String.format("   \"keyTopicMap\": {\n" +
-                "        \"%s\": \"key\"\n" +
-                "    }", TOPIC_NAME_BACKWARD_COMPAT);
-
-        String description1 = "{\n" +
-                "    \"type\": \"Kafka\",\n" +
-                "    \"client.id\": \"kafkasink\",\n" +
-                "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"ack\": 1,\n" +
-                "     \"compression.type\": \"snappy\",\n" +
-                keyTopicMap + "\n" +
-                "}";
-        String description2 = "{\n" +
-                "    \"type\": \"Kafka\",\n" +
-                "    \"client.id\": \"kafkasink\",\n" +
-                "    \"metadata.broker.list\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-                "    \"request.required.acks\": 1,\n" +
-                "     \"compression.codec\": \"snappy\",\n" +
-                keyTopicMap + "\n" +
-                "}";
-
-        // setup sinks, both old and new versions
-        ObjectMapper jsonMapper = new DefaultObjectMapper();
-        jsonMapper.registerSubtypes(new NamedType(KafkaSink.class, "Kafka"));
-        jsonMapper.setInjectableValues(new InjectableValues() {
-            @Override
-            public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance) {
-                if (valueId.equals(KafkaRetentionPartitioner.class.getName())) {
-                    return new KafkaRetentionPartitioner();
-                } else {
-                    return null;
-                }
-            }
-        });
-        KafkaSink sink1 = jsonMapper.readValue(description1, new TypeReference<Sink>(){});
-        KafkaSink sink2 = jsonMapper.readValue(description2, new TypeReference<Sink>(){});
-        sink1.open();
-        sink2.open();
-        List<Sink> sinks = new ArrayList<Sink>();
-        sinks.add(sink1);
-        sinks.add(sink2);
-
-        // setup Kafka consumer (to read back messages)
-        ConsumerConnector consumer = kafka.consumer.Consumer.createJavaConsumerConnector(
-                createConsumerConfig("localhost:" + zk.getServerPort(), "gropuid"));
-        Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
-        topicCountMap.put(TOPIC_NAME_BACKWARD_COMPAT, 1);
-        Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap =
-                consumer.createMessageStreams(topicCountMap);
-        KafkaStream<byte[], byte[]> stream = consumerMap.get(TOPIC_NAME_BACKWARD_COMPAT).get(0);
-
-        // Send 20 test message, using the old and new Kafka sinks.
-        // Retrieve the messages and ensure that they are identical and sent to the same partition.
-        Random rand = new Random();
-        int messageCount = 20;
-        for (int i = 0; i < messageCount; ++i) {
-            Map<String, Object> msgMap = new ImmutableMap.Builder<String, Object>()
-                    .put("key", new Long( rand.nextLong() ) )
-                    .put("value", "message:" + i).build();
-
-            // send message to both sinks
-            for( Sink sink : sinks ){
-                sink.writeTo(new DefaultMessageContainer(
-                        new Message(TOPIC_NAME_BACKWARD_COMPAT, jsonMapper.writeValueAsBytes(msgMap)),
-                        jsonMapper));
-            }
-
-            // read two copies of message back from Kafka and check that partitions and data match
-            MessageAndMetadata<byte[], byte[]> msgAndMeta1 = stream.iterator().next();
-            MessageAndMetadata<byte[], byte[]> msgAndMeta2 = stream.iterator().next();
-            System.out.println( "iteration: "+i+" partition1: "+msgAndMeta1.partition() );
-            System.out.println( "iteration: "+i+" partition2: "+msgAndMeta2.partition() );
-            assertEquals(msgAndMeta1.partition(), msgAndMeta2.partition());
-            String msg1Str = new String( msgAndMeta1.message() );
-            String msg2Str = new String( msgAndMeta2.message() );
-            System.out.println( "iteration: "+i+" message1: "+msg1Str );
-            System.out.println( "iteration: "+i+" message2: "+msg2Str );
-            assertEquals(msg1Str, msg2Str);
-        }
-
-        // close sinks
-        sink1.close();
-        sink2.close();
-        // close consumer
-        try {
-            stream.iterator().next();
-            fail(); // there should be no data left to consume
-        } catch (ConsumerTimeoutException e) {
-            //this is expected
-            consumer.shutdown();
-        }
     }
 
     @Test
@@ -437,12 +308,13 @@ public class TestKafkaSink {
         int port2 = Integer.parseInt(brokerList[1].split(":")[1]);
 
         String description = "{\n" +
-            "    \"type\": \"kafka\",\n" +
-            "    \"client.id\": \"kafkasink\",\n" +
-            "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-            "    \"acks\": 1\n" +
-            "    }" +
-            "}";
+                "    \"type\": \"kafka\",\n" +
+                "    \"client.id\": \"kafkasink\",\n" +
+                "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
+                "    \"props\": {\n" +
+                "          \"acks\": \"1\"\n" +
+                "      }\n" +
+                "}";
 
         kafkaServer.shutdown();
 
@@ -492,11 +364,13 @@ public class TestKafkaSink {
         int port2 = Integer.parseInt(brokerList[1].split(":")[1]);
 
         String description = "{\n" +
-            "    \"type\": \"kafka\",\n" +
-            "    \"client.id\": \"kafkasink\",\n" +
-            "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
-            "    \"acks\": 1\n" +
-            "}";
+                "    \"type\": \"kafka\",\n" +
+                "    \"client.id\": \"kafkasink\",\n" +
+                "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
+                "    \"props\": {\n" +
+                "          \"acks\": \"1\"\n" +
+                "      }\n" +
+                "}";
 
         final KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
@@ -540,6 +414,56 @@ public class TestKafkaSink {
         assertTrue(latch2.await(10, TimeUnit.SECONDS));
         assertTrue(numSent.get() > 0);
         checkConsumer(topicName2, numSent.get());
+    }
+
+    @Test
+    public void testNormailizeRoutingKey() throws Exception {
+        TopicCommand.createTopic(zk.getZkClient(),
+                new TopicCommand.TopicCommandOptions(new String[]{
+                        "--zookeeper", "dummy", "--create", "--topic", TOPIC_NORMALIZED,
+                        "--replication-factor", "2", "--partitions", "1"}));
+        String description = "{\n" +
+                "    \"type\": \"kafka\",\n" +
+                "    \"normalizeRoutingKey\": true,\n" +
+                "    \"client.id\": \"kafkasink\",\n" +
+                "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
+                "    \"props\": {\n" +
+                "          \"acks\": \"1\"\n" +
+                "      }\n" +
+                "}";
+
+
+        KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
+        sink.open();
+        // change topic name to all upper case
+        Iterator<Message> msgIterator = new MessageSetReader(createMessageSet(TOPIC_NORMALIZED.toUpperCase(), 2)).iterator();
+        while (msgIterator.hasNext()) {
+            sink.writeTo(new StringMessage(msgIterator.next()));
+        }
+        assertTrue(sink.getNumOfPendingMessages() > 0);
+        sink.close();
+        assertEquals(sink.getNumOfPendingMessages(), 0);
+        System.out.println(sink.getStat());
+
+        // get the leader
+        Option<Object> leaderOpt = ZkUtils.getLeaderForPartition(zk.getZkClient(), TOPIC_NORMALIZED, 0);
+        assertTrue("Leader for topic new-topic partition 0 should exist", leaderOpt.isDefined());
+        int leader = (Integer) leaderOpt.get();
+
+        KafkaConfig config;
+        if (leader == kafkaServer.getServer(0).config().brokerId()) {
+            config = kafkaServer.getServer(0).config();
+        } else {
+            config = kafkaServer.getServer(1).config();
+        }
+        SimpleConsumer consumer = new SimpleConsumer(config.hostName(), config.port(), 100000, 100000, "clientId");
+        FetchResponse response = consumer.fetch(new FetchRequestBuilder().addFetch(TOPIC_NORMALIZED, 0, 0, 100000).build());
+
+        List<MessageAndOffset> messageSet = Lists.newArrayList(response.messageSet(TOPIC_NORMALIZED, 0).iterator());
+        assertEquals("Should have fetched 2 messages", 2, messageSet.size());
+
+        assertEquals(new String(extractMessage(messageSet, 0)), "testMessage" + 0);
+        assertEquals(new String(extractMessage(messageSet, 1)), "testMessage" + 1);
     }
 
     private void sendMessages(String topicName, KafkaSink sink, int msgCount) throws JsonProcessingException {
