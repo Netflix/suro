@@ -96,7 +96,7 @@ public class StickyPartitioner implements Partitioner {
                     if (partitions.get(partition).leader() != null) {
                         // found a partition with leader
                         index = indexCache.putIfAbsent(topic, partition);
-                        return index;
+                        return index != null ? index : partition;
                     } else {
                         // try next partition
                         partition = (partition + 1) % numPartitions;
