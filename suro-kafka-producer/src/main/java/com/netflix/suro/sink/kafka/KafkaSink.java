@@ -382,4 +382,9 @@ public class KafkaSink implements Sink {
     public Properties getProperties() {
         return props;
     }
+
+    @VisibleForTesting
+    public Partitioner getPartitioner() {
+        return partitioner;
+    }
 }
