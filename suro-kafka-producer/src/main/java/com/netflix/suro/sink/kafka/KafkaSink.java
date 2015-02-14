@@ -92,7 +92,7 @@ public class KafkaSink implements Sink {
             partitioner = StickyPartitioner.builder()
                 .withInterval(intervalMs, TimeUnit.MILLISECONDS)
                 .build();
-            log.info("apply sticky partitioner with interval {} ms", intervalMs);
+            log.info("apply sticky partitioner with interval {} ms for client.id {}", intervalMs, clientId);
         } else {
             partitioner = new DefaultPartitioner();
         }
