@@ -493,6 +493,8 @@ public class TestKafkaSink {
 
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         assertThat(sink.getPartitioner(), instanceOf(StickyPartitioner.class));
+        StickyPartitioner stickyPartitioner = (StickyPartitioner) sink.getPartitioner();
+        assertEquals(1234, stickyPartitioner.getInterval());
         sink.open();
 
         int messageCount = 50;

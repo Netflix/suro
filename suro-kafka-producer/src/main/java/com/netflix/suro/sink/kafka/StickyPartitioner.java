@@ -1,5 +1,6 @@
 package com.netflix.suro.sink.kafka;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import org.apache.kafka.common.PartitionInfo;
@@ -110,4 +111,8 @@ public class StickyPartitioner implements Partitioner {
         }
     }
 
+    @VisibleForTesting
+    public long getInterval() {
+        return interval.get();
+    }
 }
