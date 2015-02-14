@@ -55,6 +55,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.*;
 
 public class TestKafkaSink {
@@ -491,6 +492,7 @@ public class TestKafkaSink {
                 "}";
 
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
+        assertThat(sink.getPartitioner(), instanceOf(StickyPartitioner.class));
         sink.open();
 
         int messageCount = 50;
