@@ -88,11 +88,11 @@ public class KafkaSink implements Sink {
         this.vipAddress = vipAddress;
 
         if(StickyPartitioner.NAME.equals(partitionerSelector)) {
-            log.info("apply sticky partitioner");
             int intervalMs = stickyInterval > 0 ? stickyInterval : 1000;
             partitioner = StickyPartitioner.builder()
                 .withInterval(intervalMs, TimeUnit.MILLISECONDS)
                 .build();
+            log.info("apply sticky partitioner with interval {} ms", intervalMs);
         } else {
             partitioner = new DefaultPartitioner();
         }

@@ -37,6 +37,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestName;
 import org.junit.rules.TestRule;
 import rx.functions.Action3;
 import scala.Option;
@@ -67,6 +68,9 @@ public class TestKafkaSink {
     public static TestRule chain = RuleChain
             .outerRule(zk)
             .around(kafkaServer);
+
+    @Rule
+    public TestName testName = new TestName();
 
     private static final String TOPIC_NAME = "routingKey";
     private static final String TOPIC_NAME_MULTITHREAD = "routingKeyMultithread";
@@ -464,6 +468,65 @@ public class TestKafkaSink {
 
         assertEquals(new String(extractMessage(messageSet, 0)), "testMessage" + 0);
         assertEquals(new String(extractMessage(messageSet, 1)), "testMessage" + 1);
+    }
+
+    @Test
+    public void testStickyPartitioner() throws Exception {
+        final String topic = testName.getMethodName();
+        int numPartitions = 9;
+
+        TopicCommand.createTopic(zk.getZkClient(),
+                new TopicCommand.TopicCommandOptions(new String[]{
+                        "--zookeeper", "dummy", "--create", "--topic", topic,
+                        "--replication-factor", "2", "--partitions", Integer.toString(numPartitions)}));
+        String description = "{\n" +
+                "    \"type\": \"kafka\",\n" +
+                "    \"client.id\": \"kafkasink\",\n" +
+                "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
+                "    \"partitioner\": \"sticky\",\n" +
+                "    \"partitioner.sticky.interval\": \"1234\",\n" +
+                "    \"kafka.etc\": {\n" +
+                "          \"acks\": \"1\"\n" +
+                "      }\n" +
+                "}";
+
+        KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
+        sink.open();
+
+        int messageCount = 50;
+        for (int i = 0; i < messageCount; ++i) {
+            Map<String, Object> msgMap = new ImmutableMap.Builder<String, Object>()
+                    .put("key", Integer.toString(i % numPartitions))
+                    .put("value", "message:" + i).build();
+            sink.writeTo(new DefaultMessageContainer(
+                    new Message(topic, jsonMapper.writeValueAsBytes(msgMap)),
+                    jsonMapper));
+        }
+        sink.close();
+        System.out.println(sink.getStat());
+
+        ConsumerConnector consumer = kafka.consumer.Consumer.createJavaConsumerConnector(
+                createConsumerConfig("localhost:" + zk.getServerPort(), "gropuid"));
+        Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
+        topicCountMap.put(topic, 1);
+        Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
+        KafkaStream<byte[], byte[]> stream = consumerMap.get(topic).get(0);
+        // map from string key to set of partitions that messages contains this key
+        int recvCount = 0;
+        Map<String, Set<Integer>> resultMap = new HashMap<String, Set<Integer>>();
+        for (int i = 0; i < messageCount; ++i) {
+            MessageAndMetadata<byte[], byte[]> msgAndMeta = stream.iterator().next();
+            recvCount++;
+        }
+        assertEquals(messageCount, recvCount);
+
+        try {
+            stream.iterator().next();
+            fail();
+        } catch (ConsumerTimeoutException e) {
+            //this is expected
+            consumer.shutdown();
+        }
     }
 
     private void sendMessages(String topicName, KafkaSink sink, int msgCount) throws JsonProcessingException {
