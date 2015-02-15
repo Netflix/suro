@@ -92,7 +92,7 @@ public class KafkaSink implements Sink {
             partitioner = StickyPartitioner.builder()
                 .withInterval(intervalMs, TimeUnit.MILLISECONDS)
                 .build();
-            log.info("apply sticky partitioner with interval {} ms", intervalMs);
+            log.info("apply sticky partitioner with interval {} ms for client.id {}", intervalMs, clientId);
         } else {
             partitioner = new DefaultPartitioner();
         }
@@ -223,6 +223,11 @@ public class KafkaSink implements Sink {
 
         try {
             Integer part = partitioner.partition(topic, key, producer.partitionsFor(topic));
+            DynamicCounter.increment(
+                    MonitorConfig
+                            .builder("attemptRecord")
+                            .withTag(TagKey.ROUTING_KEY, topic)
+                            .build());
             producer.send(
                 new ProducerRecord(topic, part, key, message.getMessage().getPayload()),
                 new Callback() {
