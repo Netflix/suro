@@ -229,7 +229,7 @@ public class KafkaSink implements Sink {
 
         Integer part = null;
         try {
-            partitioner.partition(topic, key, producer.partitionsFor(topic));
+            part = partitioner.partition(topic, key, producer.partitionsFor(topic));
         } catch(Exception e) {
             log.debug("partitioner failure: " + topic, e);
             dropMessage(topic, "partitionerError");
@@ -288,7 +288,7 @@ public class KafkaSink implements Sink {
                     @Override
                     public Boolean call(MessageContainer message) {
                         if (!metadataWaitingQueuePolicy.acquire()) {
-                            dropMessage(getRoutingKey(message), "");
+                            dropMessage(getRoutingKey(message), "metadataWaitingQueueFull");
                             return false;
                         } else {
                             return true;
