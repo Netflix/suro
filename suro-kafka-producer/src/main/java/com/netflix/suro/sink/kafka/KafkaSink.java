@@ -217,12 +217,27 @@ public class KafkaSink implements Sink {
                     key = keyField.toString().getBytes();
                 }
             } catch (Exception e) {
-                log.error("Exception on getting key field: " + e.getMessage());
+                log.debug("Failed to extract key field: " + keyTopicMap.get(topic), e);
+                DynamicCounter.increment(
+                        MonitorConfig
+                                .builder("extractPartitionKeyError")
+                                .withTag(TagKey.ROUTING_KEY, topic)
+                                .build());
+                // just increment a counter and continue the send just like without key
             }
         }
 
+        Integer part = null;
         try {
-            Integer part = partitioner.partition(topic, key, producer.partitionsFor(topic));
+            part = partitioner.partition(topic, key, producer.partitionsFor(topic));
+        } catch(Exception e) {
+            log.debug("partitioner failure: " + topic, e);
+            dropMessage(topic, "partitionerError");
+            // abort send
+            return;
+        }
+
+        try {
             DynamicCounter.increment(
                     MonitorConfig
                             .builder("attemptRecord")
@@ -234,13 +249,8 @@ public class KafkaSink implements Sink {
                     @Override
                     public void onCompletion(RecordMetadata metadata, Exception e) {
                         if (e != null) {
-                            log.error("Exception while sending", e);
-                            DynamicCounter.increment(
-                                    MonitorConfig
-                                            .builder("failedRecord")
-                                            .withTag(TagKey.ROUTING_KEY, topic)
-                                            .build());
-                            droppedRecords.incrementAndGet();
+                            log.debug("Failed to send: " + topic, e);
+                            dropMessage(topic, "sendError");
                             runRecordCounterListener();
                         } else {
                             DynamicCounter.increment(
@@ -254,16 +264,17 @@ public class KafkaSink implements Sink {
                     }
                 });
         } catch (Exception e) {
-            log.error("Exception before sending", e);
-            dropMessage(message);
+            log.debug("Failed to submit send: " + topic, e);
+            dropMessage(topic, "submitSendError");
         }
     }
 
-    private void dropMessage(MessageContainer message) {
+    private void dropMessage(final String routingKey, final String reason) {
         DynamicCounter.increment(
             MonitorConfig
                 .builder("droppedRecord")
-                .withTag(TagKey.ROUTING_KEY, getRoutingKey(message))
+                .withTag(TagKey.ROUTING_KEY, routingKey)
+                .withTag(TagKey.DROPPED_REASON, reason)
                 .build());
         droppedRecords.incrementAndGet();
         runRecordCounterListener();
@@ -277,7 +288,7 @@ public class KafkaSink implements Sink {
                     @Override
                     public Boolean call(MessageContainer message) {
                         if (!metadataWaitingQueuePolicy.acquire()) {
-                            dropMessage(message);
+                            dropMessage(getRoutingKey(message), "metadataWaitingQueueFull");
                             return false;
                         } else {
                             return true;
