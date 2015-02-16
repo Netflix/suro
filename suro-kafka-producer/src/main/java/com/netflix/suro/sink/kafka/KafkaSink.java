@@ -98,7 +98,7 @@ public class KafkaSink implements Sink {
         }
 
         this.metadataWaitingQueuePolicy = new MetadataWaitingQueuePolicy(
-                metadataWaitingQueueSize <= 0 ? 10000 : metadataWaitingQueueSize,
+                metadataWaitingQueueSize <= 0 ? 1000 : metadataWaitingQueueSize,
                 blockOnMetadataQueueFull);
         this.keyTopicMap = keyTopicMap != null ? keyTopicMap : Maps.<String, String>newHashMap();
 
@@ -283,6 +283,7 @@ public class KafkaSink implements Sink {
     @Override
     public void open() {
         producer = new KafkaProducer(props);
+        // TODO: backpressure handling
         subscription = stream
                 .filter(new Func1<MessageContainer, Boolean>() {
                     @Override
