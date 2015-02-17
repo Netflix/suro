@@ -191,6 +191,10 @@ public class KafkaSink implements Sink {
     @Override
     public void writeTo(final MessageContainer message) {
         queuedRecords.incrementAndGet();
+        if(!isOpened) {
+            dropMessage(getRoutingKey(message), "sinkNotOpened");
+            return;
+        }
         runRecordCounterListener();
 
         if (metadataFetchedTopicSet.contains(getRoutingKey(message))) {
@@ -208,10 +212,6 @@ public class KafkaSink implements Sink {
 
     private void sendMessage(final MessageContainer message) {
         final String topic = getRoutingKey(message);
-        if(!isOpened) {
-            dropMessage(topic, "sinkNotOpened");
-            return;
-        }
 
         byte[] key = null;
         if (!keyTopicMap.isEmpty() && keyTopicMap.get(topic) != null) {
@@ -288,9 +288,6 @@ public class KafkaSink implements Sink {
 
     @Override
     public void open() {
-        if(producer != null) {
-            producer.close();
-        }
         producer = new KafkaProducer(props);
         // TODO: backpressure handling
         subscription = stream
@@ -344,7 +341,6 @@ public class KafkaSink implements Sink {
         }
         subscription.unsubscribe();
         producer.close();
-        producer = null;
     }
 
     @Override
