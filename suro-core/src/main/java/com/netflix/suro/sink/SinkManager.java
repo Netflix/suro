@@ -48,7 +48,7 @@ public class SinkManager {
 
     @Inject
     public SinkManager() {
-        sinkOpenCheckInterval = new DynamicLongProperty("suro.SinkManager.sinkOpenCheckInterval", 60L);
+        sinkOpenCheckInterval = new DynamicLongProperty("suro.SinkManager.sinkCheckInterval", 60L);
         sinkCheckSubscription = Observable.interval(sinkOpenCheckInterval.get(), TimeUnit.SECONDS, Schedulers.io())
                 .subscribe(new Action1<Long>() {
                     @Override
