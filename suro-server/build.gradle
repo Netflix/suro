@@ -30,7 +30,7 @@ task (runServer, type: JavaExec, dependsOn: jar) {
   main = "com.netflix.suro.SuroServer"
   classpath = sourceSets.main.runtimeClasspath
   classpath += sourceSets.main.compileClasspath
-  args = ['-m', 'conf/routingmap.json', '-s', 'conf/sink.json', '-i', 'conf/input.json']
+  args = ['-m', 'conf/routingmap.json', '-s', 'conf/sink.json', '-i', 'conf/input.json', '-x', 'conf/extensions.json']
   systemProperty 'log4j.properties', 'conf/log4j.properties'
 }
 installApp {
