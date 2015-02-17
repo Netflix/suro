@@ -64,7 +64,8 @@ public class KafkaSink implements Sink {
     private final Properties props;
     private final Map<String, String> keyTopicMap;
 
-    private KafkaProducer producer;
+    private volatile boolean isOpened = false;
+    private volatile KafkaProducer producer;
 
     @JsonCreator
     public KafkaSink(
@@ -207,6 +208,11 @@ public class KafkaSink implements Sink {
 
     private void sendMessage(final MessageContainer message) {
         final String topic = getRoutingKey(message);
+        if(!isOpened) {
+            dropMessage(topic, "sinkNotOpened");
+            return;
+        }
+
         byte[] key = null;
         if (!keyTopicMap.isEmpty() && keyTopicMap.get(topic) != null) {
             try {
@@ -282,6 +288,9 @@ public class KafkaSink implements Sink {
 
     @Override
     public void open() {
+        if(producer != null) {
+            producer.close();
+        }
         producer = new KafkaProducer(props);
         // TODO: backpressure handling
         subscription = stream
@@ -322,10 +331,12 @@ public class KafkaSink implements Sink {
                             }
                         }
                 );
+        isOpened = true;
     }
 
     @Override
     public void close() {
+        isOpened = false;
         try {
             executor.awaitTermination(10, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
@@ -333,6 +344,7 @@ public class KafkaSink implements Sink {
         }
         subscription.unsubscribe();
         producer.close();
+        producer = null;
     }
 
     @Override
@@ -355,6 +367,11 @@ public class KafkaSink implements Sink {
     @Override
     public long getNumOfPendingMessages() {
         return queuedRecords.get() - sentRecords.get() - droppedRecords.get();
+    }
+
+    @Override
+    public boolean isOpened() {
+        return isOpened;
     }
 
     private static class MetadataWaitingQueuePolicy {
