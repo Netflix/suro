@@ -77,7 +77,7 @@ subprojects {
       compile 'com.fasterxml.jackson.datatype:jackson-datatype-guava:2.2.0'
 
       compile 'com.ning:compress-lzf:0.9.5'
-      compile 'com.leansoft:bigqueue:0.7.0-NF'
+      compile 'com.leansoft:bigqueue:0.7.0'
       compile 'commons-io:commons-io:2.4'
 
       runtime 'com.netflix.netflix-commons:netflix-commons-util:0.1.1'
