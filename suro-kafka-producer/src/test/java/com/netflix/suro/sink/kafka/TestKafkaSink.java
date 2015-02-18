@@ -161,7 +161,7 @@ public class TestKafkaSink {
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>() {
         });
         sink.open();
-        int msgCount = 10000;
+        int msgCount = 1000;
         sendMessages(TOPIC_NAME_MULTITHREAD, sink, msgCount);
         assertTrue(sink.getNumOfPendingMessages() > 0);
         sink.close();
@@ -327,7 +327,7 @@ public class TestKafkaSink {
         final KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
 
-        final int msgCount = 10000;
+        final int msgCount = 1000;
         final CountDownLatch latch = new CountDownLatch(1);
         sink.setRecordCounterListener(new Action3<Long, Long, Long>() {
 
@@ -381,7 +381,7 @@ public class TestKafkaSink {
         sink.open();
 
         final CountDownLatch latch = new CountDownLatch(1);
-        final int msgCount = 10000;
+        final int msgCount = 1000;
         sink.setRecordCounterListener(new Action3<Long, Long, Long>() {
             @Override
             public void call(Long queued, Long sent, Long dropped) {
