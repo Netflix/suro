@@ -31,6 +31,7 @@ import kafka.message.MessageAndMetadata;
 import kafka.message.MessageAndOffset;
 import kafka.server.KafkaConfig;
 import kafka.utils.ZkUtils;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -103,7 +104,7 @@ public class TestKafkaSink {
      */
     @Test
     public void testOpenWithDownBroker() throws Exception {
-        String sink1str = "{\n" +
+        String sinkstr = "{\n" +
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
                 "    \"bootstrap.servers\": \"localhost:7101\",\n" +
@@ -111,9 +112,10 @@ public class TestKafkaSink {
                 "          \"acks\": \"1\"\n" +
                 "      }\n" +
                 "}";
-        KafkaSink sink1 = jsonMapper.readValue(sink1str, new TypeReference<Sink>(){});
-        sink1.open();
-        sink1.close();
+        KafkaSink sink = jsonMapper.readValue(sinkstr, new TypeReference<Sink>(){});
+        sink.open();
+        Assert.assertTrue(sink.isOpened());
+        sink.close();
     }
 
     /**
@@ -121,13 +123,8 @@ public class TestKafkaSink {
      */
     @Test
     public void testOpenWithInvalidDnsName() throws Exception {
-        final String bootstrapServers = "junkfoobar.kafka.us-east-1.dyntest.netflix.net:7101";
-        final String errMsg = "DNS resolution failed for url in bootstrap.servers: " + bootstrapServers;
-        Throwable expectedCause = new org.apache.kafka.common.config.ConfigException(errMsg);
-        thrown.expect(expectedCause.getClass());
-        thrown.expectMessage(errMsg);
-
-        String sink1str = "{\n" +
+        final String bootstrapServers = "junk.foo.bar.com:7101";
+        String sinkstr = "{\n" +
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
                 "    \"bootstrap.servers\": \"" + bootstrapServers + "\",\n" +
@@ -135,8 +132,14 @@ public class TestKafkaSink {
                 "          \"acks\": \"1\"\n" +
                 "      }\n" +
                 "}";
-        KafkaSink sink1 = jsonMapper.readValue(sink1str, new TypeReference<Sink>(){});
-        sink1.open();
+        KafkaSink sink = jsonMapper.readValue(sinkstr, new TypeReference<Sink>(){});
+
+        final String errMsg = "DNS resolution failed for url in bootstrap.servers: " + bootstrapServers;
+        Throwable expectedCause = new org.apache.kafka.common.config.ConfigException(errMsg);
+        thrown.expect(expectedCause.getClass());
+        thrown.expectMessage(errMsg);
+
+        sink.open();
     }
 
     @Test

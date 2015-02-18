@@ -116,7 +116,7 @@ public class SinkManager {
         sinkMap = newMap;
         // close sink of oldMap
         for (Map.Entry<String, Sink> entry : oldMap.entrySet()) {
-            openSink(entry.getKey(), entry.getValue());
+            closeSink(entry.getKey(), entry.getValue());
         }
     }
 
