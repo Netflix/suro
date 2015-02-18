@@ -82,7 +82,7 @@ public class TestSinkManager {
 
         Assert.assertFalse(sink1.isOpened());
         Assert.assertEquals(3, sink1.openAttempts.get());
-        assertThat(sinkManager.getSink("sink1"), null);
+        Assert.assertNull(sinkManager.getSink("sink1"));
 
         Assert.assertFalse(sink2.isOpened());
         Assert.assertEquals(1, sink2.openAttempts.get());

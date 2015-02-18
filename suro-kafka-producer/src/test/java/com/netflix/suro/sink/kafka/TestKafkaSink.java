@@ -101,13 +101,14 @@ public class TestKafkaSink {
 
     /**
      * open will success because localhost is a resolvable hostname
+     * note that there is no broker running at "localhost:1"
      */
     @Test
     public void testOpenWithDownBroker() throws Exception {
         String sinkstr = "{\n" +
                 "    \"type\": \"kafka\",\n" +
                 "    \"client.id\": \"kafkasink\",\n" +
-                "    \"bootstrap.servers\": \"localhost:7101\",\n" +
+                "    \"bootstrap.servers\": \"localhost:1\",\n" +
                 "    \"kafka.etc\": {\n" +
                 "          \"acks\": \"1\"\n" +
                 "      }\n" +
