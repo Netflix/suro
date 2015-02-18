@@ -47,4 +47,6 @@ public interface Sink  {
     String getStat();
 
     long getNumOfPendingMessages();
+
+    boolean isOpened();
 }

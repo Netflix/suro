@@ -7,20 +7,26 @@ import org.apache.curator.test.TestingServer;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
 public class ZkExternalResource extends ExternalResource {
+
     private TestingServer zkServer;
     private ZkClient    zkClient;
-    private TemporaryFolder tempDir = new TemporaryFolder();
 
+    private final TemporaryFolder tempFolder;
+
+    public ZkExternalResource(TemporaryFolder tempFolder) {
+        this.tempFolder = tempFolder;
+    }
 
     @Override
     protected void before() throws Throwable {
-        tempDir.create();
+        File tempDir = tempFolder.newFolder();
 
-        zkServer = new TestingServer();
+        zkServer = new TestingServer(-1, tempDir);
 
         zkClient = new ZkClient("localhost:" + zkServer.getPort(), 20000, 20000, new ZkSerializer() {
             @Override
@@ -54,7 +60,6 @@ public class ZkExternalResource extends ExternalResource {
                 e.printStackTrace();
             }
         }
-        tempDir.delete();
     }
 
     public ZkClient getZkClient() {

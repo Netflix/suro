@@ -16,15 +16,21 @@
 
 package com.netflix.suro.sink;
 
-import com.google.common.collect.Maps;
+import com.google.common.collect.ImmutableMap;
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.netflix.config.DynamicLongProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import rx.Observable;
+import rx.Subscription;
+import rx.functions.Action1;
+import rx.schedulers.Schedulers;
 
 import javax.annotation.PreDestroy;
 import java.util.Collection;
 import java.util.Map;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * SinkManager contains map of sink name and its sink object.
@@ -35,11 +41,49 @@ import java.util.concurrent.ConcurrentMap;
 public class SinkManager {
     private static final Logger log = LoggerFactory.getLogger(SinkManager.class);
 
-    private final ConcurrentMap<String, Sink> sinkMap = Maps.newConcurrentMap();
+    private volatile ImmutableMap<String, Sink> sinkMap = ImmutableMap.of();
+
+    private final DynamicLongProperty sinkOpenCheckInterval;
+    private final Subscription sinkCheckSubscription;
+
+    @Inject
+    public SinkManager() {
+        sinkOpenCheckInterval = new DynamicLongProperty("suro.SinkManager.sinkCheckInterval", 60L);
+        sinkCheckSubscription = Observable.interval(sinkOpenCheckInterval.get(), TimeUnit.SECONDS, Schedulers.io())
+                .subscribe(new Action1<Long>() {
+                    @Override
+                    public void call(Long aLong) {
+                        log.debug("checking whether all sinks are opened");
+                        ImmutableMap<String, Sink> current = sinkMap;
+                        for(ImmutableMap.Entry<String, Sink> entry : current.entrySet()) {
+                            if(!entry.getValue().isOpened()) {
+                                log.warn("sink {} failed to open earlier. trying to open again", entry.getKey());
+                                openSink(entry.getKey(), entry.getValue());
+                            }
+                        }
+                    }
+                });
+    }
+
+    private void openSink(final String name, Sink sink) {
+        try {
+            sink.open();
+        } catch(Throwable t) {
+            log.error("failed to open sink: " + name, t);
+        }
+    }
+
+    private void closeSink(final String name, Sink sink) {
+        try {
+            sink.close();
+        } catch(Throwable t) {
+            log.error("failed to close sink: " + name, t);
+        }
+    }
 
     public void initialStart() {
-        for (Sink sink : sinkMap.values()) {
-            sink.open();
+        for (Map.Entry<String, Sink> entry : sinkMap.entrySet()) {
+            openSink(entry.getKey(), entry.getValue());
         }
     }
 
@@ -47,38 +91,29 @@ public class SinkManager {
         if (!sinkMap.isEmpty()) {
             throw new RuntimeException("sinkMap is not empty");
         }
-
-        for (Map.Entry<String, Sink> sink : newSinkMap.entrySet()) {
-            log.info(String.format("Adding sink '%s'", sink.getKey()));
-            sinkMap.put(sink.getKey(), sink.getValue());
+        if(newSinkMap.isEmpty()) {
+            log.warn("newSinkMap is empty");
         }
+        log.info("initial sink map: {}", newSinkMap.keySet());
+        sinkMap = ImmutableMap.copyOf(newSinkMap);
     }
 
     public void set(Map<String, Sink> newSinkMap) {
-        try {
-            for (Map.Entry<String, Sink> sink : sinkMap.entrySet()) {
-                if ( !newSinkMap.containsKey( sink.getKey() ) ) { // removed
-                    Sink removedSink = sinkMap.remove(sink.getKey());
-                    if (removedSink != null) {
-                        log.info(String.format("Removing sink '%s'", sink.getKey()));
-                        removedSink.close();
-                    }
-                }
-            }
-
-            for (Map.Entry<String, Sink> sink : newSinkMap.entrySet()) {
-                if (!sinkMap.containsKey( sink.getKey() ) ) { // added
-                    log.info(String.format("Adding sink '%s'", sink.getKey()));
-                    sink.getValue().open();
-                    sinkMap.put(sink.getKey(), sink.getValue());
-                }
-            }
-
-        } catch (Exception e) {
-            log.error("Exception on building SinkManager: " + e.getMessage(), e);
-            if (sinkMap.isEmpty()) {
-                throw new RuntimeException("At least one sink is needed");
-            }
+        if(newSinkMap.isEmpty()) {
+            log.warn("newSinkMap is empty");
+        }
+        log.info("update sink map: {}", newSinkMap.keySet());
+        ImmutableMap<String, Sink> newMap = ImmutableMap.copyOf(newSinkMap);
+        // open sinks for newMap
+        for (Map.Entry<String, Sink> entry : newMap.entrySet()) {
+            openSink(entry.getKey(), entry.getValue());
+        }
+        // swap the reference
+        ImmutableMap<String, Sink> oldMap = sinkMap;
+        sinkMap = newMap;
+        // close sink of oldMap
+        for (Map.Entry<String, Sink> entry : oldMap.entrySet()) {
+            closeSink(entry.getKey(), entry.getValue());
         }
     }
 
@@ -106,9 +141,9 @@ public class SinkManager {
     @PreDestroy
     public void shutdown() {
         log.info("SinkManager shutting down");
+        sinkCheckSubscription.unsubscribe();
         for (Map.Entry<String, Sink> entry : sinkMap.entrySet()) {
-           entry.getValue().close();
+            closeSink(entry.getKey(), entry.getValue());
         }
-        sinkMap.clear();
     }
 }

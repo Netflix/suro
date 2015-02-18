@@ -31,10 +31,12 @@ import kafka.message.MessageAndMetadata;
 import kafka.message.MessageAndOffset;
 import kafka.server.KafkaConfig;
 import kafka.utils.ZkUtils;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
@@ -59,19 +61,21 @@ import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.*;
 
 public class TestKafkaSink {
-    @Rule
-    public TemporaryFolder tempDir = new TemporaryFolder();
-
-    public static ZkExternalResource zk = new ZkExternalResource();
+    public static TemporaryFolder tempDir = new TemporaryFolder();
+    public static ZkExternalResource zk = new ZkExternalResource(tempDir);
     public static KafkaServerExternalResource kafkaServer = new KafkaServerExternalResource(zk);
 
     @ClassRule
     public static TestRule chain = RuleChain
-            .outerRule(zk)
+            .outerRule(tempDir)
+            .around(zk)
             .around(kafkaServer);
 
     @Rule
     public TestName testName = new TestName();
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     private static final String TOPIC_NAME = "routingKey";
     private static final String TOPIC_NAME_MULTITHREAD = "routingKeyMultithread";
@@ -93,6 +97,50 @@ public class TestKafkaSink {
                 }
             }
         });
+    }
+
+    /**
+     * open will success because localhost is a resolvable hostname
+     * note that there is no broker running at "localhost:1"
+     */
+    @Test
+    public void testOpenWithDownBroker() throws Exception {
+        String sinkstr = "{\n" +
+                "    \"type\": \"kafka\",\n" +
+                "    \"client.id\": \"kafkasink\",\n" +
+                "    \"bootstrap.servers\": \"localhost:1\",\n" +
+                "    \"kafka.etc\": {\n" +
+                "          \"acks\": \"1\"\n" +
+                "      }\n" +
+                "}";
+        KafkaSink sink = jsonMapper.readValue(sinkstr, new TypeReference<Sink>(){});
+        sink.open();
+        Assert.assertTrue(sink.isOpened());
+        sink.close();
+    }
+
+    /**
+     * open will fail because localhost is a resolvable hostname
+     */
+    @Test
+    public void testOpenWithInvalidDnsName() throws Exception {
+        final String bootstrapServers = "junk.foo.bar.com:7101";
+        String sinkstr = "{\n" +
+                "    \"type\": \"kafka\",\n" +
+                "    \"client.id\": \"kafkasink\",\n" +
+                "    \"bootstrap.servers\": \"" + bootstrapServers + "\",\n" +
+                "    \"kafka.etc\": {\n" +
+                "          \"acks\": \"1\"\n" +
+                "      }\n" +
+                "}";
+        KafkaSink sink = jsonMapper.readValue(sinkstr, new TypeReference<Sink>(){});
+
+        final String errMsg = "DNS resolution failed for url in bootstrap.servers: " + bootstrapServers;
+        Throwable expectedCause = new org.apache.kafka.common.config.ConfigException(errMsg);
+        thrown.expect(expectedCause.getClass());
+        thrown.expectMessage(errMsg);
+
+        sink.open();
     }
 
     @Test

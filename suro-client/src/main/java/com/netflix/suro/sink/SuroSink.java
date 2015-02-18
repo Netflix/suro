@@ -2,8 +2,12 @@ package com.netflix.suro.sink;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.netflix.servo.monitor.DynamicCounter;
+import com.netflix.servo.monitor.MonitorConfig;
+import com.netflix.suro.TagKey;
 import com.netflix.suro.client.SuroClient;
 import com.netflix.suro.message.MessageContainer;
+import org.apache.commons.lang.StringUtils;
 
 import java.util.Properties;
 
@@ -15,7 +19,8 @@ import java.util.Properties;
 public class SuroSink implements Sink {
     public static final String TYPE = "suro";
 
-    private SuroClient client;
+    private volatile boolean isOpened = false;
+    private volatile SuroClient client;
     private final Properties props;
 
     @JsonCreator
@@ -25,16 +30,39 @@ public class SuroSink implements Sink {
 
     @Override
     public void writeTo(MessageContainer message) {
+        if(!isOpened) {
+            dropMessage(getRoutingKey(message), "sinkNotOpened");
+            return;
+        }
         client.send(message.getMessage());
+    }
+
+    private void dropMessage(final String routingKey, final String reason) {
+        DynamicCounter.increment(
+                MonitorConfig
+                        .builder("droppedMessageCount")
+                        .withTag(TagKey.ROUTING_KEY, routingKey)
+                        .withTag(TagKey.DROPPED_REASON, reason)
+                        .build());
+    }
+
+    private String getRoutingKey(final MessageContainer message) {
+        String routingKey = message.getRoutingKey();
+        if(StringUtils.isBlank(routingKey)) {
+            routingKey = "none";
+        }
+        return routingKey;
     }
 
     @Override
     public void open() {
         client = new SuroClient(props);
+        isOpened = true;
     }
 
     @Override
     public void close() {
+        isOpened = false;
         client.shutdown();
     }
 
@@ -51,5 +79,10 @@ public class SuroSink implements Sink {
     @Override
     public long getNumOfPendingMessages() {
         return client.getNumOfPendingMessages();
+    }
+
+    @Override
+    public boolean isOpened() {
+        return isOpened;
     }
 }
