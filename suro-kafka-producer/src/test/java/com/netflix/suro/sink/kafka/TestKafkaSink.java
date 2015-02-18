@@ -35,6 +35,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
@@ -72,6 +73,9 @@ public class TestKafkaSink {
     @Rule
     public TestName testName = new TestName();
 
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
+
     private static final String TOPIC_NAME = "routingKey";
     private static final String TOPIC_NAME_MULTITHREAD = "routingKeyMultithread";
     private static final String TOPIC_NAME_PARTITION_BY_KEY = "routingKey_partitionByKey";
@@ -92,6 +96,47 @@ public class TestKafkaSink {
                 }
             }
         });
+    }
+
+    /**
+     * open will success because localhost is a resolvable hostname
+     */
+    @Test
+    public void testOpenWithDownBroker() throws Exception {
+        String sink1str = "{\n" +
+                "    \"type\": \"kafka\",\n" +
+                "    \"client.id\": \"kafkasink\",\n" +
+                "    \"bootstrap.servers\": \"localhost:7101\",\n" +
+                "    \"kafka.etc\": {\n" +
+                "          \"acks\": \"1\"\n" +
+                "      }\n" +
+                "}";
+        KafkaSink sink1 = jsonMapper.readValue(sink1str, new TypeReference<Sink>(){});
+        sink1.open();
+        sink1.close();
+    }
+
+    /**
+     * open will fail because localhost is a resolvable hostname
+     */
+    @Test
+    public void testOpenWithInvalidDnsName() throws Exception {
+        final String bootstrapServers = "junkfoobar.kafka.us-east-1.dyntest.netflix.net:7101";
+        final String errMsg = "DNS resolution failed for url in bootstrap.servers: " + bootstrapServers;
+        Throwable expectedCause = new org.apache.kafka.common.config.ConfigException(errMsg);
+        thrown.expect(expectedCause.getClass());
+        thrown.expectMessage(errMsg);
+
+        String sink1str = "{\n" +
+                "    \"type\": \"kafka\",\n" +
+                "    \"client.id\": \"kafkasink\",\n" +
+                "    \"bootstrap.servers\": \"" + bootstrapServers + "\",\n" +
+                "    \"kafka.etc\": {\n" +
+                "          \"acks\": \"1\"\n" +
+                "      }\n" +
+                "}";
+        KafkaSink sink1 = jsonMapper.readValue(sink1str, new TypeReference<Sink>(){});
+        sink1.open();
     }
 
     @Test
