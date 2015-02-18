@@ -59,15 +59,14 @@ import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.*;
 
 public class TestKafkaSink {
-    @Rule
-    public TemporaryFolder tempDir = new TemporaryFolder();
-
-    public static ZkExternalResource zk = new ZkExternalResource();
+    public static TemporaryFolder tempDir = new TemporaryFolder();
+    public static ZkExternalResource zk = new ZkExternalResource(tempDir);
     public static KafkaServerExternalResource kafkaServer = new KafkaServerExternalResource(zk);
 
     @ClassRule
     public static TestRule chain = RuleChain
-            .outerRule(zk)
+            .outerRule(tempDir)
+            .around(zk)
             .around(kafkaServer);
 
     @Rule
