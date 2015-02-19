@@ -30,7 +30,7 @@ public class ServoReporter implements MetricsReporter {
 
     private void addMetric(KafkaMetric metric) {
         gauges.put(Servo.getDoubleGauge(
-                        MonitorConfig.builder("kafka.producer." + metric.name())
+                        MonitorConfig.builder("kafka.producer." + metric.metricName())
                                 .withTag("clientId", clientId).build()),
                 metric);
     }
