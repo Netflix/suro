@@ -16,12 +16,12 @@ public class PathExistsMessageFilter extends BaseMessageFilter {
     @Override
     public boolean apply(Object input) {
         JXPathContext jxpath = JXPathContext.newContext(input);
-        // We should allow non-existing path, and let predicate handle it. 
+        // We should allow non-existing path, and let predicate handle it.
         jxpath.setLenient(true);
-        
+
         Pointer pointer = jxpath.getPointer(xpath);
        
-        return pointer != null && !(pointer instanceof NullPointer);
+        return pointer != null && !(pointer instanceof NullPointer) && pointer.getValue() != null;
     }
 	
 	public String getXpath() {
