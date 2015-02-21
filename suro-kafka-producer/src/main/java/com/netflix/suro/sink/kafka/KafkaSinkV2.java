@@ -33,7 +33,9 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Metric;
+import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -60,7 +62,7 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
     private String clientId;
     private final Map<String, String> keyTopicMap;
 
-    private final KafkaProducer producer;
+    private final KafkaProducer<byte[], byte[]> producer;
     private long msgId = 0;
     private AtomicLong receivedCount = new AtomicLong(0);
     private AtomicLong sentCount = new AtomicLong(0);
@@ -122,7 +124,7 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
 
         this.keyTopicMap = keyTopicMap != null ? keyTopicMap : Maps.<String, String>newHashMap();
 
-        producer = new KafkaProducer( props );
+        producer = new KafkaProducer<>(props, new ByteArraySerializer(), new ByteArraySerializer());
 
         Monitors.registerObject(clientId, this);
     }
@@ -254,10 +256,10 @@ public class KafkaSinkV2 extends ThreadPoolQueuedSink implements Sink {
 
     @Override
     public String getStat() {
-        Map<String,? extends Metric> metrics = producer.metrics();
+        Map<MetricName,? extends Metric> metrics = producer.metrics();
         StringBuilder sb = new StringBuilder();
         // add kafka producer stats, which are rates
-        for( Map.Entry<String,? extends Metric> e : metrics.entrySet() ){
+        for( Map.Entry<MetricName,? extends Metric> e : metrics.entrySet() ){
             sb.append("kafka.").append(e.getKey()).append(": ").append(e.getValue().value()).append('\n');
         }
         // also report our counters

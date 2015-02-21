@@ -13,13 +13,12 @@ import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.sink.Sink;
-import org.apache.kafka.clients.producer.Callback;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.common.Metric;
+import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Subscription;
@@ -30,14 +29,11 @@ import rx.schedulers.Schedulers;
 import rx.subjects.PublishSubject;
 
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -54,7 +50,7 @@ public class KafkaSink implements Sink {
     private final boolean blockOnBufferFull;
     private final Properties props;
 
-    private KafkaProducer producer;
+    private KafkaProducer<byte[], byte[]> producer;
     private final KafkaRetentionPartitioner retentionPartitioner;
     private final MetadataWaitingQueuePolicy metadataWaitingQueuePolicy;
 
@@ -74,8 +70,7 @@ public class KafkaSink implements Sink {
             @JsonProperty("metadata.waiting.queue.size") int metadataWaitingQueueSize,
             @JsonProperty("kafka.etc") Properties etcProps,
             @JsonProperty("keyTopicMap") Map<String, String> keyTopicMap,
-            @JacksonInject KafkaRetentionPartitioner retentionPartitioner
-    ) {
+            @JacksonInject KafkaRetentionPartitioner retentionPartitioner) {
         Preconditions.checkArgument(bootstrapServers != null | brokerList != null);
         Preconditions.checkNotNull(clientId);
 
@@ -162,8 +157,8 @@ public class KafkaSink implements Sink {
     }
 
     private void sendMessage(final MessageContainer message) {
-        int numPartitions = producer.partitionsFor(message.getRoutingKey()).size();
-        int partition = (int) Math.abs(retentionPartitioner.getKey() % numPartitions);
+        List<PartitionInfo> partitionInfos = producer.partitionsFor(message.getRoutingKey());
+        int partition = retentionPartitioner.getKey(message.getRoutingKey(), partitionInfos);
 
         if (!keyTopicMap.isEmpty()) {
             try {
@@ -172,7 +167,7 @@ public class KafkaSink implements Sink {
                 Object keyField = msgMap.get(keyTopicMap.get(message.getRoutingKey()));
                 if (keyField != null) {
                     long hashCode = keyField.hashCode();
-                    partition = Math.abs((int) (hashCode ^ (hashCode >>> 32))) % numPartitions;
+                    partition = Math.abs((int) (hashCode ^ (hashCode >>> 32))) % partitionInfos.size();
                 }
             } catch (Exception e) {
                 log.error("Exception on getting key field: " + e.getMessage());
@@ -223,7 +218,7 @@ public class KafkaSink implements Sink {
 
     @Override
     public void open() {
-        producer = new KafkaProducer(props);
+        producer = new KafkaProducer<>(props, new ByteArraySerializer(), new ByteArraySerializer());
         subscription = stream
                 .filter(new Func1<MessageContainer, Boolean>() {
                     @Override
@@ -282,10 +277,10 @@ public class KafkaSink implements Sink {
 
     @Override
     public String getStat() {
-        Map<String,? extends Metric> metrics = producer.metrics();
+        Map<MetricName,? extends Metric> metrics = producer.metrics();
         StringBuilder sb = new StringBuilder();
         // add kafka producer stats, which are rates
-        for( Map.Entry<String,? extends Metric> e : metrics.entrySet() ){
+        for( Map.Entry<MetricName,? extends Metric> e : metrics.entrySet() ){
             sb.append("kafka.").append(e.getKey()).append(": ").append(e.getValue().value()).append('\n');
         }
 
@@ -302,12 +297,33 @@ public class KafkaSink implements Sink {
         if (blockOnBufferFull) {
             return 0; // do not pause here, will be blocked
         } else {
-            double consumedMemory =
-                producer.metrics().get("buffer-total-bytes").value()
-                            - producer.metrics().get("buffer-available-bytes").value();
-            double memoryRate = consumedMemory / producer.metrics().get("buffer-total-bytes").value();
+            //producer.metrics().get(new MetricName("buffer-total-bytes", "producer-metrics", "desc", "client-id", "kafkasink"))
+            double totalBytes = producer.metrics().get(
+                new MetricName(
+                    "buffer-total-bytes",
+                    "producer-metrics",
+                    "desc",
+                    "client-id",
+                    props.getProperty("client.id"))).value();
+            double availableBytes = producer.metrics().get(
+                new MetricName(
+                    "buffer-available-bytes",
+                    "producer-metrics",
+                    "desc",
+                    "client-id",
+                    props.getProperty("client.id"))).value();
+
+            double consumedMemory = totalBytes - availableBytes;
+            double memoryRate = consumedMemory / totalBytes;
             if (memoryRate >= 0.5) {
-                double throughputRate = Math.max(producer.metrics().get("outgoing-byte-rate").value(), 1.0);
+                double outgoingRate = producer.metrics().get(
+                    new MetricName(
+                        "outgoing-byte-rate",
+                        "producer-metrics",
+                        "desc",
+                        "client-id",
+                        props.getProperty("client.id"))).value();
+                double throughputRate = Math.max(outgoingRate, 1.0);
                 return (long) (consumedMemory / throughputRate * 1000);
             } else {
                 return 0;

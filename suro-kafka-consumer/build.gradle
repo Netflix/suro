@@ -3,7 +3,7 @@ apply plugin: 'nebula-test-jar'
 dependencies {
   compile project(':suro-core')
 
-  compile('org.apache.kafka:kafka_2.9.2:0.8.2-beta') {
+  compile('org.apache.kafka:kafka_2.9.2:0.8.2.0') {
     exclude module: 'jms'
     exclude module: 'jmxtools'
     exclude module: 'jmxri'

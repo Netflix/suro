@@ -4,9 +4,9 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.netflix.servo.monitor.DoubleGauge;
 import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.suro.servo.Servo;
+import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.apache.kafka.common.metrics.MetricsReporter;
-import org.joda.time.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,8 +17,7 @@ import java.util.concurrent.*;
 public class ServoReporter implements MetricsReporter {
     private static final Logger log = LoggerFactory.getLogger(ServoReporter.class);
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setDaemon(false).setNameFormat("ServoReporter-%d").build());
-    private String clientId;
+        new ThreadFactoryBuilder().setDaemon(false).setNameFormat("ServoReporter-%d").build());
     private ConcurrentMap<DoubleGauge, KafkaMetric> gauges = new ConcurrentHashMap<>();
 
     @Override
@@ -29,10 +28,14 @@ public class ServoReporter implements MetricsReporter {
     }
 
     private void addMetric(KafkaMetric metric) {
-        gauges.put(Servo.getDoubleGauge(
-                        MonitorConfig.builder("kafka.producer." + metric.name())
-                                .withTag("clientId", clientId).build()),
-                metric);
+        MetricName metricName = metric.metricName();
+        MonitorConfig.Builder builder = MonitorConfig.builder(metricName.name())
+            .withTag("group", metricName.group());
+        for(Map.Entry<String, String> tag : metricName.tags().entrySet()) {
+            builder.withTag(tag.getKey(), tag.getValue());
+        }
+        MonitorConfig monitorConfig = builder.build();
+        gauges.put(Servo.getDoubleGauge(monitorConfig), metric);
     }
 
     @Override
@@ -47,8 +50,7 @@ public class ServoReporter implements MetricsReporter {
 
     @Override
     public void configure(Map<String, ?> configs) {
-        this.clientId = (String) configs.get("client.id");
-        long millis = new Period("PT1m").toStandardDuration().getMillis();
+        long millis = TimeUnit.MINUTES.toMillis(1);
         scheduler.scheduleAtFixedRate(new Runnable() {
 
             @Override

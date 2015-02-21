@@ -15,18 +15,10 @@
  */
 package com.netflix.suro.routing;
 
-import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.netflix.suro.message.MessageContainer;
 import org.junit.Test;
-
-import java.util.List;
-import java.util.Map;
 
 import static com.netflix.suro.routing.FilterTestUtil.makeMessageContainer;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.*;
 
 /**
  *

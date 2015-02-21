@@ -11,6 +11,7 @@ import com.netflix.suro.sink.kafka.ZkExternalResource;
 import kafka.admin.TopicCommand;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -120,10 +121,11 @@ public class TestKafkaConsumer {
     }
 
     public static void sendKafkaMessage(String brokerList, String topicName, int partitionCount, int messageCount) throws java.io.IOException, InterruptedException {
-        KafkaProducer producer = new KafkaProducer
+        KafkaProducer<byte[], byte[]> producer = new KafkaProducer<>
                 (new ImmutableMap.Builder<String, Object>()
                         .put("client.id", "kakasink")
-                        .put("bootstrap.servers", brokerList).build());
+                        .put("bootstrap.servers", brokerList).build(),
+                    new ByteArraySerializer(), new ByteArraySerializer());
         for (int i = 0; i < messageCount; ++i) {
             for (int j = 0; j < partitionCount; ++j) {
                 producer.send(new ProducerRecord(topicName, j, null, new String("testMessage1").getBytes()));
