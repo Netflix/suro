@@ -15,15 +15,22 @@
  */
 package com.netflix.suro.routing;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
+import com.netflix.suro.message.DefaultMessageContainer;
+import com.netflix.suro.message.Message;
 import org.junit.Test;
 
 import static com.netflix.suro.routing.FilterTestUtil.makeMessageContainer;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
  *
  */
 public class XpathFilterTest {
+    private ObjectMapper jsonMapper = new ObjectMapper();
+
     @Test
     public void testXPathFilterWorksWithMap() throws Exception {
         String path = "//foo/bar/value";
@@ -31,5 +38,27 @@ public class XpathFilterTest {
         XPathFilter filter = new XPathFilter(String.format("xpath(\"%s\") > 5", path), new JsonMapConverter());
 
         assertTrue(filter.doFilter(makeMessageContainer("key", path, value)));
+    }
+
+    @Test
+    public void testExistFilter() throws Exception {
+        XPathFilter filter = new XPathFilter("xpath(\"data.fit.sessionId\") exists", new JsonMapConverter());
+        assertTrue(filter.doFilter(new DefaultMessageContainer(new Message(
+            "routingKey",
+            jsonMapper.writeValueAsBytes(
+                new ImmutableMap.Builder<String, Object>()
+                    .put("data.fit.sessionId", "abc")
+                    .put("f1", "v1")
+                    .build())),
+            jsonMapper)));
+
+        assertFalse(filter.doFilter(new DefaultMessageContainer(new Message(
+            "routingKey",
+            jsonMapper.writeValueAsBytes(
+                new ImmutableMap.Builder<String, Object>()
+                    .put("data.fit.sessionIdABC", "abc")
+                    .put("f1", "v1")
+                    .build())),
+            jsonMapper)));
     }
 }
