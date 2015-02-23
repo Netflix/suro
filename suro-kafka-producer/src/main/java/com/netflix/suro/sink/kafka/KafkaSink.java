@@ -304,6 +304,9 @@ public class KafkaSink implements Sink {
                         }
                     }
                 })
+                // some test requires buffering of 1024,
+                // which is the default RxRingBuffer size in 0.20.x
+                .onBackpressureBuffer(1024)
                 .observeOn(Schedulers.from(executor))
                 .subscribe(
                         new Action1<MessageContainer>() {
