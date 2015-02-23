@@ -16,15 +16,10 @@ subprojects {
   group = "com.netflix.${githubProjectName}"
 
   repositories { 
-    mavenLocal()
     jcenter()
     maven{
       name 'github.release.repo'
       url 'https://raw.github.com/bulldog2011/bulldog-repo/master/repo/releases/'
-    }
-    maven{
-      name 'sonatype'
-      url 'https://oss.sonatype.org/content/groups/public/'
     }
   }
 
