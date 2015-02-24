@@ -214,7 +214,7 @@ public class TestKafkaSink {
         assertTrue(sink.getNumOfPendingMessages() > 0);
         sink.close();
         System.out.println(sink.getStat());
-        assertEquals(sink.getNumOfPendingMessages(), 0);
+        assertEquals(0, sink.getNumOfPendingMessages());
 
         checkConsumer(TOPIC_NAME_MULTITHREAD, msgCount);
     }
