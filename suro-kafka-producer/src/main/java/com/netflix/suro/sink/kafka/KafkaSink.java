@@ -66,7 +66,7 @@ public class KafkaSink implements Sink {
     private final Partitioner partitioner;
     private final Properties props;
     private final Set<String> metadataFetchedTopicSet;
-    private final BlockingQueue<MessageContainer> metadataWaitQueue;
+    private final BlockingQueue<MessageContainer> metadataWaitingQueue;
     private final ExecutorService executor;
 
     private volatile boolean isOpened = false;
@@ -136,7 +136,7 @@ public class KafkaSink implements Sink {
         setServoReporter();
 
         this.metadataFetchedTopicSet = new CopyOnWriteArraySet<String>();
-        this.metadataWaitQueue = new ArrayBlockingQueue<MessageContainer>(this.metadataWaitingQueueSize);
+        this.metadataWaitingQueue = new ArrayBlockingQueue<MessageContainer>(this.metadataWaitingQueueSize);
         this.executor = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder().setDaemon(false).setNameFormat("KafkaSink-MetadataFetcher-%d").build());
     }
@@ -204,8 +204,8 @@ public class KafkaSink implements Sink {
         if (metadataFetchedTopicSet.contains(getRoutingKey(message))) {
             sendMessage(message);
         } else {
-            if(!metadataWaitQueue.offer(message)) {
-                dropMessage(getRoutingKey(message), "metadataWaitQueueFull");
+            if(!metadataWaitingQueue.offer(message)) {
+                dropMessage(getRoutingKey(message), "metadataWaitingQueueFull");
             }
         }
     }
@@ -301,7 +301,7 @@ public class KafkaSink implements Sink {
                 while(true) {
                     final MessageContainer message;
                     try {
-                        message = metadataWaitQueue.take();
+                        message = metadataWaitingQueue.take();
                     } catch (InterruptedException e) {
                         // TODO should we break the while loop?
                         continue;
@@ -316,8 +316,8 @@ public class KafkaSink implements Sink {
                     } catch(Throwable t) {
                         log.error("failed to get metadata: " + topic, t);
                         // try to put back to the queue if there is still space
-                        if(!metadataWaitQueue.offer(message)) {
-                            dropMessage(getRoutingKey(message), "metadataWaitQueueFull");
+                        if(!metadataWaitingQueue.offer(message)) {
+                            dropMessage(getRoutingKey(message), "metadataWaitingQueueFull");
                         }
                     }
                 }
