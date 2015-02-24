@@ -87,6 +87,11 @@ public class TestSuroService {
         public void setPause(long ms) {
 
         }
+
+        @Override
+        public String getStat() {
+            return "n/a";
+        }
     }
 
     @Test

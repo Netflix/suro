@@ -156,6 +156,11 @@ public class ThriftServer implements SuroInput {
         }
     }
 
+    @Override
+    public String getStat() {
+        return msgProcessor.getStat();
+    }
+
     // for testing purpose
     public int getPort() {
         return port;

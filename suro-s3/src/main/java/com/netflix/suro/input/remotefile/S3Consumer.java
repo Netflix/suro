@@ -193,6 +193,11 @@ public class S3Consumer implements SuroInput {
         pausedTime.addAndGet(ms);
     }
 
+    @Override
+    public String getStat() {
+        return "n/a";
+    }
+
     public static TypeReference<Map<String, Object>> typeReference = new TypeReference<Map<String, Object>>() {};
     private static final int retryCount = 5;
     private static final int sleepOnS3Exception = 5000;

@@ -127,6 +127,11 @@ public class KafkaConsumer implements SuroInput {
         pausedTime.addAndGet(ms);
     }
 
+    @Override
+    public String getStat() {
+        return "n/a";
+    }
+
     private void stop() {
         running = false;
         try {

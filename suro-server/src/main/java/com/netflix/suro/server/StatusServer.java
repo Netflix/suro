@@ -49,6 +49,7 @@ public class StatusServer {
             protected void configureServlets() {
                 bind(HealthCheck.class);
                 bind(SinkStat.class);
+                bind(InputStat.class);
                 bind(GuiceContainer.class).asEagerSingleton();
                 serve("/*").with(GuiceContainer.class);
             }

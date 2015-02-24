@@ -9,4 +9,6 @@ public interface SuroInput {
     void shutdown();
 
     void setPause(long ms);
+
+    String getStat();
 }
