@@ -64,4 +64,13 @@ public class InputManager {
             input.shutdown();
         }
     }
+
+    public String reportInputStat() {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, SuroInput> entry : inputMap.entrySet()) {
+            sb.append(entry.getKey()).append(':').append(entry.getValue().getStat()).append("\n\n");
+        }
+
+        return sb.toString();
+    }
 }

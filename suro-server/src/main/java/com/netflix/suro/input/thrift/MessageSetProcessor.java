@@ -17,11 +17,13 @@
 package com.netflix.suro.input.thrift;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import com.netflix.governator.guice.lazy.LazySingleton;
+import com.netflix.servo.DefaultMonitorRegistry;
 import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.annotations.Monitor;
-import com.netflix.servo.monitor.DynamicCounter;
+import com.netflix.servo.monitor.BasicCounter;
 import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.suro.ClientConfig;
@@ -33,6 +35,7 @@ import com.netflix.suro.message.MessageSetBuilder;
 import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.queue.Queue4Server;
 import com.netflix.suro.routing.MessageRouter;
+import com.netflix.suro.servo.Servo;
 import com.netflix.suro.thrift.*;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
@@ -127,9 +130,12 @@ public class MessageSetProcessor implements SuroServer.Iface {
         try {
             // Stop adding chunks if it's no running
             if ( !isRunning) {
-                DynamicCounter.increment(rejectedMessageCountMetrics,
-                    TagKey.APP, messageSet.getApp(),
-                    TagKey.REJECTED_REASON, "SURO_STOPPED");
+                Servo.getCounter(
+                        MonitorConfig.builder(rejectedMessageCountMetrics)
+                                .withTag(TagKey.APP, messageSet.getApp())
+                                .withTag(TagKey.INPUT, this.input.getId())
+                                .withTag(TagKey.REJECTED_REASON, "SURO_STOPPED")
+                                .build()).increment();
 
                 log.warn("Message processor is not running. Message rejected");
                 result.setMessage("Suro server stopped");
@@ -138,9 +144,12 @@ public class MessageSetProcessor implements SuroServer.Iface {
             }
 
             if ( !isTakingTraffic ) {
-                DynamicCounter.increment(rejectedMessageCountMetrics,
-                    TagKey.APP, messageSet.getApp(),
-                    TagKey.REJECTED_REASON, "SURO_THROTTLING");
+                Servo.getCounter(
+                        MonitorConfig.builder(rejectedMessageCountMetrics)
+                                .withTag(TagKey.APP, messageSet.getApp())
+                                .withTag(TagKey.INPUT, this.input.getId())
+                                .withTag(TagKey.REJECTED_REASON, "SURO_THROTTLING")
+                                .build()).increment();
 
                 log.warn("Suro is not taking traffic. Message rejected. ");
                 result.setMessage("Suro server is not taking traffic");
@@ -150,7 +159,11 @@ public class MessageSetProcessor implements SuroServer.Iface {
 
             MessageSetReader reader = new MessageSetReader(messageSet);
             if (!reader.checkCRC()) {
-                DynamicCounter.increment(dataCorruptionCountMetrics, TagKey.APP, messageSet.getApp());
+                Servo.getCounter(
+                        MonitorConfig.builder(dataCorruptionCountMetrics)
+                                .withTag(TagKey.APP, messageSet.getApp())
+                                .withTag(TagKey.INPUT, this.input.getId())
+                                .build()).increment();
 
                 result.setMessage("data corrupted");
                 result.setResultCode(ResultCode.CRC_CORRUPTED);
@@ -158,16 +171,20 @@ public class MessageSetProcessor implements SuroServer.Iface {
             }
 
             if (queue.offer(messageSet)) {
-                DynamicCounter.increment(
-                    MonitorConfig.builder(messageCountMetrics)
-                        .withTag(TagKey.APP, messageSet.getApp())
-                        .build(),
-                    messageSet.getNumMessages());
+                Servo.getCounter(
+                        MonitorConfig.builder(messageCountMetrics)
+                                .withTag(TagKey.APP, messageSet.getApp())
+                                .withTag(TagKey.INPUT, this.input.getId())
+                                .build()).increment();
 
                 result.setMessage(Long.toString(messageSet.getCrc()));
                 result.setResultCode(ResultCode.OK);
             } else {
-                DynamicCounter.increment(retryCountMetrics, TagKey.APP, messageSet.getApp());
+                Servo.getCounter(
+                        MonitorConfig.builder(retryCountMetrics)
+                                .withTag(TagKey.APP, messageSet.getApp())
+                                .withTag(TagKey.INPUT, this.input.getId())
+                                .build()).increment();
 
                 result.setMessage(Long.toString(messageSet.getCrc()));
                 result.setResultCode(ResultCode.QUEUE_FULL);
@@ -234,9 +251,12 @@ public class MessageSetProcessor implements SuroServer.Iface {
             try {
                 router.process(input, new DefaultMessageContainer(message, jsonMapper));
             } catch (Exception e) {
-                DynamicCounter.increment(messageProcessErrorMetrics,
-                    TagKey.APP, tMessageSet.getApp(),
-                    TagKey.DATA_SOURCE, message.getRoutingKey());
+                Servo.getCounter(
+                        MonitorConfig.builder(messageProcessErrorMetrics)
+                                .withTag(TagKey.APP, tMessageSet.getApp())
+                                .withTag(TagKey.DATA_SOURCE, message.getRoutingKey())
+                                .withTag(TagKey.INPUT, this.input.getId())
+                                .build()).increment();
 
                 log.error(String.format("Failed to process message %s: %s", message, e.getMessage()), e);
             }
@@ -275,5 +295,75 @@ public class MessageSetProcessor implements SuroServer.Iface {
 
     public void setInput(SuroInput input) {
         this.input = input;
+    }
+
+    public String getStat() {
+        StringBuilder sb = new StringBuilder();
+
+        StringBuilder messageCount = new StringBuilder();
+        StringBuilder retryCount = new StringBuilder();
+        StringBuilder dataCorruptionCount = new StringBuilder();
+        StringBuilder rejectedMessageCount = new StringBuilder();
+        StringBuilder messageProcessError = new StringBuilder();
+
+        /*
+        private static final String messageCountMetrics = "messageCount";
+        private static final String retryCountMetrics = "retryCount";
+        private static final String dataCorruptionCountMetrics = "corruptedMessageCount";
+        private static final String rejectedMessageCountMetrics = "rejectedMessageCount";
+        private static final String messageProcessErrorMetrics = "processErrorCount";
+        */
+
+        for (com.netflix.servo.monitor.Monitor<?> m : DefaultMonitorRegistry.getInstance().getRegisteredMonitors()) {
+            log.debug("Got monitor of type {}", m);
+
+            if(m instanceof BasicCounter) {
+                BasicCounter counter = (BasicCounter)m;
+                String inputId = counter.getConfig().getTags().getValue(TagKey.INPUT);
+                if(!Strings.isNullOrEmpty(inputId) && inputId.equals(input.getId())){
+                    if (counter.getConfig().getName().equals(messageCountMetrics)) {
+                        messageCount
+                                .append(counter.getConfig().getTags().getValue(TagKey.APP))
+                                .append(":")
+                                .append(counter.getValue()).append('\n');
+                    }
+                    if (counter.getConfig().getName().equals(retryCountMetrics)) {
+                        retryCount
+                                .append(counter.getConfig().getTags().getValue(TagKey.APP))
+                                .append(":")
+                                .append(counter.getValue()).append('\n');
+                    }
+                    if (counter.getConfig().getName().equals(dataCorruptionCountMetrics)) {
+                        dataCorruptionCount
+                                .append(counter.getConfig().getTags().getValue(TagKey.APP))
+                                .append(":")
+                                .append(counter.getValue()).append('\n');
+                    }
+                    if (counter.getConfig().getName().equals(rejectedMessageCountMetrics)) {
+                        rejectedMessageCount
+                                .append(counter.getConfig().getTags().getValue(TagKey.APP))
+                                .append(":")
+                                .append(counter.getConfig().getTags().getValue(TagKey.REJECTED_REASON))
+                                .append(":")
+                                .append(counter.getValue()).append('\n');
+                    }
+                    if (counter.getConfig().getName().equals(messageProcessErrorMetrics)) {
+                        messageProcessError
+                                .append(counter.getConfig().getTags().getValue(TagKey.APP))
+                                .append(":")
+                                .append(counter.getConfig().getTags().getValue(TagKey.DATA_SOURCE))
+                                .append(":")
+                                .append(counter.getValue()).append('\n');
+                    }
+                }
+            }
+        }
+
+        sb.append('\n').append(messageCountMetrics).append('\n').append(messageCount.toString());
+        sb.append('\n').append(retryCountMetrics).append('\n').append(retryCount.toString());
+        sb.append('\n').append(dataCorruptionCountMetrics).append('\n').append(dataCorruptionCount.toString());
+        sb.append('\n').append(rejectedMessageCountMetrics).append('\n').append(rejectedMessageCount.toString());
+        sb.append('\n').append(messageProcessErrorMetrics).append('\n').append(messageProcessError.toString());
+        return sb.toString();
     }
 }
