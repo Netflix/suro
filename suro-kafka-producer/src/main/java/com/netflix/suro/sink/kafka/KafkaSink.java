@@ -28,12 +28,7 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rx.Subscription;
-import rx.functions.Action1;
 import rx.functions.Action3;
-import rx.functions.Func1;
-import rx.schedulers.Schedulers;
-import rx.subjects.PublishSubject;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -41,15 +36,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Kafka 0.8 Sink
+ * Kafka 0.8.2 Sink
  *
  * @author jbae
  */
@@ -59,15 +55,30 @@ public class KafkaSink implements Sink {
     public final static String TYPE = "kafka";
 
     private final boolean normalizeRoutingKey;
+    private final String clientId;
     private final String bootstrapServers;
     private final String vipAddress;
-    private final Partitioner partitioner;
-    private final MetadataWaitingQueuePolicy metadataWaitingQueuePolicy;
-    private final Properties props;
+    private final String partitionerSelector;
+    private final int stickyInterval;
+    private final int metadataWaitingQueueSize;
     private final Map<String, String> keyTopicMap;
+
+    private final Partitioner partitioner;
+    private final Properties props;
+    private final Set<String> metadataFetchedTopicSet;
+    private final BlockingQueue<MessageContainer> metadataWaitQueue;
+    private final ExecutorService executor;
 
     private volatile boolean isOpened = false;
     private volatile KafkaProducer<byte[], byte[]> producer;
+
+    private AtomicLong queuedRecords = new AtomicLong(0);
+    private AtomicLong sentRecords = new AtomicLong(0);
+    private AtomicLong droppedRecords = new AtomicLong(0);
+    private volatile Action3 recordCounterListener;
+    public void setRecordCounterListener(Action3 action) {
+        this.recordCounterListener = action;
+    }
 
     @JsonCreator
     public KafkaSink(
@@ -87,8 +98,13 @@ public class KafkaSink implements Sink {
         Preconditions.checkArgument(clientId != null);
 
         this.normalizeRoutingKey = normalizeRoutingKey;
+        this.clientId = clientId;
         this.bootstrapServers = bootstrapServers;
         this.vipAddress = vipAddress;
+        this.partitionerSelector = partitionerSelector;
+        this.stickyInterval = stickyInterval;
+        this.metadataWaitingQueueSize = metadataWaitingQueueSize > 0 ? metadataWaitingQueueSize : 1024;
+        this.keyTopicMap = keyTopicMap != null ? keyTopicMap : Maps.<String, String>newHashMap();
 
         if(StickyPartitioner.NAME.equals(partitionerSelector)) {
             int intervalMs = stickyInterval > 0 ? stickyInterval : 1000;
@@ -99,11 +115,6 @@ public class KafkaSink implements Sink {
         } else {
             partitioner = new DefaultPartitioner();
         }
-
-        this.metadataWaitingQueuePolicy = new MetadataWaitingQueuePolicy(
-                metadataWaitingQueueSize <= 0 ? 1000 : metadataWaitingQueueSize,
-                blockOnMetadataQueueFull);
-        this.keyTopicMap = keyTopicMap != null ? keyTopicMap : Maps.<String, String>newHashMap();
 
         this.props = new Properties();
         if(etcProps != null) {
@@ -123,6 +134,11 @@ public class KafkaSink implements Sink {
             }
         }
         setServoReporter();
+
+        this.metadataFetchedTopicSet = new CopyOnWriteArraySet<String>();
+        this.metadataWaitQueue = new ArrayBlockingQueue<MessageContainer>(this.metadataWaitingQueueSize);
+        this.executor = Executors.newSingleThreadExecutor(
+                new ThreadFactoryBuilder().setDaemon(false).setNameFormat("KafkaSink-MetadataFetcher-%d").build());
     }
 
     private List<String> extractBootstrapServers(final String vipAddress, final DiscoveryClient discoveryClient) {
@@ -176,20 +192,6 @@ public class KafkaSink implements Sink {
         props.put(ServoReporter.class.getName(), ServoReporter.class);
     }
 
-    private AtomicLong queuedRecords = new AtomicLong(0);
-    private AtomicLong sentRecords = new AtomicLong(0);
-    private AtomicLong droppedRecords = new AtomicLong(0);
-    private volatile Action3 recordCounterListener;
-    public void setRecordCounterListener(Action3 action) {
-        this.recordCounterListener = action;
-    }
-
-    private Set<String> metadataFetchedTopicSet = new CopyOnWriteArraySet<String>();
-    private PublishSubject<MessageContainer> stream = PublishSubject.create();
-    private Subscription subscription;
-    private ExecutorService executor = Executors.newSingleThreadExecutor(
-        new ThreadFactoryBuilder().setDaemon(false).setNameFormat("kafka-metadata-fetcher-%d").build());
-
     @Override
     public void writeTo(final MessageContainer message) {
         queuedRecords.incrementAndGet();
@@ -202,7 +204,9 @@ public class KafkaSink implements Sink {
         if (metadataFetchedTopicSet.contains(getRoutingKey(message))) {
             sendMessage(message);
         } else {
-            stream.onNext(message);
+            if(!metadataWaitQueue.offer(message)) {
+                dropMessage(getRoutingKey(message), "metadataWaitQueueFull");
+            }
         }
     }
 
@@ -235,7 +239,7 @@ public class KafkaSink implements Sink {
             }
         }
 
-        Integer part = null;
+        final Integer part;
         try {
             part = partitioner.partition(topic, key, producer.partitionsFor(topic));
         } catch(Exception e) {
@@ -291,48 +295,34 @@ public class KafkaSink implements Sink {
     @Override
     public void open() {
         producer = new KafkaProducer<byte[], byte[]>(props, new ByteArraySerializer(), new ByteArraySerializer());
-        // TODO: backpressure handling
-        subscription = stream
-                .filter(new Func1<MessageContainer, Boolean>() {
-                    @Override
-                    public Boolean call(MessageContainer message) {
-                        if (!metadataWaitingQueuePolicy.acquire()) {
-                            dropMessage(getRoutingKey(message), "metadataWaitingQueueFull");
-                            return false;
-                        } else {
-                            return true;
+        executor.submit(new Runnable() {
+            @Override
+            public void run() {
+                while(true) {
+                    final MessageContainer message;
+                    try {
+                        message = metadataWaitQueue.take();
+                    } catch (InterruptedException e) {
+                        // TODO should we break the while loop?
+                        continue;
+                    }
+                    final String topic = getRoutingKey(message);
+                    try {
+                        if (!metadataFetchedTopicSet.contains(topic)) {
+                            producer.partitionsFor(topic);
+                            metadataFetchedTopicSet.add(topic);
+                        }
+                        sendMessage(message);
+                    } catch(Throwable t) {
+                        log.error("failed to get metadata: " + topic, t);
+                        // try to put back to the queue if there is still space
+                        if(!metadataWaitQueue.offer(message)) {
+                            dropMessage(getRoutingKey(message), "metadataWaitQueueFull");
                         }
                     }
-                })
-                // some test requires buffering of 1024,
-                // which is the default RxRingBuffer size in 0.20.x
-                .onBackpressureBuffer(1024)
-                .observeOn(Schedulers.from(executor))
-                .subscribe(
-                        new Action1<MessageContainer>() {
-                            @Override
-                            public void call(final MessageContainer message) {
-                                try {
-                                    if (!metadataFetchedTopicSet.contains(getRoutingKey(message))) {
-                                        producer.partitionsFor(getRoutingKey(message));
-                                        metadataFetchedTopicSet.add(getRoutingKey(message));
-                                    }
-                                    sendMessage(message);
-                                } catch (Exception e) {
-                                    log.error("Exception on waiting for metadata", e);
-                                    stream.onNext(message); // try again
-                                } finally {
-                                    metadataWaitingQueuePolicy.release();
-                                }
-                            }
-                        },
-                        new Action1<Throwable>() {
-                            @Override
-                            public void call(Throwable throwable) {
-                                log.error("Exception on stream", throwable);
-                            }
-                        }
-                );
+                }
+            }
+        });
         isOpened = true;
     }
 
@@ -340,12 +330,16 @@ public class KafkaSink implements Sink {
     public void close() {
         isOpened = false;
         try {
+            executor.shutdown();
             executor.awaitTermination(10, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             // ignore
         }
-        subscription.unsubscribe();
-        producer.close();
+        try {
+            producer.close();
+        } catch(Exception e) {
+            log.error("failed to close kafka producer", e);
+        }
     }
 
     @Override
@@ -373,34 +367,6 @@ public class KafkaSink implements Sink {
     @Override
     public boolean isOpened() {
         return isOpened;
-    }
-
-    private static class MetadataWaitingQueuePolicy {
-        private final Semaphore semaphore;
-        private final boolean blockingOnBufferFull;
-
-        public MetadataWaitingQueuePolicy(int capacity, boolean blockOnBufferFull) {
-            semaphore = new Semaphore(capacity);
-            this.blockingOnBufferFull = blockOnBufferFull;
-        }
-
-        public boolean acquire() {
-            if (blockingOnBufferFull) {
-                try {
-                    semaphore.acquire();
-                    return true;
-                } catch (InterruptedException e) {
-                    // ignore
-                    return true;
-                }
-            } else {
-                return semaphore.tryAcquire();
-            }
-        }
-        public void release() {
-            semaphore.release();
-        }
-
     }
 
     @VisibleForTesting
