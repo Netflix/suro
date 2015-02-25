@@ -15,6 +15,7 @@ import com.netflix.servo.monitor.DynamicCounter;
 import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.MessageContainer;
+import com.netflix.suro.message.StringMessage;
 import com.netflix.suro.sink.Sink;
 import org.apache.commons.lang.StringUtils;
 import org.apache.kafka.clients.producer.Callback;
@@ -53,6 +54,9 @@ public class KafkaSink implements Sink {
     private static final Logger log = LoggerFactory.getLogger(KafkaSink.class);
 
     public final static String TYPE = "kafka";
+
+    private final static MessageContainer SHUTDOWN_POISON_MSG = new StringMessage("suro-KafkaSink-shutdownMsg-routingKey",
+            "suro-KafkaSink-shutdownMsg-body");
 
     private final boolean normalizeRoutingKey;
     private final String clientId;
@@ -308,6 +312,10 @@ public class KafkaSink implements Sink {
                     if(message == null) {
                         continue;
                     }
+                    // check poison msg for shutdown
+                    if(message == SHUTDOWN_POISON_MSG) {
+                        break;
+                    }
                     final String topic = getRoutingKey(message);
                     try {
                         if (!metadataFetchedTopicSet.contains(topic)) {
@@ -332,6 +340,9 @@ public class KafkaSink implements Sink {
     public void close() {
         isOpened = false;
         try {
+            // try to insert a poison msg for shutdown
+            // ignore success or failure
+            metadataWaitingQueue.offer(SHUTDOWN_POISON_MSG);
             executor.shutdown();
             executor.awaitTermination(10, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
