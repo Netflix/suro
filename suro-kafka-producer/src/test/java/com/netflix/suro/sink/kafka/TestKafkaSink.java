@@ -138,6 +138,31 @@ public class TestKafkaSink {
         sink.open();
     }
 
+    /**
+     * open will success because localhost is a resolvable hostname
+     * note that there is no broker running at "localhost:1"
+     */
+    @Test
+    public void testCloseLatency() throws Exception {
+        String sinkstr = "{\n" +
+                "    \"type\": \"kafka\",\n" +
+                "    \"client.id\": \"kafkasink\",\n" +
+                "    \"bootstrap.servers\": \"localhost:1\",\n" +
+                "    \"kafka.etc\": {\n" +
+                "          \"acks\": \"1\"\n" +
+                "      }\n" +
+                "}";
+        KafkaSink sink = jsonMapper.readValue(sinkstr, new TypeReference<Sink>(){});
+        sink.open();
+        Assert.assertTrue(sink.isOpened());
+        long start = System.currentTimeMillis();
+        sink.close();
+        long closeLatency = System.currentTimeMillis() - start;
+        System.out.println("closeLatency = " + closeLatency);
+        // close should take less than 500 ms
+        assertTrue(closeLatency < 500);
+    }
+
     @Test
     public void testDefaultParameters() throws IOException {
         final String topic = testName.getMethodName();
