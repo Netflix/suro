@@ -493,12 +493,10 @@ public class TestKafkaSink {
             if(leaderOpt.isDefined()) {
                 break;
             }
-//            System.out.println("wait leader to be ready in ZK: " + i);
             Thread.sleep(10);
         }
         assertTrue("Leader for topic new-topic partition 0 should exist", leaderOpt.isDefined());
         final int leader = (Integer) leaderOpt.get();
-//        Thread.sleep(100);
 
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
