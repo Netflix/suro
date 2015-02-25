@@ -77,11 +77,6 @@ public class TestKafkaSink {
     @Rule
     public ExpectedException thrown = ExpectedException.none();
 
-    private static final String TOPIC_NAME = "routingKey";
-    private static final String TOPIC_NAME_MULTITHREAD = "routingKeyMultithread";
-    private static final String TOPIC_NAME_PARTITION_BY_KEY = "routingKey_partitionByKey";
-    private static final String TOPIC_NORMALIZED = "routingkey_normalized";
-
     private static ObjectMapper jsonMapper = new DefaultObjectMapper();
 
     @BeforeClass
@@ -145,9 +140,10 @@ public class TestKafkaSink {
 
     @Test
     public void testDefaultParameters() throws IOException {
+        final String topic = testName.getMethodName();
         TopicCommand.createTopic(zk.getZkClient(),
                 new TopicCommand.TopicCommandOptions(new String[]{
-                        "--zookeeper", "dummy", "--create", "--topic", TOPIC_NAME,
+                        "--zookeeper", "dummy", "--create", "--topic", topic,
                         "--replication-factor", "2", "--partitions", "1"}));
         String description = "{\n" +
                 "    \"type\": \"kafka\",\n" +
@@ -161,7 +157,7 @@ public class TestKafkaSink {
 
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
-        Iterator<Message> msgIterator = new MessageSetReader(createMessageSet(TOPIC_NAME, 2)).iterator();
+        Iterator<Message> msgIterator = new MessageSetReader(createMessageSet(topic, 2)).iterator();
         while (msgIterator.hasNext()) {
             sink.writeTo(new StringMessage(msgIterator.next()));
         }
@@ -171,7 +167,7 @@ public class TestKafkaSink {
         System.out.println(sink.getStat());
 
         // get the leader
-        Option<Object> leaderOpt = ZkUtils.getLeaderForPartition(zk.getZkClient(), TOPIC_NAME, 0);
+        Option<Object> leaderOpt = ZkUtils.getLeaderForPartition(zk.getZkClient(), topic, 0);
         assertTrue("Leader for topic new-topic partition 0 should exist", leaderOpt.isDefined());
         int leader = (Integer) leaderOpt.get();
 
@@ -182,9 +178,9 @@ public class TestKafkaSink {
             config = kafkaServer.getServer(1).config();
         }
         SimpleConsumer consumer = new SimpleConsumer(config.hostName(), config.port(), 100000, 100000, "clientId");
-        FetchResponse response = consumer.fetch(new FetchRequestBuilder().addFetch(TOPIC_NAME, 0, 0, 100000).build());
+        FetchResponse response = consumer.fetch(new FetchRequestBuilder().addFetch(topic, 0, 0, 100000).build());
 
-        List<MessageAndOffset> messageSet = Lists.newArrayList(response.messageSet(TOPIC_NAME, 0).iterator());
+        List<MessageAndOffset> messageSet = Lists.newArrayList(response.messageSet(topic, 0).iterator());
         assertEquals("Should have fetched 2 messages", 2, messageSet.size());
 
         assertEquals(new String(extractMessage(messageSet, 0)), "testMessage" + 0);
@@ -193,9 +189,10 @@ public class TestKafkaSink {
 
     @Test
     public void testMultithread() throws IOException {
+        final String topic = testName.getMethodName();
         TopicCommand.createTopic(zk.getZkClient(),
                 new TopicCommand.TopicCommandOptions(new String[]{
-                        "--zookeeper", "dummy", "--create", "--topic", TOPIC_NAME_MULTITHREAD,
+                        "--zookeeper", "dummy", "--create", "--topic", topic,
                         "--replication-factor", "2", "--partitions", "1"}));
         String description = "{\n" +
                 "    \"type\": \"kafka\",\n" +
@@ -210,26 +207,27 @@ public class TestKafkaSink {
         });
         sink.open();
         int msgCount = 1000;
-        sendMessages(TOPIC_NAME_MULTITHREAD, sink, msgCount);
+        sendMessages(topic, sink, msgCount);
         assertTrue(sink.getNumOfPendingMessages() > 0);
         sink.close();
         System.out.println(sink.getStat());
         assertEquals(0, sink.getNumOfPendingMessages());
 
-        checkConsumer(TOPIC_NAME_MULTITHREAD, msgCount);
+        checkConsumer(topic, msgCount);
     }
 
     @Test
     public void testPartitionByKey() throws Exception {
+        final String topic = testName.getMethodName();
         int numPartitions = 9;
 
         TopicCommand.createTopic(zk.getZkClient(),
                 new TopicCommand.TopicCommandOptions(new String[]{
-                        "--zookeeper", "dummy", "--create", "--topic", TOPIC_NAME_PARTITION_BY_KEY,
+                        "--zookeeper", "dummy", "--create", "--topic", topic,
                         "--replication-factor", "2", "--partitions", Integer.toString(numPartitions)}));
         String keyTopicMap = String.format("   \"keyTopicMap\": {\n" +
                 "        \"%s\": \"key\"\n" +
-                "    }", TOPIC_NAME_PARTITION_BY_KEY);
+                "    }", topic);
 
         String description = "{\n" +
                 "    \"type\": \"kafka\",\n" +
@@ -250,7 +248,7 @@ public class TestKafkaSink {
                     .put("key", Integer.toString(i % numPartitions))
                     .put("value", "message:" + i).build();
             sink.writeTo(new DefaultMessageContainer(
-                    new Message(TOPIC_NAME_PARTITION_BY_KEY, jsonMapper.writeValueAsBytes(msgMap)),
+                    new Message(topic, jsonMapper.writeValueAsBytes(msgMap)),
                     jsonMapper));
         }
         sink.close();
@@ -259,9 +257,9 @@ public class TestKafkaSink {
         ConsumerConnector consumer = kafka.consumer.Consumer.createJavaConsumerConnector(
                 createConsumerConfig("localhost:" + zk.getServerPort(), "gropuid"));
         Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
-        topicCountMap.put(TOPIC_NAME_PARTITION_BY_KEY, 1);
+        topicCountMap.put(topic, 1);
         Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
-        KafkaStream<byte[], byte[]> stream = consumerMap.get(TOPIC_NAME_PARTITION_BY_KEY).get(0);
+        KafkaStream<byte[], byte[]> stream = consumerMap.get(topic).get(0);
         // map from string key to set of partitions that messages contains this key
         int recvCount = 0;
         Map<String, Set<Integer>> resultMap = new HashMap<String, Set<Integer>>();
@@ -297,9 +295,10 @@ public class TestKafkaSink {
 
     @Test
     public void testBlockingOnBufferFull() throws Throwable {
+        final String topic = testName.getMethodName();
         TopicCommand.createTopic(zk.getZkClient(),
                 new TopicCommand.TopicCommandOptions(new String[]{
-                        "--zookeeper", "dummy", "--create", "--topic", TOPIC_NAME + "buffer_full",
+                        "--zookeeper", "dummy", "--create", "--topic", topic,
                         "--replication-factor", "2", "--partitions", "1"}));
         String description = "{\n" +
                 "    \"type\": \"kafka\",\n" +
@@ -324,7 +323,7 @@ public class TestKafkaSink {
             public void run() {
                 for (int i = 0; i < 100; ++i) {
                     try {
-                        sink.writeTo(new DefaultMessageContainer(new Message(TOPIC_NAME + "buffer_full", getBigData()), jsonMapper));
+                        sink.writeTo(new DefaultMessageContainer(new Message(topic, getBigData()), jsonMapper));
                     } catch (Exception e) {
                         fail("exception thrown: " + e.toString());
                     }
@@ -349,11 +348,11 @@ public class TestKafkaSink {
 
     @Test
     public void testStartWithKafkaOutage() throws Throwable {
-        String topicName = TOPIC_NAME + "kafkaoutage";
+        final String topic = testName.getMethodName();
 
         TopicCommand.createTopic(zk.getZkClient(),
             new TopicCommand.TopicCommandOptions(new String[]{
-                "--zookeeper", "dummy", "--create", "--topic", topicName,
+                "--zookeeper", "dummy", "--create", "--topic", topic,
                 "--replication-factor", "2", "--partitions", "1"}));
 
         String[] brokerList = kafkaServer.getBrokerListStr().split(",");
@@ -387,21 +386,21 @@ public class TestKafkaSink {
             }
         });
 
-        sendMessages(topicName, sink, msgCount);
+        sendMessages(topic, sink, msgCount);
 
         kafkaServer.startServer(port1, port2); // running up
         assertTrue(latch.await(10, TimeUnit.SECONDS));
 
-        sendMessages(topicName, sink, msgCount);
+        sendMessages(topic, sink, msgCount);
         sink.close();
 
-        checkConsumer(topicName, 2 * msgCount);
+        checkConsumer(topic, 2 * msgCount);
     }
 
     @Test
     public void testRunningKafkaOutage() throws IOException, InterruptedException {
-        String topicName1 = TOPIC_NAME + "kafkaoutage2";
-        final String topicName2 = TOPIC_NAME + "kafkaoutage3";
+        final String topicName1 = testName.getMethodName() + "kafkaoutage2";
+        final String topicName2 = testName.getMethodName() + "kafkaoutage3";
 
         TopicCommand.createTopic(zk.getZkClient(),
             new TopicCommand.TopicCommandOptions(new String[]{
@@ -471,9 +470,11 @@ public class TestKafkaSink {
 
     @Test
     public void testNormailizeRoutingKey() throws Exception {
+        // normalize topic name to lower case
+        final String topic = testName.getMethodName().toLowerCase();
         TopicCommand.createTopic(zk.getZkClient(),
                 new TopicCommand.TopicCommandOptions(new String[]{
-                        "--zookeeper", "dummy", "--create", "--topic", TOPIC_NORMALIZED,
+                        "--zookeeper", "dummy", "--create", "--topic", topic,
                         "--replication-factor", "2", "--partitions", "1"}));
         String description = "{\n" +
                 "    \"type\": \"kafka\",\n" +
@@ -488,19 +489,21 @@ public class TestKafkaSink {
         Option<Object> leaderOpt = null;
         for(int i = 0; i < 100; ++i) {
             // get the leader
-            leaderOpt = ZkUtils.getLeaderForPartition(zk.getZkClient(), TOPIC_NORMALIZED, 0);
+            leaderOpt = ZkUtils.getLeaderForPartition(zk.getZkClient(), topic, 0);
             if(leaderOpt.isDefined()) {
                 break;
             }
+//            System.out.println("wait leader to be ready in ZK: " + i);
             Thread.sleep(10);
         }
         assertTrue("Leader for topic new-topic partition 0 should exist", leaderOpt.isDefined());
         final int leader = (Integer) leaderOpt.get();
+//        Thread.sleep(100);
 
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
         // change topic name to all upper case
-        Iterator<Message> msgIterator = new MessageSetReader(createMessageSet(TOPIC_NORMALIZED.toUpperCase(), 2)).iterator();
+        Iterator<Message> msgIterator = new MessageSetReader(createMessageSet(topic.toUpperCase(), 2)).iterator();
         while (msgIterator.hasNext()) {
             sink.writeTo(new StringMessage(msgIterator.next()));
         }
@@ -516,9 +519,9 @@ public class TestKafkaSink {
             config = kafkaServer.getServer(1).config();
         }
         SimpleConsumer consumer = new SimpleConsumer(config.hostName(), config.port(), 100000, 100000, "clientId");
-        FetchResponse response = consumer.fetch(new FetchRequestBuilder().addFetch(TOPIC_NORMALIZED, 0, 0, 100000).build());
+        FetchResponse response = consumer.fetch(new FetchRequestBuilder().addFetch(topic, 0, 0, 100000).build());
 
-        List<MessageAndOffset> messageSet = Lists.newArrayList(response.messageSet(TOPIC_NORMALIZED, 0).iterator());
+        List<MessageAndOffset> messageSet = Lists.newArrayList(response.messageSet(topic, 0).iterator());
         assertEquals("Should have fetched 2 messages", 2, messageSet.size());
 
         assertEquals(new String(extractMessage(messageSet, 0)), "testMessage" + 0);
