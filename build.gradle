@@ -58,7 +58,6 @@ subprojects {
     }
 
     dependencies {
-      compile 'io.reactivex:rxjava:1.0.6'
       compile 'com.netflix.archaius:archaius-core:0.5.11'
       compile 'com.netflix.servo:servo-core:0.4.32'
       compile 'com.netflix.governator:governator:1.2.3'
