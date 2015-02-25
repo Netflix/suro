@@ -301,9 +301,11 @@ public class KafkaSink implements Sink {
                 while(true) {
                     final MessageContainer message;
                     try {
-                        message = metadataWaitingQueue.take();
+                        message = metadataWaitingQueue.poll(1, TimeUnit.SECONDS);
                     } catch (InterruptedException e) {
-                        // TODO should we break the while loop?
+                        continue;
+                    }
+                    if(message == null) {
                         continue;
                     }
                     final String topic = getRoutingKey(message);
