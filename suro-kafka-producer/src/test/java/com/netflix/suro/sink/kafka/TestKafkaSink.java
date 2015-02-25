@@ -485,6 +485,17 @@ public class TestKafkaSink {
                 "      }\n" +
                 "}";
 
+        Option<Object> leaderOpt = null;
+        for(int i = 0; i < 100; ++i) {
+            // get the leader
+            leaderOpt = ZkUtils.getLeaderForPartition(zk.getZkClient(), TOPIC_NORMALIZED, 0);
+            if(leaderOpt.isDefined()) {
+                break;
+            }
+            Thread.sleep(10);
+        }
+        assertTrue("Leader for topic new-topic partition 0 should exist", leaderOpt.isDefined());
+        final int leader = (Integer) leaderOpt.get();
 
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
@@ -497,11 +508,6 @@ public class TestKafkaSink {
         sink.close();
         assertEquals(sink.getNumOfPendingMessages(), 0);
         System.out.println(sink.getStat());
-
-        // get the leader
-        Option<Object> leaderOpt = ZkUtils.getLeaderForPartition(zk.getZkClient(), TOPIC_NORMALIZED, 0);
-        assertTrue("Leader for topic new-topic partition 0 should exist", leaderOpt.isDefined());
-        int leader = (Integer) leaderOpt.get();
 
         KafkaConfig config;
         if (leader == kafkaServer.getServer(0).config().brokerId()) {
@@ -594,7 +600,7 @@ public class TestKafkaSink {
 
     private void checkConsumer(String topicName, int msgCount) throws IOException {
         ConsumerConnector consumer = kafka.consumer.Consumer.createJavaConsumerConnector(
-            createConsumerConfig("localhost:" + zk.getServerPort(), "gropuid"));
+            createConsumerConfig("localhost:" + zk.getServerPort(), "groupid"));
         Map<String, Integer> topicCountMap = new HashMap<>();
         topicCountMap.put(topicName, 1);
         Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
