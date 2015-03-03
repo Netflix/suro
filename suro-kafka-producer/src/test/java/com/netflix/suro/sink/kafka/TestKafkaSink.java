@@ -522,6 +522,7 @@ public class TestKafkaSink {
         }
         assertTrue("Leader for topic new-topic partition 0 should exist", leaderOpt.isDefined());
         final int leader = (Integer) leaderOpt.get();
+        Thread.sleep(100);
 
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
