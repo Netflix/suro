@@ -44,21 +44,25 @@ public class DynamicPropertyRoutingMapConfigurator {
         DynamicStringProperty routingMapFP = new DynamicStringProperty(ROUTING_MAP_PROPERTY, initialRoutingMap) {
             @Override
             protected void propertyChanged() {
-                buildMap(get());
+                buildMap(get(), false);
             }
         };
 
-        buildMap(routingMapFP.get());
+        buildMap(routingMapFP.get(), true);
     }
 
-    private void buildMap(String map) {
+    private void buildMap(String map, boolean initStart) {
         try {
-            LOG.info("building routing map: {}", map);
+            LOG.debug("building routing map: {}", map);
             Map<String, RoutingMap.RoutingInfo> routes = jsonMapper.readValue(
                     map,
                     new TypeReference<Map<String, RoutingMap.RoutingInfo>>() {});
             routingMap.set(routes);
-            LOG.warn("set routing map: {}", map);
+            if(initStart) {
+                LOG.info("applied initial routing map: {}", map);
+            } else {
+                LOG.warn("applied updated routing map: {}", map);
+            }
         } catch (Throwable e) {
             LOG.error("failed to build routing map", e);
         }

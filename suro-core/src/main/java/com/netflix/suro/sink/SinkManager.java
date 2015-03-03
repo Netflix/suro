@@ -94,28 +94,30 @@ public class SinkManager {
         if(newSinkMap.isEmpty()) {
             log.warn("newSinkMap is empty");
         }
-        log.warn("initial sink map: {}", newSinkMap.keySet());
         sinkMap = ImmutableMap.copyOf(newSinkMap);
+        log.info("set initial sinks: {}", newSinkMap.keySet());
     }
 
     public void set(Map<String, Sink> newSinkMap) {
         if(newSinkMap.isEmpty()) {
             log.warn("newSinkMap is empty");
         }
-        log.info("updating sink map: {}", newSinkMap.keySet());
+        log.debug("setting sinks: {}", newSinkMap.keySet());
         ImmutableMap<String, Sink> newMap = ImmutableMap.copyOf(newSinkMap);
         // open sinks for newMap
         for (Map.Entry<String, Sink> entry : newMap.entrySet()) {
             openSink(entry.getKey(), entry.getValue());
         }
+        log.warn("opened new sinks: {}", newMap.keySet());
         // swap the reference
-        ImmutableMap<String, Sink> oldMap = sinkMap;
+        ImmutableMap<String, Sink> oldSinkMap = sinkMap;
         sinkMap = newMap;
+        log.debug("applied new sinks: {}", newSinkMap.keySet());
         // close sink of oldMap
-        for (Map.Entry<String, Sink> entry : oldMap.entrySet()) {
+        for (Map.Entry<String, Sink> entry : oldSinkMap.entrySet()) {
             closeSink(entry.getKey(), entry.getValue());
         }
-        log.warn("set sink map: {}", newSinkMap.keySet());
+        log.warn("closed old sinks: {}", oldSinkMap.keySet());
     }
 
     public Sink getSink(String id) {
