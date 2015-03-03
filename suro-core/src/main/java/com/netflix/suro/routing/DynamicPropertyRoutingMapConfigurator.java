@@ -59,7 +59,7 @@ public class DynamicPropertyRoutingMapConfigurator {
                     new TypeReference<Map<String, RoutingMap.RoutingInfo>>() {});
             routingMap.set(routes);
             LOG.warn("set routing map: {}", map);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("failed to build routing map", e);
         }
     }

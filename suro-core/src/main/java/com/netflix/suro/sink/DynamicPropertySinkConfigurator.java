@@ -63,8 +63,8 @@ public class DynamicPropertySinkConfigurator {
                 sinkManager.set(newSinkMap);
             }
             log.warn("set sink config: {}", sink);
-        } catch (Exception e) {
-            log.error("Exception on building SinkManager", e);
+        } catch (Throwable e) {
+            log.error("failed to build sink config", e);
         }
     }
 }
