@@ -51,6 +51,7 @@ public class DynamicPropertySinkConfigurator {
 
     private void buildSink(String sink, boolean initStart) {
         try {
+            log.debug("building sink config: {}", sink);
             Map<String, Sink> newSinkMap = jsonMapper.readValue(sink, new TypeReference<Map<String, Sink>>(){});
             if ( !newSinkMap.containsKey("default") ) {
                 throw new IllegalStateException("default sink should be defined");
@@ -61,8 +62,13 @@ public class DynamicPropertySinkConfigurator {
             } else {
                 sinkManager.set(newSinkMap);
             }
-        } catch (Exception e) {
-            log.error("Exception on building SinkManager: " + e.getMessage(), e);
+            if(initStart) {
+                log.debug("applied initial sink config: {}", sink);
+            } else {
+                log.warn("applied updated sink config: {}", sink);
+            }
+        } catch (Throwable e) {
+            log.error("failed to build sink config", e);
         }
     }
 }
