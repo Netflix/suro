@@ -95,7 +95,7 @@ public class SinkManager {
             log.warn("newSinkMap is empty");
         }
         sinkMap = ImmutableMap.copyOf(newSinkMap);
-        log.info("set initial sinks: {}", newSinkMap.keySet());
+        log.debug("set initial sinks: {}", newSinkMap.keySet());
     }
 
     public void set(Map<String, Sink> newSinkMap) {
@@ -112,7 +112,7 @@ public class SinkManager {
         // swap the reference
         ImmutableMap<String, Sink> oldMap = sinkMap;
         sinkMap = newMap;
-        log.debug("applied new sinks: {}", newSinkMap.keySet());
+        log.warn("applied new sinks: {}", newSinkMap.keySet());
         // close sink of oldMap
         for (Map.Entry<String, Sink> entry : oldMap.entrySet()) {
             closeSink(entry.getKey(), entry.getValue());

@@ -59,7 +59,7 @@ public class DynamicPropertyRoutingMapConfigurator {
                     new TypeReference<Map<String, RoutingMap.RoutingInfo>>() {});
             routingMap.set(routes);
             if(initStart) {
-                LOG.info("applied initial routing map: {}", map);
+                LOG.debug("applied initial routing map: {}", map);
             } else {
                 LOG.warn("applied updated routing map: {}", map);
             }

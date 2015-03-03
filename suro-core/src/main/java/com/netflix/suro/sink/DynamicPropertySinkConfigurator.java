@@ -63,7 +63,7 @@ public class DynamicPropertySinkConfigurator {
                 sinkManager.set(newSinkMap);
             }
             if(initStart) {
-                log.info("applied initial sink config: {}", sink);
+                log.debug("applied initial sink config: {}", sink);
             } else {
                 log.warn("applied updated sink config: {}", sink);
             }
