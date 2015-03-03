@@ -53,7 +53,7 @@ public class DynamicPropertyRoutingMapConfigurator {
 
     private void buildMap(String map) {
         try {
-            LOG.warn("building routing map: {}", map);
+            LOG.info("building routing map: {}", map);
             Map<String, RoutingMap.RoutingInfo> routes = jsonMapper.readValue(
                     map,
                     new TypeReference<Map<String, RoutingMap.RoutingInfo>>() {});

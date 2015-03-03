@@ -102,7 +102,7 @@ public class SinkManager {
         if(newSinkMap.isEmpty()) {
             log.warn("newSinkMap is empty");
         }
-        log.warn("updating sink map: {}", newSinkMap.keySet());
+        log.info("updating sink map: {}", newSinkMap.keySet());
         ImmutableMap<String, Sink> newMap = ImmutableMap.copyOf(newSinkMap);
         // open sinks for newMap
         for (Map.Entry<String, Sink> entry : newMap.entrySet()) {
