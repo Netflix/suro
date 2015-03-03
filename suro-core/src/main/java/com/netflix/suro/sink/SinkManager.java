@@ -110,14 +110,14 @@ public class SinkManager {
         }
         log.warn("opened new sinks: {}", newMap.keySet());
         // swap the reference
-        ImmutableMap<String, Sink> oldSinkMap = sinkMap;
+        ImmutableMap<String, Sink> oldMap = sinkMap;
         sinkMap = newMap;
         log.debug("applied new sinks: {}", newSinkMap.keySet());
         // close sink of oldMap
-        for (Map.Entry<String, Sink> entry : oldSinkMap.entrySet()) {
+        for (Map.Entry<String, Sink> entry : oldMap.entrySet()) {
             closeSink(entry.getKey(), entry.getValue());
         }
-        log.warn("closed old sinks: {}", oldSinkMap.keySet());
+        log.warn("closed old sinks: {}", oldMap.keySet());
     }
 
     public Sink getSink(String id) {
