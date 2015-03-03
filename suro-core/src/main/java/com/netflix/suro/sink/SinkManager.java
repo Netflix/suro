@@ -94,7 +94,7 @@ public class SinkManager {
         if(newSinkMap.isEmpty()) {
             log.warn("newSinkMap is empty");
         }
-        log.info("initial sink map: {}", newSinkMap.keySet());
+        log.warn("initial sink map: {}", newSinkMap.keySet());
         sinkMap = ImmutableMap.copyOf(newSinkMap);
     }
 
@@ -102,7 +102,7 @@ public class SinkManager {
         if(newSinkMap.isEmpty()) {
             log.warn("newSinkMap is empty");
         }
-        log.info("update sink map: {}", newSinkMap.keySet());
+        log.warn("updating sink map: {}", newSinkMap.keySet());
         ImmutableMap<String, Sink> newMap = ImmutableMap.copyOf(newSinkMap);
         // open sinks for newMap
         for (Map.Entry<String, Sink> entry : newMap.entrySet()) {
@@ -115,6 +115,7 @@ public class SinkManager {
         for (Map.Entry<String, Sink> entry : oldMap.entrySet()) {
             closeSink(entry.getKey(), entry.getValue());
         }
+        log.warn("set sink map: {}", newSinkMap.keySet());
     }
 
     public Sink getSink(String id) {

@@ -53,12 +53,14 @@ public class DynamicPropertyRoutingMapConfigurator {
 
     private void buildMap(String map) {
         try {
+            LOG.warn("building routing map: {}", map);
             Map<String, RoutingMap.RoutingInfo> routes = jsonMapper.readValue(
                     map,
                     new TypeReference<Map<String, RoutingMap.RoutingInfo>>() {});
             routingMap.set(routes);
+            LOG.warn("set routing map: {}", map);
         } catch (Exception e) {
-            LOG.info("Error reading routing map from fast property: "+e.getMessage(), e);
+            LOG.error("failed to build routing map", e);
         }
     }
 }
