@@ -512,16 +512,17 @@ public class TestKafkaSink {
                 "}";
 
         Option<Object> leaderOpt = null;
-        for(int i = 0; i < 10; ++i) {
+        for(int i = 0; i < 100; ++i) {
             // get the leader
             leaderOpt = ZkUtils.getLeaderForPartition(zk.getZkClient(), topic, 0);
             if(leaderOpt.isDefined()) {
                 break;
             }
-            Thread.sleep(100);
+            Thread.sleep(10);
         }
         assertTrue("Leader for topic new-topic partition 0 should exist", leaderOpt.isDefined());
         final int leader = (Integer) leaderOpt.get();
+        Thread.sleep(100);
 
         KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>(){});
         sink.open();
