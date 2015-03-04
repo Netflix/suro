@@ -137,7 +137,7 @@ public class KafkaSink implements Sink {
                 log.info("set {} bootstrap servers: {}", hostPortList.size(), vipBootstrapServers);
             }
         }
-        setServoReporter();
+        props.setProperty(ProducerConfig.METRIC_REPORTER_CLASSES_CONFIG, ServoReporter.class.getName());
 
         this.metadataFetchedTopicSet = new CopyOnWriteArraySet<String>();
         this.metadataWaitingQueue = new ArrayBlockingQueue<MessageContainer>(this.metadataWaitingQueueSize);
@@ -177,23 +177,6 @@ public class KafkaSink implements Sink {
             routingKey = routingKey.toLowerCase();
         }
         return routingKey;
-    }
-
-    /**
-     * we shouldn't need this hack after moving to 0.8.2.0
-     */
-    private void setServoReporter() {
-        props.put("metric.reporters", Lists.newArrayList(ServoReporter.class.getName()));
-        // this should be needed because ProducerConfig cannot retrieve undefined key
-        try {
-            Field f = ProducerConfig.class.getDeclaredField("config");
-            f.setAccessible(true);
-            ConfigDef config = (ConfigDef) f.get(ConfigDef.class);
-            config.define(ServoReporter.class.getName(), ConfigDef.Type.CLASS, ServoReporter.class, ConfigDef.Importance.LOW, "");
-        } catch (Exception e) {
-            // swallow exception
-        }
-        props.put(ServoReporter.class.getName(), ServoReporter.class);
     }
 
     @Override
