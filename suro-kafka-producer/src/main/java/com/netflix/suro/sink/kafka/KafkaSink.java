@@ -26,6 +26,7 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.errors.RecordTooLargeException;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -249,7 +250,11 @@ public class KafkaSink implements Sink {
                     public void onCompletion(RecordMetadata metadata, Exception e) {
                         if (e != null) {
                             log.debug("Failed to send: " + topic, e);
-                            dropMessage(topic, "sendError");
+                            String droppedReason = "sendError";
+                            if(e instanceof RecordTooLargeException) {
+                                droppedReason = "recordTooLarge";
+                            }
+                            dropMessage(topic, droppedReason);
                             runRecordCounterListener();
                         } else {
                             DynamicCounter.increment(
