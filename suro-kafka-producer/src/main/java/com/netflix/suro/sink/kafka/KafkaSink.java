@@ -167,6 +167,12 @@ public class KafkaSink implements Sink {
             if(instanceInfo.getStatus() == InstanceInfo.InstanceStatus.UP) {
                 hostPortList.add(String.format("%s:%d", instanceInfo.getHostName(), port));
             }
+            // with potential cluster size of over 500,
+            // it is unnecessary to list all hosts for bootstrap.servers.
+            // again, it is only for bootstrap purpose
+            if(hostPortList.size() >= 30) {
+                break;
+            }
         }
         return hostPortList;
     }
