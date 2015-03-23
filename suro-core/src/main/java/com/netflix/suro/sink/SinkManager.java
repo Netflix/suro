@@ -98,26 +98,33 @@ public class SinkManager {
         log.debug("set initial sinks: {}", newSinkMap.keySet());
     }
 
-    public void set(Map<String, Sink> newSinkMap) {
+    public void set(final Map<String, Sink> newSinkMap) {
         if(newSinkMap.isEmpty()) {
             log.warn("newSinkMap is empty");
         }
-        log.debug("setting sinks: {}", newSinkMap.keySet());
-        ImmutableMap<String, Sink> newMap = ImmutableMap.copyOf(newSinkMap);
-        // open sinks for newMap
-        for (Map.Entry<String, Sink> entry : newMap.entrySet()) {
-            openSink(entry.getKey(), entry.getValue());
-        }
-        log.warn("opened new sinks: {}", newMap.keySet());
-        // swap the reference
-        ImmutableMap<String, Sink> oldMap = sinkMap;
-        sinkMap = newMap;
-        log.warn("applied new sinks: {}", newSinkMap.keySet());
-        // close sink of oldMap
-        for (Map.Entry<String, Sink> entry : oldMap.entrySet()) {
-            closeSink(entry.getKey(), entry.getValue());
-        }
-        log.warn("closed old sinks: {}", oldMap.keySet());
+        Observable.just(newSinkMap)
+            .observeOn(Schedulers.io())
+            .subscribe(new Action1<Map<String, Sink>>() {
+                @Override
+                public void call(Map<String, Sink> stringSinkMap) {
+                    log.debug("setting sinks: {}", newSinkMap.keySet());
+                    ImmutableMap<String, Sink> newMap = ImmutableMap.copyOf(newSinkMap);
+                    // open sinks for newMap
+                    for (Map.Entry<String, Sink> entry : newMap.entrySet()) {
+                        openSink(entry.getKey(), entry.getValue());
+                    }
+                    log.warn("opened new sinks: {}", newMap.keySet());
+                    // swap the reference
+                    ImmutableMap<String, Sink> oldMap = sinkMap;
+                    sinkMap = newMap;
+                    log.warn("applied new sinks: {}", newSinkMap.keySet());
+                    // close sinks from oldMap
+                    for (Map.Entry<String, Sink> entry : oldMap.entrySet()) {
+                        closeSink(entry.getKey(), entry.getValue());
+                    }
+                    log.warn("closed old sinks: {}", oldMap.keySet());
+                }
+            });
     }
 
     public Sink getSink(String id) {
