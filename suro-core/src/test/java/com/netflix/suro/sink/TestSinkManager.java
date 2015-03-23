@@ -16,6 +16,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 public class TestSinkManager {
 
     private static class MockSink implements Sink {
+        private final CountDownLatch openLatch = new CountDownLatch(1);
+        private final CountDownLatch closeLatch = new CountDownLatch(1);
         private final AtomicInteger openAttempts = new AtomicInteger(0);
         private volatile boolean isOpened = false;
 
@@ -28,6 +30,7 @@ public class TestSinkManager {
         public void open() {
             if(openAttempts.incrementAndGet() >= 3) {
                 isOpened = true;
+                openLatch.countDown();
             } else {
                 throw new RuntimeException("cannot open sink");
             }
@@ -36,6 +39,7 @@ public class TestSinkManager {
         @Override
         public void close() {
             isOpened = false;
+            closeLatch.countDown();
         }
 
         @Override
@@ -73,7 +77,7 @@ public class TestSinkManager {
         Assert.assertEquals(1, sink1.openAttempts.get());
         assertThat(sinkManager.getSink("sink1"), Matchers.<Sink>sameInstance(sink1));
 
-        Thread.sleep(1000 * 5);
+        Assert.assertTrue(sink1.openLatch.await(5, TimeUnit.SECONDS));
 
         Assert.assertTrue(sink1.isOpened());
         Assert.assertEquals(3, sink1.openAttempts.get());
@@ -82,6 +86,7 @@ public class TestSinkManager {
         MockSink sink2 = new MockSink();
         sinkManager.set(ImmutableMap.<String, Sink>of("sink2", sink2));
 
+        Assert.assertTrue(sink1.closeLatch.await(1, TimeUnit.SECONDS));
         Assert.assertFalse(sink1.isOpened());
         Assert.assertEquals(3, sink1.openAttempts.get());
         Assert.assertNull(sinkManager.getSink("sink1"));
@@ -90,7 +95,7 @@ public class TestSinkManager {
         Assert.assertEquals(1, sink2.openAttempts.get());
         assertThat(sinkManager.getSink("sink2"), Matchers.<Sink>sameInstance(sink2));
 
-        Thread.sleep(1000 * 5);
+        Assert.assertTrue(sink2.openLatch.await(5, TimeUnit.SECONDS));
 
         Assert.assertTrue(sink2.isOpened());
         Assert.assertEquals(3, sink2.openAttempts.get());
