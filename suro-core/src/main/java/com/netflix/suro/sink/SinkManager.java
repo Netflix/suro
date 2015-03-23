@@ -98,6 +98,9 @@ public class SinkManager {
         log.debug("set initial sinks: {}", newSinkMap.keySet());
     }
 
+    /**
+     * actual work is done asynchronously in background thread
+     */
     public void set(final Map<String, Sink> newSinkMap) {
         if(newSinkMap.isEmpty()) {
             log.warn("newSinkMap is empty");
