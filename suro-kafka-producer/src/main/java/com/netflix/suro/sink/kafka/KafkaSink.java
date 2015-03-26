@@ -164,7 +164,7 @@ public class KafkaSink implements Sink {
     private void sendMessage(final MessageContainer message) {
         DynamicCounter.increment(
             MonitorConfig
-                .builder("queuedRecord")
+                .builder("queuedRecordInSendMessage")
                 .withTag(TagKey.ROUTING_KEY, message.getRoutingKey())
                 .build());
 
