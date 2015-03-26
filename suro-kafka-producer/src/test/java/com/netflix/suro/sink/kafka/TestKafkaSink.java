@@ -149,7 +149,7 @@ public class TestKafkaSink {
         System.out.println(sink.getStat());
         assertEquals(sink.getNumOfPendingMessages(), 0);
 
-        checkConsumer(TOPIC_NAME_MULTITHREAD, msgCount);
+        checkConsumer(TOPIC_NAME_MULTITHREAD, msgCount - (int) sink.droppedRecords.get());
     }
 
     @Test
@@ -459,7 +459,7 @@ public class TestKafkaSink {
 
             @Override
             public void call(Long queued, Long sent, Long dropped) {
-                if (sent == msgCount) {
+                if (sent == msgCount - sink.droppedRecords.get()) {
                     latch.countDown();
                 }
             }
@@ -473,7 +473,7 @@ public class TestKafkaSink {
         sendMessages(topicName, sink, msgCount);
         sink.close();
 
-        checkConsumer(topicName, 2 * msgCount);
+        checkConsumer(topicName, 2 * msgCount - (int) sink.droppedRecords.get());
     }
 
     @Test
@@ -509,7 +509,7 @@ public class TestKafkaSink {
         sink.setRecordCounterListener(new Action3<Long, Long, Long>() {
             @Override
             public void call(Long queued, Long sent, Long dropped) {
-                if (sent == msgCount) {
+                if (sent == msgCount - sink.droppedRecords.get()) {
                     latch.countDown();
                 }
             }
@@ -517,7 +517,8 @@ public class TestKafkaSink {
 
         sendMessages(topicName1, sink, msgCount);
         assertTrue(latch.await(10, TimeUnit.SECONDS));
-        checkConsumer(topicName1, msgCount);
+        final int numSentForTopicName1 = msgCount - (int) sink.droppedRecords.get();
+        checkConsumer(topicName1, numSentForTopicName1);
 
         kafkaServer.shutdown();
 
@@ -531,7 +532,7 @@ public class TestKafkaSink {
             @Override
             public void call(Long queued, Long sent, Long dropped) {
                 if (sent + dropped == 3 * msgCount) {
-                    numSent.set((int) (2 * msgCount - dropped));
+                    numSent.set((int) (sent - numSentForTopicName1));
                     latch2.countDown();
                 }
             }
