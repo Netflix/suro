@@ -162,24 +162,36 @@ public class KafkaSink implements Sink {
     }
 
     private void sendMessage(final MessageContainer message) {
-        List<PartitionInfo> partitionInfos = producer.partitionsFor(message.getRoutingKey());
-        int partition = retentionPartitioner.getKey(message.getRoutingKey(), partitionInfos);
-
-        if (!keyTopicMap.isEmpty()) {
-            try {
-                Map<String, Object> msgMap = message.getEntity(new TypeReference<Map<String, Object>>() {
-                });
-                Object keyField = msgMap.get(keyTopicMap.get(message.getRoutingKey()));
-                if (keyField != null) {
-                    long hashCode = keyField.hashCode();
-                    partition = Math.abs((int) (hashCode ^ (hashCode >>> 32))) % partitionInfos.size();
-                }
-            } catch (Exception e) {
-                log.error("Exception on getting key field: " + e.getMessage());
-            }
-        }
+        DynamicCounter.increment(
+            MonitorConfig
+                .builder("queuedRecord")
+                .withTag(TagKey.ROUTING_KEY, message.getRoutingKey())
+                .build());
 
         try {
+            List<PartitionInfo> partitionInfos = producer.partitionsFor(message.getRoutingKey());
+            int partition = retentionPartitioner.getKey(message.getRoutingKey(), partitionInfos);
+
+            if (!keyTopicMap.isEmpty()) {
+                try {
+                    Map<String, Object> msgMap = message.getEntity(new TypeReference<Map<String, Object>>() {
+                    });
+                    Object keyField = msgMap.get(keyTopicMap.get(message.getRoutingKey()));
+                    if (keyField != null) {
+                        long hashCode = keyField.hashCode();
+                        partition = Math.abs((int) (hashCode ^ (hashCode >>> 32))) % partitionInfos.size();
+                    }
+                } catch (Exception e) {
+                    log.error("Exception on getting key field: " + e.getMessage());
+                }
+            }
+
+            DynamicCounter.increment(
+                MonitorConfig
+                    .builder("beforeSendRecord")
+                    .withTag(TagKey.ROUTING_KEY, message.getRoutingKey())
+                    .build());
+
             producer.send(
                 new ProducerRecord(message.getRoutingKey(), partition, null, message.getMessage().getPayload()),
                 new Callback() {
@@ -205,7 +217,8 @@ public class KafkaSink implements Sink {
                         }
                     }
                 });
-        } catch (Exception e) {
+        }
+         catch (Throwable e) {
             log.error("Exception before sending", e);
             dropMessage(message);
         }
