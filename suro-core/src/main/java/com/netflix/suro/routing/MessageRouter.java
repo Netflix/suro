@@ -64,6 +64,12 @@ public class MessageRouter {
             return; // discard message
         }
 
+        DynamicCounter.increment(
+            MonitorConfig
+                .builder(TagKey.RECV_COUNT)
+                .withTag("routingKey", msg.getRoutingKey())
+                .build());
+
         RoutingMap.RoutingInfo info = routingMap.getRoutingInfo(msg.getRoutingKey());
 
         if (info == null) {
@@ -83,6 +89,13 @@ public class MessageRouter {
                     } else {
                         sink.writeTo(msg);
                     }
+
+                    DynamicCounter.increment(
+                        MonitorConfig
+                            .builder(TagKey.PROCESSED_COUNT)
+                            .withTag("routingKey", msg.getRoutingKey())
+                            .withTag("sinkId", route.getSink())
+                            .build());
                 }
             }
         }

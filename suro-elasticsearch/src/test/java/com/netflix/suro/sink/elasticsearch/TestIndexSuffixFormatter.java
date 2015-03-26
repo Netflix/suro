@@ -36,4 +36,19 @@ public class TestIndexSuffixFormatter {
     public void shouldThrowExceptionOnUnsupportedType() {
         IndexSuffixFormatter formatter = new IndexSuffixFormatter("invalid", null);
     }
+
+    @Test
+    public void testWeeklyRepresentation() {
+        System.setProperty("user.timezone", "GMT");
+
+        Properties props = new Properties();
+        props.put("dateFormat", "YYYYMM_ww");
+
+        DateTime dt = new DateTime("2014-10-12T00:00:00.000Z");
+        IndexSuffixFormatter formatter = new IndexSuffixFormatter("date", props);
+        IndexInfo info = mock(IndexInfo.class);
+        doReturn(dt.getMillis()).when(info).getTimestamp();
+
+        assertEquals(formatter.format(info), "201410_41");
+    }
 }
