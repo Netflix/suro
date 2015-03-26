@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -12,6 +13,7 @@ import com.netflix.servo.monitor.DynamicCounter;
 import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.MessageContainer;
+import com.netflix.suro.message.StringMessage;
 import com.netflix.suro.sink.Sink;
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.common.Metric;
@@ -21,12 +23,7 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rx.Subscription;
-import rx.functions.Action1;
 import rx.functions.Action3;
-import rx.functions.Func1;
-import rx.schedulers.Schedulers;
-import rx.subjects.PublishSubject;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -52,7 +49,12 @@ public class KafkaSink implements Sink {
 
     private KafkaProducer<byte[], byte[]> producer;
     private final KafkaRetentionPartitioner retentionPartitioner;
-    private final MetadataWaitingQueuePolicy metadataWaitingQueuePolicy;
+    private final Set<String> metadataFetchedTopicSet;
+    private final BlockingQueue<MessageContainer> metadataWaitingQueue;
+    private final ExecutorService executor;
+
+    private final static MessageContainer SHUTDOWN_POISON_MSG = new StringMessage("suro-KafkaSink-shutdownMsg-routingKey",
+        "suro-KafkaSink-shutdownMsg-body");
 
     @JsonCreator
     public KafkaSink(
@@ -105,9 +107,11 @@ public class KafkaSink implements Sink {
         this.keyTopicMap = keyTopicMap != null ? keyTopicMap : Maps.<String, String>newHashMap();
 
         this.retentionPartitioner = retentionPartitioner;
-        this.metadataWaitingQueuePolicy = new MetadataWaitingQueuePolicy(
-            metadataWaitingQueueSize == 0 ? 10000 : metadataWaitingQueueSize,
-            blockOnBufferFull);
+
+        this.metadataFetchedTopicSet = new CopyOnWriteArraySet<>();
+        this.metadataWaitingQueue = new ArrayBlockingQueue<>(metadataWaitingQueueSize > 0 ? metadataWaitingQueueSize : 1024);
+        this.executor = Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder().setDaemon(false).setNameFormat("KafkaSink-MetadataFetcher-%d").build());
     }
 
     private void setServoReporter() {
@@ -126,17 +130,12 @@ public class KafkaSink implements Sink {
 
     private AtomicLong queuedRecords = new AtomicLong(0);
     private AtomicLong sentRecords = new AtomicLong(0);
-    private AtomicLong droppedRecords = new AtomicLong(0);
+    @VisibleForTesting
+    protected AtomicLong droppedRecords = new AtomicLong(0);
     private volatile Action3 recordCounterListener;
     public void setRecordCounterListener(Action3 action) {
         this.recordCounterListener = action;
     }
-
-    private Set<String> metadataFetchedTopicSet = new CopyOnWriteArraySet<String>();
-    private PublishSubject<MessageContainer> stream = PublishSubject.create();
-    private Subscription subscription;
-    private ExecutorService executor = Executors.newSingleThreadExecutor(
-        new ThreadFactoryBuilder().setDaemon(false).setNameFormat("kafka-metadata-fetcher-%d").build());
 
     @Override
     public void writeTo(final MessageContainer message) {
@@ -151,7 +150,9 @@ public class KafkaSink implements Sink {
         if (metadataFetchedTopicSet.contains(message.getRoutingKey())) {
             sendMessage(message);
         } else {
-            stream.onNext(message);
+            if(!metadataWaitingQueue.offer(message)) {
+                dropMessage(message.getRoutingKey(), "metadataWaitingQueueFull");
+            }
         }
     }
 
@@ -162,12 +163,6 @@ public class KafkaSink implements Sink {
     }
 
     private void sendMessage(final MessageContainer message) {
-        DynamicCounter.increment(
-            MonitorConfig
-                .builder("queuedRecordInSendMessage")
-                .withTag(TagKey.ROUTING_KEY, message.getRoutingKey())
-                .build());
-
         try {
             List<PartitionInfo> partitionInfos = producer.partitionsFor(message.getRoutingKey());
             int partition = retentionPartitioner.getKey(message.getRoutingKey(), partitionInfos);
@@ -185,12 +180,6 @@ public class KafkaSink implements Sink {
                     log.error("Exception on getting key field: " + e.getMessage());
                 }
             }
-
-            DynamicCounter.increment(
-                MonitorConfig
-                    .builder("beforeSendRecord")
-                    .withTag(TagKey.ROUTING_KEY, message.getRoutingKey())
-                    .build());
 
             producer.send(
                 new ProducerRecord(message.getRoutingKey(), partition, null, message.getMessage().getPayload()),
@@ -220,72 +209,66 @@ public class KafkaSink implements Sink {
         }
          catch (Throwable e) {
             log.error("Exception before sending", e);
-            dropMessage(message);
+            dropMessage(message.getRoutingKey(), e.getClass().getName());
         }
-    }
-
-    private void dropMessage(MessageContainer message) {
-        DynamicCounter.increment(
-            MonitorConfig
-                .builder("droppedRecord")
-                .withTag(TagKey.ROUTING_KEY, message.getRoutingKey())
-                .build());
-        droppedRecords.incrementAndGet();
-        runRecordCounterListener();
     }
 
     @Override
     public void open() {
         producer = new KafkaProducer<>(props, new ByteArraySerializer(), new ByteArraySerializer());
-        subscription = stream
-                .filter(new Func1<MessageContainer, Boolean>() {
-                    @Override
-                    public Boolean call(MessageContainer message) {
-                        if (!metadataWaitingQueuePolicy.acquire()) {
-                            dropMessage(message);
-                            return false;
-                        } else {
-                            return true;
+
+        executor.submit(new Runnable() {
+            @Override
+            public void run() {
+                while(true) {
+                    final MessageContainer message;
+                    try {
+                        message = metadataWaitingQueue.poll(1, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        continue;
+                    }
+                    if(message == null) {
+                        continue;
+                    }
+                    // check poison msg for shutdown
+                    if(message == SHUTDOWN_POISON_MSG) {
+                        break;
+                    }
+                    try {
+                        if (!metadataFetchedTopicSet.contains(message.getRoutingKey())) {
+                            producer.partitionsFor(message.getRoutingKey());
+                            metadataFetchedTopicSet.add(message.getRoutingKey());
+                        }
+                        sendMessage(message);
+                    } catch(Throwable t) {
+                        log.error("failed to get metadata: " + message.getRoutingKey(), t);
+                        // try to put back to the queue if there is still space
+                        if(!metadataWaitingQueue.offer(message)) {
+                            dropMessage(message.getRoutingKey(), "metadataWaitingQueueFull");
                         }
                     }
-                })
-                .observeOn(Schedulers.from(executor))
-                .subscribe(
-                        new Action1<MessageContainer>() {
-                            @Override
-                            public void call(final MessageContainer message) {
-                                try {
-                                    if (!metadataFetchedTopicSet.contains(message.getRoutingKey())) {
-                                        producer.partitionsFor(message.getRoutingKey());
-                                        metadataFetchedTopicSet.add(message.getRoutingKey());
-                                    }
-                                    sendMessage(message);
-                                } catch (Exception e) {
-                                    log.error("Exception on waiting for metadata", e);
-                                    stream.onNext(message); // try again
-                                } finally {
-                                    metadataWaitingQueuePolicy.release();
-                                }
-                            }
-                        },
-                        new Action1<Throwable>() {
-                            @Override
-                            public void call(Throwable throwable) {
-                                log.error("Exception on stream", throwable);
-                            }
-                        }
-                );
+                }
+            }
+        });
+
     }
 
     @Override
     public void close() {
         try {
+            // try to insert a poison msg for shutdown
+            // ignore success or failure
+            metadataWaitingQueue.offer(SHUTDOWN_POISON_MSG);
+            executor.shutdown();
             executor.awaitTermination(10, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             // ignore
         }
-        subscription.unsubscribe();
-        producer.close();
+        try {
+            producer.close();
+        } catch(Exception e) {
+            log.error("failed to close kafka producer", e);
+        }
     }
 
     @Override
@@ -349,31 +332,14 @@ public class KafkaSink implements Sink {
         }
     }
 
-    private static class MetadataWaitingQueuePolicy {
-        private final Semaphore semaphore;
-        private final boolean blockingOnBufferFull;
-
-        public MetadataWaitingQueuePolicy(int capacity, boolean blockOnBufferFull) {
-            semaphore = new Semaphore(capacity);
-            this.blockingOnBufferFull = blockOnBufferFull;
-        }
-
-        public boolean acquire() {
-            if (blockingOnBufferFull) {
-                try {
-                    semaphore.acquire();
-                    return true;
-                } catch (InterruptedException e) {
-                    // ignore
-                    return true;
-                }
-            } else {
-                return semaphore.tryAcquire();
-            }
-        }
-        public void release() {
-            semaphore.release();
-        }
-
+    private void dropMessage(final String routingKey, final String reason) {
+        DynamicCounter.increment(
+            MonitorConfig
+                .builder("droppedRecord")
+                .withTag(TagKey.ROUTING_KEY, routingKey)
+                .withTag(TagKey.DROPPED_REASON, reason)
+                .build());
+        droppedRecords.incrementAndGet();
+        runRecordCounterListener();
     }
 }
