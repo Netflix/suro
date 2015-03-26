@@ -141,6 +141,11 @@ public class KafkaSink implements Sink {
     @Override
     public void writeTo(final MessageContainer message) {
         queuedRecords.incrementAndGet();
+        DynamicCounter.increment(
+            MonitorConfig
+                .builder("queuedRecord")
+                .withTag(TagKey.ROUTING_KEY, message.getRoutingKey())
+                .build());
         runRecordCounterListener();
 
         if (metadataFetchedTopicSet.contains(message.getRoutingKey())) {

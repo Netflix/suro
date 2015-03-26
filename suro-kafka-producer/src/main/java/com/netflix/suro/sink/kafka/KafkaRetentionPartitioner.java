@@ -32,7 +32,7 @@ public class KafkaRetentionPartitioner {
 
         this.prng = new Random();
         // seed with a random integer
-        this.indexCache = new ConcurrentHashMap<String, Integer>();
+        this.indexCache = new ConcurrentHashMap<>();
         // increment index every interval
     }
 
