@@ -92,7 +92,7 @@ public class MessageRouter {
 
                     DynamicCounter.increment(
                         MonitorConfig
-                            .builder(TagKey.PROCESSED_COUNT)
+                            .builder(TagKey.ATTEMPTED_COUNT)
                             .withTag("routingKey", msg.getRoutingKey())
                             .withTag("sinkId", route.getSink())
                             .build());
