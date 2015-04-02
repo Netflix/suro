@@ -10,4 +10,8 @@ import com.netflix.suro.message.Message;
 })
 public interface IndexInfoBuilder {
     IndexInfo create(Message msg);
+    String getActionMetadata(IndexInfo info);
+    String getSource(IndexInfo info) throws Exception;
+    String getIndexUri(IndexInfo info);
+    String getCommand();
 }

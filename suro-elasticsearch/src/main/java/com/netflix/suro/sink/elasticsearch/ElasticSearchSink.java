@@ -2,7 +2,6 @@ package com.netflix.suro.sink.elasticsearch;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -206,18 +205,10 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             try {
 
                 StringBuilder sb = new StringBuilder();
-                if (info.getId() != null) {
-                    sb.append(String.format(
-                        "{ \"create\" : { \"_index\" : \"%s\", \"_type\" : \"%s\", \"_id\" : \"%s\" } }",
-                        info.getIndex(), info.getType(), info.getId()));
-                } else {
-                    sb.append(String.format(
-                        "{ \"create\" : { \"_index\" : \"%s\", \"_type\" : \"%s\"} }",
-                        info.getIndex(), info.getType()));
-                }
+                sb.append(indexInfo.getActionMetadata(info));
                 sb.append('\n');
 
-                sb.append(getSource(info));
+                sb.append(indexInfo.getSource(info));
                 sb.append('\n');
 
                 return sb.toString();
@@ -232,13 +223,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         }
     }
 
-    private String getSource(IndexInfo info) throws JsonProcessingException {
-        if (info.getSource() instanceof Map) {
-            return jsonMapper.writeValueAsString(info.getSource());
-        } else {
-            return info.getSource().toString();
-        }
-    }
+
 
     @Override
     protected void write(List<Message> msgList) throws IOException {
@@ -282,7 +267,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                         List items = (List) result.get("items");
                         for (int i = 0; i < items.size(); ++i) {
                             String routingKey = request.second().get(i).getRoutingKey();
-                            Map<String, Object> resPerMessage = (Map) ((Map) (items.get(i))).get("create");
+                            Map<String, Object> resPerMessage = (Map) ((Map) (items.get(i))).get(indexInfo.getCommand());
                             if (isFailed(resPerMessage) && !getErrorMessage(resPerMessage).contains("DocumentAlreadyExistsException")) {
                                 log.error("Failed with: " + resPerMessage.get("error"));
                                 Servo.getCounter(
@@ -335,24 +320,8 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         return (int)resPerMessage.get("status") / 100 != 2;
     }
 
-    @VisibleForTesting
-    protected void recover(Message message) throws Exception {
+    public void recover(Message message) throws Exception {
         IndexInfo info = indexInfo.create(message);
-
-        String uri = info.getId() != null ?
-            String.format(
-                "/%s/%s/%s",
-                info.getIndex(),
-                info.getType(),
-                info.getId()) :
-            String.format(
-                "/%s/%s/",
-                info.getIndex(),
-                info.getType());
-
-        String entity = info.getSource() instanceof Map ?
-            jsonMapper.writeValueAsString(info.getSource()) :
-            info.getSource().toString();
 
         HttpResponse response = null;
         try {
@@ -360,8 +329,8 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                 HttpRequest.newBuilder()
                     .verb(HttpRequest.Verb.POST)
                     .setRetriable(true)
-                    .uri(uri)
-                    .entity(entity)
+                    .uri(indexInfo.getIndexUri(info))
+                    .entity(indexInfo.getSource(info))
                     .build());
             if (response.getStatus() / 100 != 2) {
                 Servo.getCounter(

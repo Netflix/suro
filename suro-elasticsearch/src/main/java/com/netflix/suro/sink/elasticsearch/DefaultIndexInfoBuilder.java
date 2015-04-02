@@ -3,8 +3,10 @@ package com.netflix.suro.sink.elasticsearch;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.netflix.suro.message.Message;
 import com.netflix.suro.sink.DataConverter;
@@ -127,5 +129,46 @@ public class DefaultIndexInfoBuilder implements IndexInfoBuilder {
             log.error("Exception on parsing message", e);
             return null;
         }
+    }
+
+    @Override
+    public String getActionMetadata(IndexInfo info) {
+        if (!Strings.isNullOrEmpty(info.getId())) {
+            return String.format(
+                "{ \"create\" : { \"_index\" : \"%s\", \"_type\" : \"%s\", \"_id\" : \"%s\" } }",
+                info.getIndex(), info.getType(), info.getId());
+        } else {
+            return String.format(
+                "{ \"create\" : { \"_index\" : \"%s\", \"_type\" : \"%s\"} }",
+                info.getIndex(), info.getType());
+        }
+    }
+
+    @Override
+    public String getSource(IndexInfo info) throws JsonProcessingException {
+        if (info.getSource() instanceof Map) {
+            return jsonMapper.writeValueAsString(info.getSource());
+        } else {
+            return info.getSource().toString();
+        }
+    }
+
+    @Override
+    public String getIndexUri(IndexInfo info) {
+        return info.getId() != null ?
+            String.format(
+                "/%s/%s/%s",
+                info.getIndex(),
+                info.getType(),
+                info.getId()) :
+            String.format(
+                "/%s/%s/",
+                info.getIndex(),
+                info.getType());
+    }
+
+    @Override
+    public String getCommand() {
+        return "create";
     }
 }
