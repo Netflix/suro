@@ -33,6 +33,7 @@ import java.io.IOException;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
+        @JsonSubTypes.Type(name = AvroFileWriter.TYPE, value = AvroFileWriter.class),
         @JsonSubTypes.Type(name = SequenceFileWriter.TYPE, value = SequenceFileWriter.class),
         @JsonSubTypes.Type(name = TextFileWriter.TYPE, value = TextFileWriter.class)
 })

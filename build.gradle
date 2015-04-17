@@ -197,6 +197,7 @@ project(':suro-localfile') {
         compile (
           [group: 'org.apache.hadoop', name: 'hadoop-core', version: '0.20.205.0', transitive: false]
         )
+        compile 'org.apache.avro:avro-mapred:1.7.7'
 
         testCompile project(':suro-client').sourceSets.test.output
     }
