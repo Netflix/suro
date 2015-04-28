@@ -1,27 +1,24 @@
 package com.netflix.suro.sink.kafka;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.netflix.servo.DefaultMonitorRegistry;
 import com.netflix.servo.monitor.DoubleGauge;
 import com.netflix.servo.monitor.MonitorConfig;
 import com.netflix.suro.servo.Servo;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.apache.kafka.common.metrics.MetricsReporter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import rx.Observable;
+import rx.Subscription;
+import rx.functions.Action1;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class ServoReporter implements MetricsReporter {
-    private static final Logger log = LoggerFactory.getLogger(ServoReporter.class);
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setDaemon(false).setNameFormat("ServoReporter-%d").build());
+    private volatile Subscription subscription;
     private ConcurrentMap<DoubleGauge, KafkaMetric> gauges = new ConcurrentHashMap<DoubleGauge, KafkaMetric>();
 
     @Override
@@ -29,6 +26,17 @@ public class ServoReporter implements MetricsReporter {
         for (KafkaMetric metric : metrics) {
             addMetric(metric);
         }
+        // since actual work is just iterating an in-memory map,
+        // it should be ok to use the default computation Scheduler
+        subscription = Observable.interval(1, TimeUnit.MINUTES)
+                .subscribe(new Action1<Long>() {
+                    @Override
+                    public void call(Long aLong) {
+                        for (Map.Entry<DoubleGauge, KafkaMetric> e : gauges.entrySet()) {
+                            e.getKey().set(e.getValue().value());
+                        }
+                    }
+                });
     }
 
     private void addMetric(KafkaMetric metric) {
@@ -39,7 +47,11 @@ public class ServoReporter implements MetricsReporter {
             builder.withTag(tag.getKey(), tag.getValue());
         }
         MonitorConfig monitorConfig = builder.build();
-        gauges.put(Servo.getDoubleGauge(monitorConfig), metric);
+        DoubleGauge gauge = new DoubleGauge(monitorConfig);
+        KafkaMetric prev = gauges.putIfAbsent(gauge, metric);
+        if(prev == null) {
+            DefaultMonitorRegistry.getInstance().register(gauge);
+        }
     }
 
     @Override
@@ -49,20 +61,14 @@ public class ServoReporter implements MetricsReporter {
 
     @Override
     public void close() {
-        scheduler.shutdownNow();
+        if(subscription != null) {
+            subscription.unsubscribe();
+        }
+        gauges.clear();
     }
 
     @Override
     public void configure(Map<String, ?> configs) {
-        long millis = TimeUnit.MINUTES.toMillis(1);
-        scheduler.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                for (Map.Entry<DoubleGauge, KafkaMetric> e : gauges.entrySet()) {
-                    e.getKey().set(e.getValue().value());
-                }
-            }
-        }, millis, millis, TimeUnit.MILLISECONDS);
 
     }
 }
