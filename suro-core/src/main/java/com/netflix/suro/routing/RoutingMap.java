@@ -126,8 +126,13 @@ public class RoutingMap {
     public void set(Map<String, RoutingInfo> routes) {
         ImmutableMap.Builder<String, RoutingInfo> builder = ImmutableMap.builder();
         for(Map.Entry<String, RoutingInfo> entry : routes.entrySet()) {
-            // normalize routingKey to lower case
-            builder.put(entry.getKey().toLowerCase(), entry.getValue());
+            // routingKey may be a comma-separated list
+            String[] keys = entry.getKey().split(",");
+            for (String routingKey : keys) {
+                // normalize routingKey to lower case
+                // and stip away any white-space chars.
+                builder.put(routingKey.toLowerCase().trim(), entry.getValue());
+            }
         }
         // We assume only a single thread will call this method, so
         // there's no need to synchronize this method
