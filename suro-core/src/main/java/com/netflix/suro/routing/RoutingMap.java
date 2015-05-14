@@ -130,7 +130,7 @@ public class RoutingMap {
             String[] keys = entry.getKey().split(",");
             for (String routingKey : keys) {
                 // normalize routingKey to lower case
-                // and stip away any white-space chars.
+                // and strip away any white-space chars.
                 builder.put(routingKey.toLowerCase().trim(), entry.getValue());
             }
         }
