@@ -10,6 +10,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -89,6 +90,46 @@ public class TestQueuedSink {
 
         assertEquals(sink.droppedMessagesCount.get(), msgCount);
     }
+
+    @Test
+    public void synchronizedQueue() throws InterruptedException {
+        final int queueCapacity = 0;
+        final MemoryQueue4Sink queue = new MemoryQueue4Sink(queueCapacity);
+        final AtomicInteger sentCount = new AtomicInteger();
+
+        QueuedSink sink = new QueuedSink() {
+            @Override
+            protected void beforePolling() throws IOException {
+            }
+
+            @Override
+            protected void write(List<Message> msgList) throws IOException {
+                sentCount.addAndGet(msgList.size());
+            }
+
+            @Override
+            protected void innerClose() throws IOException {
+            }
+        };
+        sink.initialize(queue, 100, 1000);
+        sink.start();
+
+        int msgCount = 1000;
+        int offered = 0;
+        for (int i = 0; i < msgCount; ++i) {
+            if (queue.offer(new Message("routingKey", ("message" + i).getBytes()))) {
+                offered++;
+            }
+        }
+        assertEquals(msgCount, offered);
+        for (int i = 0; i < 20; ++i) {
+            if (sentCount.get() < offered) {
+                Thread.sleep(500);
+            }
+        }
+        assertEquals(sentCount.get(), offered);
+    }
+
 
     @Test
     public void shouldNotPauseOnShortQueue() {
