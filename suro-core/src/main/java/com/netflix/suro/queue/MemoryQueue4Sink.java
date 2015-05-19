@@ -49,8 +49,9 @@ public class MemoryQueue4Sink implements MessageQueue4Sink {
                 return false;
             }
             return true;
+        } else {
+            return queue.offer(msg);
         }
-        return queue.offer(msg);
     }
 
     @Override
