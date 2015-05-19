@@ -10,6 +10,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -94,7 +95,7 @@ public class TestQueuedSink {
     public void synchronizedQueue() throws InterruptedException {
         final int queueCapacity = 0;
         final MemoryQueue4Sink queue = new MemoryQueue4Sink(queueCapacity);
-        final List<Message> sentMessageList = new LinkedList<Message>();
+        final AtomicInteger sentCount = new AtomicInteger();
 
         QueuedSink sink = new QueuedSink() {
             @Override
@@ -103,7 +104,7 @@ public class TestQueuedSink {
 
             @Override
             protected void write(List<Message> msgList) throws IOException {
-                sentMessageList.addAll(msgList);
+                sentCount.addAndGet(msgList.size());
             }
 
             @Override
@@ -121,7 +122,12 @@ public class TestQueuedSink {
             }
         }
         assertEquals(msgCount, offered);
-        assertEquals(sentMessageList.size(), offered);
+        for (int i = 0; i < 20; ++i) {
+            if (sentCount.get() < offered) {
+                Thread.sleep(500);
+            }
+        }
+        assertEquals(sentCount.get(), offered);
     }
 
 
