@@ -402,4 +402,14 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     RestClient getClient() {
         return client;
     }
+
+    @VisibleForTesting
+    int getSleepOverClientException() {
+        return sleepOverClientException;
+    }
+
+    @VisibleForTesting
+    boolean getReenqueueOnException() {
+        return reEnqueueOnException;
+    }
 }

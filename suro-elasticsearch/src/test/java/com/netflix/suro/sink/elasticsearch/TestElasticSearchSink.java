@@ -182,6 +182,8 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
         IClientConfig config = ((BaseLoadBalancer) client.getLoadBalancer()).getClientConfig();
         assertTrue(config.get(CommonClientConfigKey.OkToRetryOnAllOperations));
         assertEquals(2, config.get(CommonClientConfigKey.MaxAutoRetriesNextServer).intValue());
+        assertEquals(0, esSink.getSleepOverClientException());
+        assertFalse(esSink.getReenqueueOnException());
     }
 
     @Test
