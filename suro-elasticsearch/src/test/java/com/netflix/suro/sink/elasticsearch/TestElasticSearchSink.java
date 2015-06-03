@@ -9,6 +9,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.netflix.client.config.CommonClientConfigKey;
+import com.netflix.client.config.IClientConfig;
+import com.netflix.loadbalancer.BaseLoadBalancer;
+import com.netflix.niws.client.http.RestClient;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.DefaultMessageContainer;
 import com.netflix.suro.message.Message;
@@ -64,6 +68,7 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
             null,
             0,0,0,0,1000,
             null,
+            false,
             jsonMapper,
             null
         );
@@ -106,6 +111,7 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
                 jsonMapper),
             0,0,0,0,0,
             null,
+            false,
             jsonMapper,
             null
         );
@@ -136,11 +142,12 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
     public void testCreate() throws IOException {
         String desc = "    {\n" +
             "        \"type\": \"elasticsearch\",\n" +
-            "        \"queue4Sink\":{\"type\": \"memory\", \"capacity\": 10000 },\n" +
+            "        \"queue4Sink\":{\"type\": \"memory\", \"capacity\": 0 },\n" +
             "        \"batchSize\": 100,\n" +
             "        \"batchTimeout\": 1000,\n" +
+            "        \"clientName\": \"es_test\",\n" +
             "        \"cluster.name\": \"es_test\",\n" +
-            "        \"addressList\": [\"http://host1:port1\", \"http://host2:port2\"],\n" +
+            "        \"addressList\": [\"http://host1:8080\", \"http://host2:8080\"],\n" +
             "        \"indexInfo\":{\n" +
             "            \"type\": \"default\",\n" +
             "            \"indexTypeMap\":{\"routingkey1\":\"index1:type1\", \"routingkey2\":\"index2:type2\"},\n" +
@@ -167,8 +174,14 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
             }
         });
 
-        Sink esSink = jsonMapper.readValue(desc, new TypeReference<Sink>(){});
-        assertTrue(esSink instanceof ElasticSearchSink);
+        Sink sink = jsonMapper.readValue(desc, new TypeReference<Sink>(){});
+        assertTrue(sink instanceof ElasticSearchSink);
+        ElasticSearchSink esSink = (ElasticSearchSink) sink;
+        esSink.createClient();
+        RestClient client = esSink.getClient();
+        IClientConfig config = ((BaseLoadBalancer) client.getLoadBalancer()).getClientConfig();
+        assertTrue(config.get(CommonClientConfigKey.OkToRetryOnAllOperations));
+        assertEquals(2, config.get(CommonClientConfigKey.MaxAutoRetriesNextServer).intValue());
     }
 
     @Test
@@ -184,6 +197,7 @@ public class TestElasticSearchSink extends ElasticsearchIntegrationTest {
             0,0,0,0,
             0,
             null,
+            false,
             jsonMapper,
             null
         );
