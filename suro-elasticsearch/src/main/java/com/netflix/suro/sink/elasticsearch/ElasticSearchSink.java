@@ -56,6 +56,12 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private final int sleepOverClientException;
     private final boolean reEnqueueOnException;
 
+    public static final class BatchProcessingException extends Exception {
+        public BatchProcessingException(String message) {
+            super(message);
+        }
+    }
+
     public ElasticSearchSink(
         @JsonProperty("clientName") String clientName,
         @JsonProperty("queue4Sink") MessageQueue4Sink queue4Sink,
@@ -273,67 +279,81 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
             public void run() {
                 Stopwatch stopwatch = timer.start();
                 HttpResponse response = null;
+                List items = null;
                 try {
                     response = client.executeWithLoadBalancer(request.first());
                     stopwatch.stop();
                     if (response.getStatus() / 100 == 2) {
                         Map<String, Object> result = jsonMapper.readValue(
-                            response.getInputStream(),
-                            new TypeReference<Map<String, Object>>() {
-                            });
+                                response.getInputStream(),
+                                new TypeReference<Map<String, Object>>() {
+                                });
                         log.debug("Response from ES: {}", result);
-                        List items = (List) result.get("items");
-                        for (int i = 0; i < items.size(); ++i) {
-                            String routingKey = request.second().get(i).getRoutingKey();
-                            Map<String, Object> resPerMessage = (Map) ((Map) (items.get(i))).get(indexInfo.getCommand());
-                            if (resPerMessage == null ||
-                                    (isFailed(resPerMessage) && !getErrorMessage(resPerMessage).contains("DocumentAlreadyExistsException"))) {
-                                if (resPerMessage != null) {
-                                    log.error("Failed indexing event " + routingKey + " with error message: " + resPerMessage.get("error"));
-                                } else {
-                                    log.error("Response for event " + routingKey + " is null. Request is " + request.second().get(i));
-                                }
-                                Servo.getCounter(
-                                    MonitorConfig.builder(REJECTED_ROW)
-                                        .withTag(SINK_ID, getSinkId())
-                                        .withTag(TagKey.ROUTING_KEY, routingKey)
-                                        .build()).increment();
-                                recover(request.second().get(i));
-                            } else {
-                                Servo.getCounter(
-                                    MonitorConfig.builder(INDEXED_ROW)
-                                        .withTag(SINK_ID, getSinkId())
-                                        .withTag(TagKey.ROUTING_KEY, routingKey)
-                                        .build()).increment();
-
-                            }
+                        items = (List) result.get("items");
+                        if (items == null || items.size() == 0) {
+                            throw new BatchProcessingException("No items in the response");
                         }
                         throughput.increment(items.size());
                     } else {
-                        throw new RuntimeException("status is not OK");
+                        throw new BatchProcessingException("Status is " + response.getStatus());
                     }
                 } catch (Exception e) {
+                    // Handling the exception on the batch request here
                     log.error("Exception on bulk execute: " + e.getMessage(), e);
                     Servo.getCounter("bulkException").increment();
                     if (reEnqueueOnException) {
                         for (Message m : request.second()) {
                             writeTo(new DefaultMessageContainer(m, jsonMapper));
                         }
+                        if (sleepOverClientException > 0) {
+                            // sleep on exception for not pushing too much stress
+                            try {
+                                Thread.sleep(sleepOverClientException);
+                            } catch (InterruptedException e1) {
+                                // do nothing
+                            }
+                        }
                     } else {
-                        Servo.getCounter(MonitorConfig.builder(ABANDONED_MESSAGES_ON_EXCEPTION)
-                                .withTag(SINK_ID, getSinkId()).build()).increment(request.second().size());
-                    }
-                    if (sleepOverClientException > 0) {
-                        // sleep on exception for not pushing too much stress
-                        try {
-                            Thread.sleep(sleepOverClientException);
-                        } catch (InterruptedException e1) {
-                            // do nothing
+                        for (Message message: request.second()) {
+                            recover(message);
                         }
                     }
                 } finally {
                     if (response != null) {
                         response.close();
+                    }
+                }
+                if (items != null) {
+                    for (int i = 0; i < items.size(); ++i) {
+                        String routingKey = request.second().get(i).getRoutingKey();
+                        Map<String, Object> resPerMessage = null;
+                        try {
+                            resPerMessage = (Map) ((Map) (items.get(i))).get(indexInfo.getCommand());
+                        } catch (Exception e) {
+                            // could be NPE or cast exception in case the response is unexpected
+                            log.error("Unexpected exception", e);
+                        }
+                        if (resPerMessage == null ||
+                                (isFailed(resPerMessage) && !getErrorMessage(resPerMessage).contains("DocumentAlreadyExistsException"))) {
+                            if (resPerMessage != null) {
+                                log.error("Failed indexing event " + routingKey + " with error message: " + resPerMessage.get("error"));
+                            } else {
+                                log.error("Response for event " + routingKey + " is null. Request is " + request.second().get(i));
+                            }
+                            Servo.getCounter(
+                                    MonitorConfig.builder(REJECTED_ROW)
+                                            .withTag(SINK_ID, getSinkId())
+                                            .withTag(TagKey.ROUTING_KEY, routingKey)
+                                            .build()).increment();
+                            recover(request.second().get(i));
+                        } else {
+                            Servo.getCounter(
+                                    MonitorConfig.builder(INDEXED_ROW)
+                                            .withTag(SINK_ID, getSinkId())
+                                            .withTag(TagKey.ROUTING_KEY, routingKey)
+                                            .build()).increment();
+
+                        }
                     }
                 }
             }
@@ -352,7 +372,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         }
     }
 
-    public void recover(Message message) throws Exception {
+    public void recover(Message message) {
         IndexInfo info = indexInfo.create(message);
 
         HttpResponse response = null;
