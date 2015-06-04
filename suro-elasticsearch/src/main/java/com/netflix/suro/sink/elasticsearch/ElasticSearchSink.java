@@ -8,6 +8,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.netflix.client.ClientFactory;
+import com.netflix.client.config.CommonClientConfigKey;
 import com.netflix.client.http.HttpRequest;
 import com.netflix.client.http.HttpResponse;
 import com.netflix.config.ConfigurationManager;
@@ -43,6 +44,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private static final String PARSING_FAILED = "parsingFailedRow";
     private static final String INDEX_DELAY = "indexDelay";
     private static final String SINK_ID = "sinkId";
+    private static final String ABANDONED_MESSAGES_ON_EXCEPTION = "abandonedMessagesOnException";
 
     private RestClient client;
     private final List<String> addressList;
@@ -52,6 +54,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     private final ObjectMapper jsonMapper;
     private final Timer timer;
     private final int sleepOverClientException;
+    private final boolean reEnqueueOnException;
 
     public ElasticSearchSink(
         @JsonProperty("clientName") String clientName,
@@ -66,6 +69,7 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         @JsonProperty("jobTimeout") long jobTimeout,
         @JsonProperty("sleepOverClientException") int sleepOverClientException,
         @JsonProperty("ribbon.etc") Properties ribbonEtc,
+        @JsonProperty("reEnqueueOnException") boolean reEnqueueOnException,
         @JacksonInject ObjectMapper jsonMapper,
         @JacksonInject RestClient client) {
         super(jobQueueSize, corePoolSize, maxPoolSize, jobTimeout, clientName);
@@ -86,7 +90,8 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         this.clientName = clientName;
         this.client = client;
         this.timer = Servo.getTimer(clientName + "_latency");
-        this.sleepOverClientException = sleepOverClientException == 0 ? 60000 : sleepOverClientException;
+        this.sleepOverClientException = sleepOverClientException;
+        this.reEnqueueOnException = reEnqueueOnException;
     }
 
     @Override
@@ -162,7 +167,8 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     @Override
     protected void beforePolling() throws IOException {}
 
-    private void createClient() {
+    @VisibleForTesting
+    void createClient() {
         if (ribbonEtc.containsKey("eureka")) {
             ribbonEtc.setProperty(
                 clientName + ".ribbon.AppName", clientName);
@@ -182,6 +188,16 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         ribbonEtc.setProperty(
             clientName + ".ribbon.EnablePrimeConnections",
             "true");
+        String retryPropertyName = clientName + ".ribbon." + CommonClientConfigKey.OkToRetryOnAllOperations;
+        if (ribbonEtc.getProperty(retryPropertyName) == null) {
+            // default set this to enable retry on POST operation upon read timeout
+            ribbonEtc.setProperty(retryPropertyName, "true");
+        }
+        String maxRetryProperty = clientName + ".ribbon." + CommonClientConfigKey.MaxAutoRetriesNextServer;
+        if (ribbonEtc.getProperty(maxRetryProperty) == null) {
+            // by default retry two different servers upon exception
+            ribbonEtc.setProperty(maxRetryProperty, "2");
+        }
         ConfigurationManager.loadProperties(ribbonEtc);
         client = (RestClient) ClientFactory.getNamedClient(clientName);
 
@@ -259,23 +275,29 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                 HttpResponse response = null;
                 try {
                     response = client.executeWithLoadBalancer(request.first());
+                    stopwatch.stop();
                     if (response.getStatus() / 100 == 2) {
                         Map<String, Object> result = jsonMapper.readValue(
                             response.getInputStream(),
                             new TypeReference<Map<String, Object>>() {
                             });
+                        log.debug("Response from ES: {}", result);
                         List items = (List) result.get("items");
                         for (int i = 0; i < items.size(); ++i) {
                             String routingKey = request.second().get(i).getRoutingKey();
                             Map<String, Object> resPerMessage = (Map) ((Map) (items.get(i))).get(indexInfo.getCommand());
-                            if (isFailed(resPerMessage) && !getErrorMessage(resPerMessage).contains("DocumentAlreadyExistsException")) {
-                                log.error("Failed with: " + resPerMessage.get("error"));
+                            if (resPerMessage == null ||
+                                    (isFailed(resPerMessage) && !getErrorMessage(resPerMessage).contains("DocumentAlreadyExistsException"))) {
+                                if (resPerMessage != null) {
+                                    log.error("Failed indexing event " + routingKey + " with error message: " + resPerMessage.get("error"));
+                                } else {
+                                    log.error("Response for event " + routingKey + " is null. Request is " + request.second().get(i));
+                                }
                                 Servo.getCounter(
                                     MonitorConfig.builder(REJECTED_ROW)
                                         .withTag(SINK_ID, getSinkId())
                                         .withTag(TagKey.ROUTING_KEY, routingKey)
                                         .build()).increment();
-
                                 recover(request.second().get(i));
                             } else {
                                 Servo.getCounter(
@@ -293,20 +315,26 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
                 } catch (Exception e) {
                     log.error("Exception on bulk execute: " + e.getMessage(), e);
                     Servo.getCounter("bulkException").increment();
-                    for (Message m : request.second()) {
-                        writeTo(new DefaultMessageContainer(m, jsonMapper));
+                    if (reEnqueueOnException) {
+                        for (Message m : request.second()) {
+                            writeTo(new DefaultMessageContainer(m, jsonMapper));
+                        }
+                    } else {
+                        Servo.getCounter(MonitorConfig.builder(ABANDONED_MESSAGES_ON_EXCEPTION)
+                                .withTag(SINK_ID, getSinkId()).build()).increment(request.second().size());
                     }
-                    // sleep on exception for not pushing too much stress
-                    try {
-                        Thread.sleep(sleepOverClientException);
-                    } catch (InterruptedException e1) {
-                        // do nothing
+                    if (sleepOverClientException > 0) {
+                        // sleep on exception for not pushing too much stress
+                        try {
+                            Thread.sleep(sleepOverClientException);
+                        } catch (InterruptedException e1) {
+                            // do nothing
+                        }
                     }
                 } finally {
                     if (response != null) {
                         response.close();
                     }
-                    stopwatch.stop();
                 }
             }
         };
@@ -317,7 +345,11 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
     }
 
     private boolean isFailed(Map<String, Object> resPerMessage) {
-        return (int)resPerMessage.get("status") / 100 != 2;
+        if (resPerMessage != null) {
+            return (int) resPerMessage.get("status") / 100 != 2;
+        } else {
+            return true;
+        }
     }
 
     public void recover(Message message) throws Exception {
@@ -342,7 +374,15 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         } catch (Exception e) {
             log.error("Exception while recover: " + e.getMessage(), e);
             Servo.getCounter("recoverException").increment();
-            writeTo(new DefaultMessageContainer(message, jsonMapper));
+            if (reEnqueueOnException) {
+                writeTo(new DefaultMessageContainer(message, jsonMapper));
+            } else {
+                Servo.getCounter(
+                        MonitorConfig.builder("unrecoverableRow")
+                                .withTag(SINK_ID, getSinkId())
+                                .withTag(TagKey.ROUTING_KEY, message.getRoutingKey())
+                                .build()).increment();
+            }
         } finally {
             if (response != null) {
                 response.close();
@@ -356,5 +396,20 @@ public class ElasticSearchSink extends ThreadPoolQueuedSink implements Sink {
         super.innerClose();
 
         client.shutdown();
+    }
+
+    @VisibleForTesting
+    RestClient getClient() {
+        return client;
+    }
+
+    @VisibleForTesting
+    int getSleepOverClientException() {
+        return sleepOverClientException;
+    }
+
+    @VisibleForTesting
+    boolean getReenqueueOnException() {
+        return reEnqueueOnException;
     }
 }
