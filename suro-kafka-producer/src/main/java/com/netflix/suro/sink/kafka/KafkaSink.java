@@ -195,9 +195,15 @@ public class KafkaSink implements Sink {
         }
         runRecordCounterListener();
 
-        if (metadataFetchedTopicSet.contains(getRoutingKey(message))) {
+        final String routingKey = getRoutingKey(message);
+        if (metadataFetchedTopicSet.contains(routingKey)) {
             sendMessage(message);
         } else {
+            DynamicCounter.increment(
+                    MonitorConfig
+                            .builder("metadataNotFetched")
+                            .withTag(TagKey.ROUTING_KEY, routingKey)
+                            .build());
             if(!metadataWaitingQueue.offer(message)) {
                 dropMessage(getRoutingKey(message), "metadataWaitingQueueFull");
             }
