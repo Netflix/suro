@@ -203,6 +203,7 @@ public class KafkaSink implements Sink {
                     MonitorConfig
                             .builder("metadataNotFetched")
                             .withTag(TagKey.ROUTING_KEY, routingKey)
+                            .withTag(TagKey.CLIENT_ID, clientId)
                             .build());
             if(!metadataWaitingQueue.offer(message)) {
                 dropMessage(getRoutingKey(message), "metadataWaitingQueueFull");
@@ -234,6 +235,7 @@ public class KafkaSink implements Sink {
                         MonitorConfig
                                 .builder("extractPartitionKeyError")
                                 .withTag(TagKey.ROUTING_KEY, topic)
+                                .withTag(TagKey.CLIENT_ID, clientId)
                                 .build());
                 // just increment a counter and continue the send just like without key
             }
@@ -254,6 +256,7 @@ public class KafkaSink implements Sink {
                     MonitorConfig
                             .builder("attemptRecord")
                             .withTag(TagKey.ROUTING_KEY, topic)
+                            .withTag(TagKey.CLIENT_ID, clientId)
                             .build());
             producer.send(
                 new ProducerRecord(topic, part, key, message.getMessage().getPayload()),
@@ -273,6 +276,7 @@ public class KafkaSink implements Sink {
                                     MonitorConfig
                                             .builder("sentRecord")
                                             .withTag(TagKey.ROUTING_KEY, topic)
+                                            .withTag(TagKey.CLIENT_ID, clientId)
                                             .build());
                             sentRecords.incrementAndGet();
                             runRecordCounterListener();
@@ -291,6 +295,7 @@ public class KafkaSink implements Sink {
                 .builder("droppedRecord")
                 .withTag(TagKey.ROUTING_KEY, routingKey)
                 .withTag(TagKey.DROPPED_REASON, reason)
+                .withTag(TagKey.CLIENT_ID, clientId)
                 .build());
         droppedRecords.incrementAndGet();
         runRecordCounterListener();
