@@ -19,6 +19,7 @@ package com.netflix.suro.connection;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import com.netflix.governator.guice.lazy.LazySingleton;
 import com.netflix.loadbalancer.ILoadBalancer;
@@ -79,8 +80,16 @@ public class ConnectionPool {
         this.config = config;
         this.lb = lb;
 
-        connectionSweeper = Executors.newScheduledThreadPool(1);
-        newConnectionBuilder = Executors.newFixedThreadPool(1);
+        connectionSweeper = Executors.newScheduledThreadPool(1,
+                new ThreadFactoryBuilder()
+                        .setNameFormat("SuroClientConnectionPoolSweeper-%d")
+                        .setDaemon(true)
+                        .build());
+        newConnectionBuilder = Executors.newFixedThreadPool(1,
+                new ThreadFactoryBuilder()
+                        .setNameFormat("SuroClientConnectionPoolNewConnBuilder-%d")
+                        .setDaemon(true)
+                        .build());
 
         Monitors.registerObject(this);
 

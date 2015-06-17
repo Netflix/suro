@@ -143,7 +143,7 @@ public class KafkaSink implements Sink {
         this.metadataFetchedTopicSet = new CopyOnWriteArraySet<String>();
         this.metadataWaitingQueue = new ArrayBlockingQueue<MessageContainer>(this.metadataWaitingQueueSize);
         this.executor = Executors.newSingleThreadExecutor(
-                new ThreadFactoryBuilder().setDaemon(false).setNameFormat("KafkaSink-MetadataFetcher-%d").build());
+                new ThreadFactoryBuilder().setDaemon(true).setNameFormat("KafkaSink-MetadataFetcher-%d").build());
     }
 
     private List<String> extractBootstrapServers(final String vipAddress, final DiscoveryClient discoveryClient) {

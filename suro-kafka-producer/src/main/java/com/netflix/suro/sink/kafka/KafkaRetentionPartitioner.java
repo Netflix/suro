@@ -16,7 +16,7 @@ public class KafkaRetentionPartitioner {
             "kafka.producer.partition.retention", 1000);
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setDaemon(false).setNameFormat("KafkaRetentionPartitioner-%d").build());
+            new ThreadFactoryBuilder().setDaemon(true).setNameFormat("KafkaRetentionPartitioner-%d").build());
     private final AtomicLong hash = new AtomicLong(new Random().nextInt((int) retention.get()));
 
     public KafkaRetentionPartitioner() {

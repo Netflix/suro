@@ -40,7 +40,7 @@ public abstract class ThreadPoolQueuedSink extends QueuedSink {
                 maxPoolSize == 0 ? 10 : maxPoolSize,
                 10, TimeUnit.SECONDS,
                 jobQueue,
-                new ThreadFactoryBuilder().setNameFormat(threadFactoryName + "-Sender-%d").build());
+                new ThreadFactoryBuilder().setNameFormat(threadFactoryName + "-Sender-%d").setDaemon(true).build());
         this.jobTimeout = jobTimeout;
     }
 
