@@ -88,7 +88,10 @@ public class AsyncSuroClient implements ISuroClient {
     }
 
     private ExecutorService poller = Executors.newSingleThreadExecutor(
-            new ThreadFactoryBuilder().setNameFormat("AsyncSuroClientPoller-%d").build());
+            new ThreadFactoryBuilder()
+                    .setNameFormat("AsyncSuroClientPoller-%d")
+                    .setDaemon(true)
+                    .build());
 
     public static final String asyncRateLimitConfig = "SuroClient.asyncRateLimit";
     private final DynamicIntProperty rateLimitMsgPerSec = new DynamicIntProperty(asyncRateLimitConfig, Integer.MAX_VALUE) {

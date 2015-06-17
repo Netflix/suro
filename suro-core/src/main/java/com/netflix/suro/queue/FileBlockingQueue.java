@@ -17,6 +17,7 @@
 package com.netflix.suro.queue;
 
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.leansoft.bigqueue.BigArrayImpl;
 import com.leansoft.bigqueue.IBigArray;
 import com.leansoft.bigqueue.page.IMappedPage;
@@ -33,6 +34,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
@@ -77,6 +79,8 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
     // factory for queue front index page management(acquire, release, cache)
     IMappedPageFactory queueFrontIndexPageFactory;
 
+    private final ScheduledExecutorService executorService;
+
     private final SerDe<E> serDe;
     private final long sizeLimit;
 
@@ -104,7 +108,13 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
         ByteBuffer queueFrontIndexBuffer = queueFrontIndexPage.getLocal(0);
         queueFrontIndex.set(queueFrontIndexBuffer.getLong());
 
-        Executors.newScheduledThreadPool(1).scheduleAtFixedRate(new Runnable() {
+        executorService = Executors.newScheduledThreadPool(1,
+                new ThreadFactoryBuilder()
+                        .setNameFormat("SuroFileBlockingQueueGC-%d")
+                        .setDaemon(true)
+                        .build());
+
+        executorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
                 try {
@@ -150,6 +160,7 @@ public class FileBlockingQueue<E> extends AbstractQueue<E> implements BlockingQu
     }
 
     public void close() {
+        executorService.shutdownNow();
         try {
             gc();
             if (queueFrontIndexPageFactory != null) {
