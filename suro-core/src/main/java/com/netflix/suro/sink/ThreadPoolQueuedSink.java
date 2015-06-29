@@ -24,7 +24,7 @@ public abstract class ThreadPoolQueuedSink extends QueuedSink {
             int maxPoolSize,
             long jobTimeout,
             String threadFactoryName) {
-        jobQueue = new ArrayBlockingQueue<Runnable>(jobQueueSize == 0 ? 1000 : jobQueueSize) {
+        jobQueue = new ArrayBlockingQueue<Runnable>(jobQueueSize == 0 ? 100 : jobQueueSize) {
             @Override
             public boolean offer(Runnable runnable) {
                 try {
