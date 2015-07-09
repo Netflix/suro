@@ -94,12 +94,16 @@ public class ConnectionPool {
         Monitors.registerObject(this);
 
         populationLatch = new CountDownLatch(Math.min(lb.getServerList(true).size(), config.getAsyncSenderThreads()));
-        Executors.newSingleThreadExecutor().submit(new Runnable() {
-            @Override
-            public void run() {
-                populateClients();
-            }
-        });
+        Executors.newSingleThreadExecutor(new ThreadFactoryBuilder()
+                .setNameFormat("SuroClientPopulate-%d")
+                .setDaemon(true)
+                .build())
+                .submit(new Runnable() {
+                    @Override
+                    public void run() {
+                        populateClients();
+                    }
+                });
         try {
             populationLatch.await(populationLatch.getCount() * config.getConnectionTimeout(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
