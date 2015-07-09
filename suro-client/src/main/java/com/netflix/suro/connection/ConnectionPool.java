@@ -65,10 +65,11 @@ public class ConnectionPool {
     private final ClientConfig config;
     private final ILoadBalancer lb;
 
-    private ScheduledExecutorService connectionSweeper;
-    private ExecutorService newConnectionBuilder;
-    private BlockingQueue<SuroConnection> connectionQueue = new LinkedBlockingQueue<SuroConnection>();
-    private CountDownLatch populationLatch;
+    private final ScheduledExecutorService connectionSweeper;
+    private final ExecutorService newConnectionBuilder;
+    private final ExecutorService populateExecutor;
+    private final BlockingQueue<SuroConnection> connectionQueue = new LinkedBlockingQueue<SuroConnection>();
+    private final CountDownLatch populationLatch;
 
     /**
      *
@@ -94,16 +95,16 @@ public class ConnectionPool {
         Monitors.registerObject(this);
 
         populationLatch = new CountDownLatch(Math.min(lb.getServerList(true).size(), config.getAsyncSenderThreads()));
-        Executors.newSingleThreadExecutor(new ThreadFactoryBuilder()
+        populateExecutor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder()
                 .setNameFormat("SuroClientPopulate-%d")
                 .setDaemon(true)
-                .build())
-                .submit(new Runnable() {
-                    @Override
-                    public void run() {
-                        populateClients();
-                    }
-                });
+                .build());
+        populateExecutor.submit(new Runnable() {
+            @Override
+            public void run() {
+                populateClients();
+            }
+        });
         try {
             populationLatch.await(populationLatch.getCount() * config.getConnectionTimeout(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
@@ -122,6 +123,7 @@ public class ConnectionPool {
             conn.disconnect();
         }
 
+        populateExecutor.shutdownNow();
         connectionSweeper.shutdownNow();
         newConnectionBuilder.shutdownNow();
     }
