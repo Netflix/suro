@@ -203,6 +203,7 @@ public class KafkaSink implements Sink {
                     MonitorConfig
                             .builder("metadataNotFetched")
                             .withTag(TagKey.ROUTING_KEY, routingKey)
+                            .withTag(TagKey.TOPIC, routingKey)
                             .withTag(TagKey.CLIENT_ID, clientId)
                             .build());
             if(!metadataWaitingQueue.offer(message)) {
@@ -235,6 +236,7 @@ public class KafkaSink implements Sink {
                         MonitorConfig
                                 .builder("extractPartitionKeyError")
                                 .withTag(TagKey.ROUTING_KEY, topic)
+                                .withTag(TagKey.TOPIC, topic)
                                 .withTag(TagKey.CLIENT_ID, clientId)
                                 .build());
                 // just increment a counter and continue the send just like without key
@@ -256,6 +258,7 @@ public class KafkaSink implements Sink {
                     MonitorConfig
                             .builder("attemptRecord")
                             .withTag(TagKey.ROUTING_KEY, topic)
+                            .withTag(TagKey.TOPIC, topic)
                             .withTag(TagKey.CLIENT_ID, clientId)
                             .build());
             producer.send(
@@ -276,6 +279,7 @@ public class KafkaSink implements Sink {
                                     MonitorConfig
                                             .builder("sentRecord")
                                             .withTag(TagKey.ROUTING_KEY, topic)
+                                            .withTag(TagKey.TOPIC, topic)
                                             .withTag(TagKey.CLIENT_ID, clientId)
                                             .build());
                             sentRecords.incrementAndGet();
@@ -294,6 +298,7 @@ public class KafkaSink implements Sink {
             MonitorConfig
                 .builder("droppedRecord")
                 .withTag(TagKey.ROUTING_KEY, routingKey)
+                .withTag(TagKey.TOPIC, routingKey)
                 .withTag(TagKey.DROPPED_REASON, reason)
                 .withTag(TagKey.CLIENT_ID, clientId)
                 .build());

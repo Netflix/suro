@@ -26,6 +26,7 @@ public class TagKey {
     public static final String RESTORED_COUNT = "restoredMessageCount";
     public static final String RETRIED_COUNT = "retriedCount";
     public static final String ROUTING_KEY = "routingKey";
+    public static final String TOPIC = "topic";
     public static final String REJECTED_REASON = "rejectedReason";
     public static final String DROPPED_REASON = "droppedReason";
     public static final String CLIENT_ID = "clientId";
