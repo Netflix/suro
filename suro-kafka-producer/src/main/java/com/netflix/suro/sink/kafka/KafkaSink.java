@@ -313,23 +313,23 @@ public class KafkaSink implements Sink {
 
     /*Package level for testing*/
     void dropMessage(final String routingKey, final String reason, final Throwable throwable) {
-    	MonitorConfig.Builder mcb = MonitorConfig.builder("droppedRecord")
-        .withTag(TagKey.ROUTING_KEY, routingKey)
-        .withTag(TagKey.DROPPED_REASON, reason)
-        .withTag(TagKey.TOPIC, routingKey)
-        .withTag(TagKey.CLIENT_ID, clientId);
-    	
-    	if(null!=throwable)
-    	{
-    		mcb=mcb.withTag(TagKey.EXCEPTION_CLASS,throwable.getClass().getSimpleName());
-    		Throwable cause = throwable.getCause();
-    		if(null!=cause)
-    		{
-    			mcb=mcb.withTag(TagKey.CAUSEDBY_CLASS,cause.getClass().getSimpleName());
-    		}
-    	}
-    	
-    	DynamicCounter.increment(mcb.build());
+        MonitorConfig.Builder mcb = MonitorConfig.builder("droppedRecord")
+                .withTag(TagKey.ROUTING_KEY, routingKey)
+                .withTag(TagKey.DROPPED_REASON, reason)
+                .withTag(TagKey.TOPIC, routingKey)
+                .withTag(TagKey.CLIENT_ID, clientId);
+
+        if(null!=throwable)
+        {
+            mcb=mcb.withTag(TagKey.EXCEPTION_CLASS,throwable.getClass().getSimpleName());
+            Throwable cause = throwable.getCause();
+            if(null!=cause)
+            {
+                mcb=mcb.withTag(TagKey.CAUSEDBY_CLASS,cause.getClass().getSimpleName());
+            }
+        }
+
+        DynamicCounter.increment(mcb.build());
         droppedRecords.incrementAndGet();
         runRecordCounterListener();
     }
