@@ -9,7 +9,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.netflix.servo.DefaultMonitorRegistry;
+import com.netflix.servo.MonitorRegistry;
+import com.netflix.servo.monitor.CompositeMonitor;
+import com.netflix.servo.monitor.DynamicCounter;
+import com.netflix.servo.monitor.Monitor;
+import com.netflix.servo.tag.TagList;
 import com.netflix.suro.ClientConfig;
+import com.netflix.suro.TagKey;
 import com.netflix.suro.jackson.DefaultObjectMapper;
 import com.netflix.suro.message.Compression;
 import com.netflix.suro.message.DefaultMessageContainer;
@@ -19,6 +26,7 @@ import com.netflix.suro.message.MessageSetReader;
 import com.netflix.suro.message.StringMessage;
 import com.netflix.suro.sink.Sink;
 import com.netflix.suro.thrift.TMessageSet;
+
 import kafka.admin.TopicCommand;
 import kafka.api.FetchRequestBuilder;
 import kafka.consumer.ConsumerConfig;
@@ -31,6 +39,7 @@ import kafka.message.MessageAndMetadata;
 import kafka.message.MessageAndOffset;
 import kafka.server.KafkaConfig;
 import kafka.utils.ZkUtils;
+
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -41,11 +50,13 @@ import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.junit.rules.TestRule;
+
 import rx.functions.Action3;
 import scala.Option;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -611,6 +622,66 @@ public class TestKafkaSink {
         } catch (ConsumerTimeoutException e) {
             //this is expected
             consumer.shutdown();
+        }
+    }
+    
+    @Test
+    public void testDropMessage()
+    {
+    	String description = "{\n" +
+                "    \"type\": \"kafka\",\n" +
+                "    \"client.id\": \"kafkasink\",\n" +
+                "    \"bootstrap.servers\": \"" + kafkaServer.getBrokerListStr() + "\",\n" +
+                "    \"kafka.etc\": {\n" +
+                "          \"acks\": \"1\"\n" +
+                "      }\n" +
+                "}";
+
+        try {
+	        KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>() { 
+	        });
+	        sink.open();
+	        sink.dropMessage("routingKey", "reason", null);
+	        sink.dropMessage("routingKey", "reason", new RuntimeException());
+	        sink.dropMessage("routingKey", "reason", new RuntimeException(new IllegalStateException()));
+	        
+	        boolean foundNoException = false;
+	        boolean foundException = false;
+	        boolean foundCausedException = false;
+	        
+	        MonitorRegistry registry = DefaultMonitorRegistry.getInstance();
+	        Collection<Monitor<?>> monitors = registry.getRegisteredMonitors();
+	        for (Monitor<?> monitor : monitors) {
+	        	System.out.println(monitor);
+	            if(monitor instanceof CompositeMonitor<?>)
+	            {
+	            	CompositeMonitor<?> cm = (CompositeMonitor<?>) monitor;
+	            	List<Monitor<?>> subMonitors = cm.getMonitors();
+	            	for (Monitor<?> monitor2 : subMonitors) {
+	            		TagList tl = monitor2.getConfig().getTags();
+	            		String exception = tl.getValue("exceptionClass");
+	            		String causedBy = tl.getValue("causedClass");
+	            		String reason = tl.getValue("droppedReason");
+	            		
+	            		
+	            		if("reason".equals(reason) && exception==null && causedBy==null)
+	            			foundNoException=true;
+	            		
+	            		if("reason".equals(reason) && "RuntimeException".equals(exception) && causedBy==null)
+	            			foundException=true;
+	            	
+	            		if("reason".equals(reason) && "RuntimeException".equals(exception) && "IllegalStateException".equals(causedBy))
+	            			foundCausedException=true;
+                    }
+	            }
+            }
+
+	        assertTrue(foundNoException);
+	        assertTrue(foundException);
+	        assertTrue(foundCausedException);
+	        
+        } catch (IOException e) {
+	        fail(e.getMessage());
         }
     }
 
