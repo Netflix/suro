@@ -652,11 +652,11 @@ public class TestKafkaSink {
 	        MonitorRegistry registry = DefaultMonitorRegistry.getInstance();
 	        Collection<Monitor<?>> monitors = registry.getRegisteredMonitors();
 	        for (Monitor<?> monitor : monitors) {
-	        	System.out.println(monitor);
-	            if(monitor instanceof CompositeMonitor<?>)
+	            if(monitor instanceof DynamicCounter)
 	            {
-	            	CompositeMonitor<?> cm = (CompositeMonitor<?>) monitor;
-	            	List<Monitor<?>> subMonitors = cm.getMonitors();
+                    System.out.println(monitor);
+                    DynamicCounter cm = (DynamicCounter) monitor;
+                    List<Monitor<?>> subMonitors = cm.getMonitors();
 	            	for (Monitor<?> monitor2 : subMonitors) {
 	            		TagList tl = monitor2.getConfig().getTags();
 	            		String exception = tl.getValue("exceptionClass");
@@ -664,10 +664,10 @@ public class TestKafkaSink {
 	            		String reason = tl.getValue("droppedReason");
 	            		
 	            		
-	            		if("reason".equals(reason) && exception==null && causedBy==null)
+	            		if("reason".equals(reason) && exception=="null" && causedBy=="null")
 	            			foundNoException=true;
 	            		
-	            		if("reason".equals(reason) && "RuntimeException".equals(exception) && causedBy==null)
+	            		if("reason".equals(reason) && "RuntimeException".equals(exception) && causedBy=="null")
 	            			foundException=true;
 	            	
 	            		if("reason".equals(reason) && "RuntimeException".equals(exception) && "IllegalStateException".equals(causedBy))
