@@ -313,22 +313,23 @@ public class KafkaSink implements Sink {
 
     /*Package level for testing*/
     void dropMessage(final String routingKey, final String reason, final Throwable throwable) {
+        String exceptionClass = "null";
+        String causeClass = "null";
+        if(null != throwable) {
+            exceptionClass = throwable.getClass().getSimpleName();
+            Throwable cause = throwable.getCause();
+            if(null != cause) {
+                causeClass = cause.getClass().getSimpleName();
+            }
+        }
+
         MonitorConfig.Builder mcb = MonitorConfig.builder("droppedRecord")
                 .withTag(TagKey.ROUTING_KEY, routingKey)
                 .withTag(TagKey.DROPPED_REASON, reason)
                 .withTag(TagKey.TOPIC, routingKey)
-                .withTag(TagKey.CLIENT_ID, clientId);
-
-        if(null!=throwable)
-        {
-            mcb=mcb.withTag(TagKey.EXCEPTION_CLASS,throwable.getClass().getSimpleName());
-            Throwable cause = throwable.getCause();
-            if(null!=cause)
-            {
-                mcb=mcb.withTag(TagKey.CAUSEDBY_CLASS,cause.getClass().getSimpleName());
-            }
-        }
-
+                .withTag(TagKey.CLIENT_ID, clientId)
+                .withTag(TagKey.EXCEPTION_CLASS, exceptionClass)
+                .withTag(TagKey.CAUSEDBY_CLASS, causeClass);
         DynamicCounter.increment(mcb.build());
         droppedRecords.incrementAndGet();
         runRecordCounterListener();
