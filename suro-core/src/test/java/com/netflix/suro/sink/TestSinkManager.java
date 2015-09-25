@@ -22,6 +22,11 @@ public class TestSinkManager {
         private volatile boolean isOpened = false;
 
         @Override
+        public String getType() {
+            return "mock";
+        }
+
+        @Override
         public void writeTo(MessageContainer message) {
 
         }
@@ -106,6 +111,11 @@ public class TestSinkManager {
         private volatile boolean isOpened = false;
         private final CountDownLatch openLatch = new CountDownLatch(1);
         private final CountDownLatch closeLatch = new CountDownLatch(1);
+
+        @Override
+        public String getType() {
+            return "mock";
+        }
 
         @Override
         public void writeTo(MessageContainer message) {

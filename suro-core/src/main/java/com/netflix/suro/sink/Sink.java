@@ -26,6 +26,9 @@ import com.netflix.suro.message.MessageContainer;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 public interface Sink  {
+
+    String getType();
+
     /**
      * Write a single message into the sink
      * 
