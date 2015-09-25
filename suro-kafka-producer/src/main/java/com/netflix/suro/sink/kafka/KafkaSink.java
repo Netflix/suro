@@ -11,12 +11,20 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.netflix.appinfo.InstanceInfo;
 import com.netflix.discovery.DiscoveryClient;
+import com.netflix.servo.annotations.DataSourceType;
+import com.netflix.servo.annotations.Monitor;
+import com.netflix.servo.annotations.MonitorTags;
 import com.netflix.servo.monitor.DynamicCounter;
 import com.netflix.servo.monitor.MonitorConfig;
+import com.netflix.servo.monitor.Monitors;
+import com.netflix.servo.tag.BasicTagList;
+import com.netflix.servo.tag.Tag;
+import com.netflix.servo.tag.TagList;
 import com.netflix.suro.TagKey;
 import com.netflix.suro.message.MessageContainer;
 import com.netflix.suro.message.StringMessage;
 import com.netflix.suro.sink.Sink;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -30,10 +38,12 @@ import org.apache.kafka.common.errors.RecordTooLargeException;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import rx.functions.Action3;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -144,6 +154,9 @@ public class KafkaSink implements Sink {
         this.metadataWaitingQueue = new ArrayBlockingQueue<MessageContainer>(this.metadataWaitingQueueSize);
         this.executor = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder().setDaemon(true).setNameFormat("KafkaSink-MetadataFetcher-%d").build());
+        
+        this.clientIdTags = BasicTagList.of(TagKey.CLIENT_ID, this.clientId);
+        Monitors.registerObject(this.clientId, this);
     }
 
     private List<String> extractBootstrapServers(final String vipAddress, final DiscoveryClient discoveryClient) {
@@ -195,7 +208,7 @@ public class KafkaSink implements Sink {
     public void writeTo(final MessageContainer message) {
         queuedRecords.incrementAndGet();
         if(!isOpened) {
-            dropMessage(getRoutingKey(message), "sinkNotOpened");
+            dropMessage(getRoutingKey(message), "sinkNotOpened",null);
             return;
         }
         runRecordCounterListener();
@@ -212,7 +225,7 @@ public class KafkaSink implements Sink {
                             .withTag(TagKey.CLIENT_ID, clientId)
                             .build());
             if(!metadataWaitingQueue.offer(message)) {
-                dropMessage(getRoutingKey(message), "metadataWaitingQueueFull");
+                dropMessage(getRoutingKey(message), "metadataWaitingQueueFull",null);
             }
         }
     }
@@ -253,7 +266,7 @@ public class KafkaSink implements Sink {
             part = partitioner.partition(topic, key, producer.partitionsFor(topic));
         } catch(Exception e) {
             log.debug("partitioner failure: " + topic, e);
-            dropMessage(topic, "partitionerError");
+            dropMessage(topic, "partitionerError",e);
             // abort send
             return;
         }
@@ -277,7 +290,7 @@ public class KafkaSink implements Sink {
                             if(e instanceof RecordTooLargeException) {
                                 droppedReason = "recordTooLarge";
                             }
-                            dropMessage(topic, droppedReason);
+                            dropMessage(topic, droppedReason,e);
                             runRecordCounterListener();
                         } else {
                             DynamicCounter.increment(
@@ -294,19 +307,29 @@ public class KafkaSink implements Sink {
                 });
         } catch (Exception e) {
             log.debug("Failed to submit send: " + topic, e);
-            dropMessage(topic, "submitSendError");
+            dropMessage(topic, "submitSendError",e);
         }
     }
 
-    private void dropMessage(final String routingKey, final String reason) {
-        DynamicCounter.increment(
-            MonitorConfig
-                .builder("droppedRecord")
-                .withTag(TagKey.ROUTING_KEY, routingKey)
-                .withTag(TagKey.TOPIC, routingKey)
-                .withTag(TagKey.DROPPED_REASON, reason)
-                .withTag(TagKey.CLIENT_ID, clientId)
-                .build());
+    /*Package level for testing*/
+    void dropMessage(final String routingKey, final String reason, final Throwable throwable) {
+    	MonitorConfig.Builder mcb = MonitorConfig.builder("droppedRecord")
+        .withTag(TagKey.ROUTING_KEY, routingKey)
+        .withTag(TagKey.DROPPED_REASON, reason)
+        .withTag(TagKey.TOPIC, routingKey)
+        .withTag(TagKey.CLIENT_ID, clientId);
+    	
+    	if(null!=throwable)
+    	{
+    		mcb=mcb.withTag(TagKey.EXCEPTION_CLASS,throwable.getClass().getSimpleName());
+    		Throwable cause = throwable.getCause();
+    		if(null!=cause)
+    		{
+    			mcb=mcb.withTag(TagKey.CAUSEDBY_CLASS,cause.getClass().getSimpleName());
+    		}
+    	}
+    	
+    	DynamicCounter.increment(mcb.build());
         droppedRecords.incrementAndGet();
         runRecordCounterListener();
     }
@@ -342,7 +365,7 @@ public class KafkaSink implements Sink {
                         log.error("failed to get metadata: " + topic, t);
                         // try to put back to the queue if there is still space
                         if(!metadataWaitingQueue.offer(message)) {
-                            dropMessage(getRoutingKey(message), "metadataWaitingQueueFull");
+                            dropMessage(getRoutingKey(message), "metadataWaitingQueueFull",t);
                         }
                     }
                 }
@@ -395,6 +418,15 @@ public class KafkaSink implements Sink {
     @Override
     public boolean isOpened() {
         return isOpened;
+    }
+    
+    @MonitorTags
+    private final TagList clientIdTags;
+    
+    @Monitor(name="metadata-waitingqueue-length", type= DataSourceType.GAUGE,description="Current length of metadataWatingQueue")
+    public int getQueueLength()
+    {
+    	return metadataWaitingQueue.size();
     }
 
     @VisibleForTesting

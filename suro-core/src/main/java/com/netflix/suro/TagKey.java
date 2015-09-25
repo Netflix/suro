@@ -30,4 +30,6 @@ public class TagKey {
     public static final String REJECTED_REASON = "rejectedReason";
     public static final String DROPPED_REASON = "droppedReason";
     public static final String CLIENT_ID = "clientId";
+    public static final String EXCEPTION_CLASS = "exceptionClass";
+    public static final String CAUSEDBY_CLASS = "causedClass";
 }
