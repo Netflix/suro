@@ -29,6 +29,11 @@ public class SuroSink implements Sink {
     }
 
     @Override
+    public String getType() {
+        return TYPE;
+    }
+
+    @Override
     public void writeTo(MessageContainer message) {
         if(!isOpened) {
             dropMessage(getRoutingKey(message), "sinkNotOpened");

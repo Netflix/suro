@@ -187,6 +187,11 @@ public class KafkaSink implements Sink {
     }
 
     @Override
+    public String getType() {
+        return TYPE;
+    }
+
+    @Override
     public void writeTo(final MessageContainer message) {
         queuedRecords.incrementAndGet();
         if(!isOpened) {
