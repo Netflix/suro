@@ -3,7 +3,6 @@ package com.netflix.suro.sink.kafka;
 import com.netflix.servo.DefaultMonitorRegistry;
 import com.netflix.servo.monitor.DoubleGauge;
 import com.netflix.servo.monitor.MonitorConfig;
-import com.netflix.suro.servo.Servo;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.apache.kafka.common.metrics.MetricsReporter;
@@ -33,7 +32,11 @@ public class ServoReporter implements MetricsReporter {
                     @Override
                     public void call(Long aLong) {
                         for (Map.Entry<DoubleGauge, KafkaMetric> e : gauges.entrySet()) {
-                            e.getKey().set(e.getValue().value());
+                        	double val = e.getValue().value();
+                        	if(Double.isFinite(val)) //Only set the value, if the value is a finite double number
+                        	{
+                                e.getKey().set(val);
+                        	}
                         }
                     }
                 });
