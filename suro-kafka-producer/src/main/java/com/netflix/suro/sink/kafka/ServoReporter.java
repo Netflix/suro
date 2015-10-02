@@ -31,7 +31,6 @@ public class ServoReporter implements MetricsReporter {
                 .subscribe(new Action1<Long>() {
                     @Override
                     public void call(Long aLong) {
-                    	System.out.println("H");
                         for (Map.Entry<DoubleGauge, KafkaMetric> e : gauges.entrySet()) {
                         	setValue(e.getKey(),e.getValue());
                         }
