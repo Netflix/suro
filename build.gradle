@@ -108,7 +108,7 @@ project(':suro-client') {
     compile project(':suro-core')
 
     testCompile project(':suro-core').sourceSets.test.output
-    testCompile project(':suro-kafka-producer')
+    
   }
 }
 
