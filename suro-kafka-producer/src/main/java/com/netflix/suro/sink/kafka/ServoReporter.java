@@ -3,7 +3,6 @@ package com.netflix.suro.sink.kafka;
 import com.netflix.servo.DefaultMonitorRegistry;
 import com.netflix.servo.monitor.DoubleGauge;
 import com.netflix.servo.monitor.MonitorConfig;
-import com.netflix.suro.servo.Servo;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.apache.kafka.common.metrics.MetricsReporter;
@@ -33,10 +32,19 @@ public class ServoReporter implements MetricsReporter {
                     @Override
                     public void call(Long aLong) {
                         for (Map.Entry<DoubleGauge, KafkaMetric> e : gauges.entrySet()) {
-                            e.getKey().set(e.getValue().value());
+                        	setValue(e.getKey(),e.getValue());
                         }
                     }
                 });
+    }
+    
+    private static void setValue(DoubleGauge g, KafkaMetric k)
+    {
+    	double val = k.value();
+    	if(Double.isFinite(val))
+    	{
+            g.set(val);
+    	}
     }
 
     private void addMetric(KafkaMetric metric) {
@@ -48,10 +56,15 @@ public class ServoReporter implements MetricsReporter {
         }
         MonitorConfig monitorConfig = builder.build();
         DoubleGauge gauge = new DoubleGauge(monitorConfig);
+        
+        //Set initial value
+        setValue(gauge,metric);
+        
         KafkaMetric prev = gauges.putIfAbsent(gauge, metric);
         if(prev == null) {
             DefaultMonitorRegistry.getInstance().register(gauge);
         }
+        
     }
 
     @Override
