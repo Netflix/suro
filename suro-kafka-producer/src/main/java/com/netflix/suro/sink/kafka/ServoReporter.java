@@ -31,15 +31,21 @@ public class ServoReporter implements MetricsReporter {
                 .subscribe(new Action1<Long>() {
                     @Override
                     public void call(Long aLong) {
+                    	System.out.println("H");
                         for (Map.Entry<DoubleGauge, KafkaMetric> e : gauges.entrySet()) {
-                        	double val = e.getValue().value();
-                        	if(Double.isFinite(val)) //Only set the value, if the value is a finite double number
-                        	{
-                                e.getKey().set(val);
-                        	}
+                        	setValue(e.getKey(),e.getValue());
                         }
                     }
                 });
+    }
+    
+    private static void setValue(DoubleGauge g, KafkaMetric k)
+    {
+    	double val = k.value();
+    	if(Double.isFinite(val))
+    	{
+            g.set(val);
+    	}
     }
 
     private void addMetric(KafkaMetric metric) {
@@ -51,10 +57,15 @@ public class ServoReporter implements MetricsReporter {
         }
         MonitorConfig monitorConfig = builder.build();
         DoubleGauge gauge = new DoubleGauge(monitorConfig);
+        
+        //Set initial value
+        setValue(gauge,metric);
+        
         KafkaMetric prev = gauges.putIfAbsent(gauge, metric);
         if(prev == null) {
             DefaultMonitorRegistry.getInstance().register(gauge);
         }
+        
     }
 
     @Override
