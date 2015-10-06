@@ -28,6 +28,7 @@ public class TagKey {
     public static final String ROUTING_KEY = "routingKey";
     public static final String TOPIC = "topic";
     public static final String PARTITION = "partition";
+    public static final String RETRY_COUNT = "retryCount";
     public static final String REJECTED_REASON = "rejectedReason";
     public static final String DROPPED_REASON = "droppedReason";
     public static final String CLIENT_ID = "clientId";

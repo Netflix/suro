@@ -281,6 +281,7 @@ public class KafkaSink implements Sink {
                             .withTag(TagKey.ROUTING_KEY, topic)
                             .withTag(TagKey.TOPIC, topic)
                             .withTag(TagKey.CLIENT_ID, clientId)
+                            .withTag(TagKey.RETRY_COUNT, Integer.toString(retryCount))
                             .build());
             producer.send(
                 new ProducerRecord(topic, part, key, message.getMessage().getPayload()),
@@ -305,13 +306,6 @@ public class KafkaSink implements Sink {
                                     // sendMessage never blocks
                                     // so it is safe to execute it inside callback method
                                     sendMessage(message, retryCount + 1);
-                                    MonitorConfig
-                                            .builder("retriedRecord")
-                                            .withTag(TagKey.ROUTING_KEY, topic)
-                                            .withTag(TagKey.TOPIC, topic)
-                                            .withTag(TagKey.CLIENT_ID, clientId)
-                                            .withTag(TagKey.PARTITION, Integer.toString(metadata.partition()))
-                                            .build();
 
                                 } else {
                                     // non-retryable
@@ -328,19 +322,10 @@ public class KafkaSink implements Sink {
                                             .withTag(TagKey.ROUTING_KEY, topic)
                                             .withTag(TagKey.TOPIC, topic)
                                             .withTag(TagKey.CLIENT_ID, clientId)
+                                            .withTag(TagKey.RETRY_COUNT, Integer.toString(retryCount))
                                             .withTag(TagKey.PARTITION, Integer.toString(metadata.partition()))
                                             .build());
                             sentRecords.incrementAndGet();
-                            if (retryCount > 0) {
-                                DynamicCounter.increment(
-                                        MonitorConfig
-                                                .builder("retrySuccessRecord")
-                                                .withTag(TagKey.ROUTING_KEY, topic)
-                                                .withTag(TagKey.TOPIC, topic)
-                                                .withTag(TagKey.CLIENT_ID, clientId)
-                                                .withTag(TagKey.PARTITION, Integer.toString(metadata.partition()))
-                                                .build());
-                            }
                             runRecordCounterListener();
                         }
                     }
