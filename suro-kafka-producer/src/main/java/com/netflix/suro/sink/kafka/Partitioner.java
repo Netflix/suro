@@ -6,6 +6,8 @@ import java.util.List;
 
 public interface Partitioner {
 
-    public Integer partition(final String topic, final byte[] partitionKey, final List<PartitionInfo> partitions);
+    Integer partition(final String topic, final byte[] partitionKey, final List<PartitionInfo> partitions);
+
+    boolean reset(final String topic, final int partition);
 
 }

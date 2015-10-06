@@ -3,6 +3,8 @@ package com.netflix.suro.sink.kafka;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.netflix.servo.monitor.MonitorConfig;
+import com.netflix.suro.TagKey;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.utils.Utils;
 import rx.Observable;
@@ -109,6 +111,11 @@ public class StickyPartitioner implements Partitioner {
                 return partition;
             }
         }
+    }
+
+    @Override
+    public boolean reset(String topic, final int partition) {
+        return indexCache.remove(topic, partition);
     }
 
     @VisibleForTesting

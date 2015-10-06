@@ -76,6 +76,7 @@ public class KafkaSink implements Sink {
     private final String partitionerSelector;
     private final int stickyInterval;
     private final int metadataWaitingQueueSize;
+    private final int maxRetries;
     private final Map<String, String> keyTopicMap;
 
     private final Partitioner partitioner;
@@ -105,6 +106,7 @@ public class KafkaSink implements Sink {
             @JsonProperty("partitioner.sticky.interval") int stickyInterval,
             @JsonProperty("block.on.metadata.queue.full") boolean blockOnMetadataQueueFull,
             @JsonProperty("metadata.waiting.queue.size") int metadataWaitingQueueSize,
+            @JsonProperty("maxRetries") int maxRetries,
             @JsonProperty("keyTopicMap") Map<String, String> keyTopicMap,
             @JsonProperty("kafka.etc") Properties etcProps,
             @JacksonInject DiscoveryClient discoveryClient
@@ -119,6 +121,7 @@ public class KafkaSink implements Sink {
         this.partitionerSelector = partitionerSelector;
         this.stickyInterval = stickyInterval;
         this.metadataWaitingQueueSize = metadataWaitingQueueSize > 0 ? metadataWaitingQueueSize : 1024;
+        this.maxRetries = maxRetries > 0 ? maxRetries : 3;
         this.keyTopicMap = keyTopicMap != null ? keyTopicMap : Maps.<String, String>newHashMap();
 
         if(StickyPartitioner.NAME.equals(partitionerSelector)) {
@@ -208,14 +211,14 @@ public class KafkaSink implements Sink {
     public void writeTo(final MessageContainer message) {
         queuedRecords.incrementAndGet();
         if(!isOpened) {
-            dropMessage(getRoutingKey(message), "sinkNotOpened",null);
+            dropMessage(getRoutingKey(message), "sinkNotOpened", null, null);
             return;
         }
         runRecordCounterListener();
 
         final String routingKey = getRoutingKey(message);
         if (metadataFetchedTopicSet.contains(routingKey)) {
-            sendMessage(message);
+            sendMessage(message, 0);
         } else {
             DynamicCounter.increment(
                     MonitorConfig
@@ -225,7 +228,7 @@ public class KafkaSink implements Sink {
                             .withTag(TagKey.CLIENT_ID, clientId)
                             .build());
             if(!metadataWaitingQueue.offer(message)) {
-                dropMessage(getRoutingKey(message), "metadataWaitingQueueFull",null);
+                dropMessage(getRoutingKey(message), "metadataWaitingQueueFull", null, null);
             }
         }
     }
@@ -236,7 +239,7 @@ public class KafkaSink implements Sink {
         }
     }
 
-    private void sendMessage(final MessageContainer message) {
+    private void sendMessage(final MessageContainer message, final int retryCount) {
         final String topic = getRoutingKey(message);
 
         byte[] key = null;
@@ -266,7 +269,7 @@ public class KafkaSink implements Sink {
             part = partitioner.partition(topic, key, producer.partitionsFor(topic));
         } catch(Exception e) {
             log.debug("partitioner failure: " + topic, e);
-            dropMessage(topic, "partitionerError",e);
+            dropMessage(topic, "partitionerError", e, null);
             // abort send
             return;
         }
@@ -287,10 +290,36 @@ public class KafkaSink implements Sink {
                         if (e != null) {
                             log.debug("Failed to send: " + topic, e);
                             String droppedReason = "sendError";
-                            if(e instanceof RecordTooLargeException) {
-                                droppedReason = "recordTooLarge";
+                            if (retryCount < maxRetries) {
+                                if(isRetryable(e)) {
+                                    boolean reset = partitioner.reset(topic, metadata.partition());
+                                    if (reset) {
+                                        MonitorConfig
+                                                .builder("resetPartitioner")
+                                                .withTag(TagKey.ROUTING_KEY, topic)
+                                                .withTag(TagKey.TOPIC, topic)
+                                                .withTag(TagKey.CLIENT_ID, clientId)
+                                                .withTag(TagKey.PARTITION, Integer.toString(metadata.partition()))
+                                                .build();
+                                    }
+                                    // sendMessage never blocks
+                                    // so it is safe to execute it inside callback method
+                                    sendMessage(message, retryCount + 1);
+                                    MonitorConfig
+                                            .builder("retriedRecord")
+                                            .withTag(TagKey.ROUTING_KEY, topic)
+                                            .withTag(TagKey.TOPIC, topic)
+                                            .withTag(TagKey.CLIENT_ID, clientId)
+                                            .withTag(TagKey.PARTITION, Integer.toString(metadata.partition()))
+                                            .build();
+
+                                } else {
+                                    // non-retryable
+                                    dropMessage(topic, droppedReason, e, metadata);
+                                }
+                            } else {
+                                dropMessage(topic, droppedReason, e, metadata);
                             }
-                            dropMessage(topic, droppedReason,e);
                             runRecordCounterListener();
                         } else {
                             DynamicCounter.increment(
@@ -299,25 +328,48 @@ public class KafkaSink implements Sink {
                                             .withTag(TagKey.ROUTING_KEY, topic)
                                             .withTag(TagKey.TOPIC, topic)
                                             .withTag(TagKey.CLIENT_ID, clientId)
+                                            .withTag(TagKey.PARTITION, Integer.toString(metadata.partition()))
                                             .build());
                             sentRecords.incrementAndGet();
+                            if (retryCount > 0) {
+                                DynamicCounter.increment(
+                                        MonitorConfig
+                                                .builder("retrySuccessRecord")
+                                                .withTag(TagKey.ROUTING_KEY, topic)
+                                                .withTag(TagKey.TOPIC, topic)
+                                                .withTag(TagKey.CLIENT_ID, clientId)
+                                                .withTag(TagKey.PARTITION, Integer.toString(metadata.partition()))
+                                                .build());
+                            }
                             runRecordCounterListener();
                         }
                     }
                 });
         } catch (Exception e) {
             log.debug("Failed to submit send: " + topic, e);
-            dropMessage(topic, "submitSendError",e);
+            dropMessage(topic, "submitSendError", e, null);
         }
     }
 
+    private boolean isRetryable(final Throwable t) {
+        boolean retryable = true;
+        if(t instanceof RecordTooLargeException) {
+            retryable = false;
+        }
+        return retryable;
+    }
+
     /*Package level for testing*/
-    void dropMessage(final String routingKey, final String reason, final Throwable throwable) {
+    void dropMessage(final String routingKey, final String reason, final Throwable throwable, RecordMetadata metadata) {
         MonitorConfig.Builder mcb = MonitorConfig.builder("droppedRecord")
                 .withTag(TagKey.ROUTING_KEY, routingKey)
                 .withTag(TagKey.DROPPED_REASON, reason)
                 .withTag(TagKey.TOPIC, routingKey)
                 .withTag(TagKey.CLIENT_ID, clientId);
+
+        if (null != metadata) {
+            mcb.withTag(TagKey.PARTITION, Integer.toString(metadata.partition()));
+        }
 
         if(null!=throwable)
         {
@@ -360,12 +412,12 @@ public class KafkaSink implements Sink {
                             producer.partitionsFor(topic);
                             metadataFetchedTopicSet.add(topic);
                         }
-                        sendMessage(message);
+                        sendMessage(message, 0);
                     } catch(Throwable t) {
                         log.error("failed to get metadata: " + topic, t);
                         // try to put back to the queue if there is still space
                         if(!metadataWaitingQueue.offer(message)) {
-                            dropMessage(getRoutingKey(message), "metadataWaitingQueueFull",t);
+                            dropMessage(getRoutingKey(message), "metadataWaitingQueueFull", t, null);
                         }
                     }
                 }
