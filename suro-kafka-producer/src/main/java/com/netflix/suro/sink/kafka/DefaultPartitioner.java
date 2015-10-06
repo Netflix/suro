@@ -15,4 +15,10 @@ public class DefaultPartitioner implements Partitioner {
         return null;
     }
 
+    @Override
+    public boolean reset(String topic, final int partition) {
+        // no-op
+        return false;
+    }
+
 }
