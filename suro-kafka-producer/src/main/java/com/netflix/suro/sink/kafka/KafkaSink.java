@@ -211,7 +211,7 @@ public class KafkaSink implements Sink {
     public void writeTo(final MessageContainer message) {
         queuedRecords.incrementAndGet();
         if(!isOpened) {
-            dropMessage(getRoutingKey(message), "sinkNotOpened", null, null);
+            dropMessage(getRoutingKey(message), "sinkNotOpened", null, null,0);
             return;
         }
         runRecordCounterListener();
@@ -228,7 +228,7 @@ public class KafkaSink implements Sink {
                             .withTag(TagKey.CLIENT_ID, clientId)
                             .build());
             if(!metadataWaitingQueue.offer(message)) {
-                dropMessage(getRoutingKey(message), "metadataWaitingQueueFull", null, null);
+                dropMessage(getRoutingKey(message), "metadataWaitingQueueFull", null, null,0);
             }
         }
     }
@@ -269,7 +269,7 @@ public class KafkaSink implements Sink {
             part = partitioner.partition(topic, key, producer.partitionsFor(topic));
         } catch(Exception e) {
             log.debug("partitioner failure: " + topic, e);
-            dropMessage(topic, "partitionerError", e, null);
+            dropMessage(topic, "partitionerError", e, null,retryCount);
             // abort send
             return;
         }
@@ -309,10 +309,10 @@ public class KafkaSink implements Sink {
 
                                 } else {
                                     // non-retryable
-                                    dropMessage(topic, droppedReason, e, metadata);
+                                    dropMessage(topic, droppedReason, e, metadata,retryCount);
                                 }
                             } else {
-                                dropMessage(topic, droppedReason, e, metadata);
+                                dropMessage(topic, droppedReason, e, metadata,retryCount);
                             }
                             runRecordCounterListener();
                         } else {
@@ -332,7 +332,7 @@ public class KafkaSink implements Sink {
                 });
         } catch (Exception e) {
             log.debug("Failed to submit send: " + topic, e);
-            dropMessage(topic, "submitSendError", e, null);
+            dropMessage(topic, "submitSendError", e, null,retryCount);
         }
     }
 
@@ -345,12 +345,13 @@ public class KafkaSink implements Sink {
     }
 
     /*Package level for testing*/
-    void dropMessage(final String routingKey, final String reason, final Throwable throwable, RecordMetadata metadata) {
+    void dropMessage(final String routingKey, final String reason, final Throwable throwable, RecordMetadata metadata, int retryCount) {
         MonitorConfig.Builder mcb = MonitorConfig.builder("droppedRecord")
                 .withTag(TagKey.ROUTING_KEY, routingKey)
                 .withTag(TagKey.DROPPED_REASON, reason)
                 .withTag(TagKey.TOPIC, routingKey)
-                .withTag(TagKey.CLIENT_ID, clientId);
+                .withTag(TagKey.CLIENT_ID, clientId)
+                .withTag(TagKey.RETRY_COUNT,Integer.toString(retryCount));
 
         if (null != metadata) {
             mcb.withTag(TagKey.PARTITION, Integer.toString(metadata.partition()));
@@ -402,7 +403,7 @@ public class KafkaSink implements Sink {
                         log.error("failed to get metadata: " + topic, t);
                         // try to put back to the queue if there is still space
                         if(!metadataWaitingQueue.offer(message)) {
-                            dropMessage(getRoutingKey(message), "metadataWaitingQueueFull", t, null);
+                            dropMessage(getRoutingKey(message), "metadataWaitingQueueFull", t, null,0);
                         }
                     }
                 }
