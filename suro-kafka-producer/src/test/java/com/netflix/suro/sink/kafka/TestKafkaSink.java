@@ -641,9 +641,9 @@ public class TestKafkaSink {
 	        KafkaSink sink = jsonMapper.readValue(description, new TypeReference<Sink>() { 
 	        });
 	        sink.open();
-	        sink.dropMessage("routingKey", "reason", null, null);
-	        sink.dropMessage("routingKey", "reason", new RuntimeException(), null);
-	        sink.dropMessage("routingKey", "reason", new RuntimeException(new IllegalStateException()), null);
+	        sink.dropMessage("routingKey", "reason", null, null,0);
+	        sink.dropMessage("routingKey", "reason", new RuntimeException(), null,0);
+	        sink.dropMessage("routingKey", "reason", new RuntimeException(new IllegalStateException()), null,0);
 	        
 	        boolean foundNoException = false;
 	        boolean foundException = false;
