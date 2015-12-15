@@ -20,6 +20,7 @@ import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.rmi.server.UID;
@@ -56,5 +57,10 @@ public class FileNameFormatter {
                 .append(localHostAddr)
                 .append(new UID().toString());
         return sb.toString().replaceAll("[-:]", "");
+    }
+
+    public static DateTime getFileCreateTime(File file){
+        String fileName = file.getName();
+        return fmt.parseDateTime(fileName.substring(0,"P20141006T213521".length()));
     }
 }

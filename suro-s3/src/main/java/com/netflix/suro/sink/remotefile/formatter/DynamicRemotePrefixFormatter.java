@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.netflix.suro.sink.remotefile.RemotePrefixFormatter;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,7 +22,7 @@ public class DynamicRemotePrefixFormatter implements RemotePrefixFormatter {
     }
 
     @Override
-    public String get() {
+    public String get(File file) {
         StringBuilder sb = new StringBuilder();
 
         for (PrefixFormatter formatter : formatterList) {

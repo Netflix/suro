@@ -24,6 +24,8 @@ import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import java.io.File;
+
 /**
  * It would be useful to append region and stack information to the file path
  * when we upload files to AWS S3. region and stack can be injected through
@@ -49,7 +51,7 @@ public class DateRegionStackFormatter implements RemotePrefixFormatter {
     }
 
     @Override
-    public String get() {
+    public String get(File file) {
         StringBuilder sb = new StringBuilder();
         sb.append(format.print(new DateTime())).append('/')
                 .append(region).append('/')

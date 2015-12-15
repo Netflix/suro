@@ -212,7 +212,7 @@ public abstract class RemoteFileSink implements Sink {
     }
 
     private String makeUploadPath(File file) {
-        return prefixFormatter.get() + file.getName();
+        return prefixFormatter.get(file) + file.getName();
     }
 
     @Monitor(name = "uploadedFileSize", type = DataSourceType.COUNTER)

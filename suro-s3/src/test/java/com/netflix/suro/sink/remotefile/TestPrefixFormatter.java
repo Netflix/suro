@@ -55,7 +55,7 @@ public class TestPrefixFormatter {
 
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>(){});
-        assertEquals(formatter.get(), "prefix/");
+        assertEquals(formatter.get(null), "prefix/");
     }
 
     @Test
@@ -69,7 +69,7 @@ public class TestPrefixFormatter {
         RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>(){});
 
         DateTimeFormatter format = DateTimeFormat.forPattern("YYYYMMDD");
-        assertEquals(formatter.get(), format.print(new DateTime()) + "/");
+        assertEquals(formatter.get(null), format.print(new DateTime()) + "/");
     }
 
     @Test
@@ -84,7 +84,7 @@ public class TestPrefixFormatter {
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>(){});
 
-        assertEquals(formatter.get(), "prop1/");
+        assertEquals(formatter.get(null), "prop1/");
     }
 
     @Test
@@ -101,7 +101,7 @@ public class TestPrefixFormatter {
         ObjectMapper mapper = injector.getInstance(ObjectMapper.class);
         RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>(){});
 
-        assertEquals(formatter.get(), "routing_key/" + format.print(new DateTime()) + "/propvalue1/");
+        assertEquals(formatter.get(null), "routing_key/" + format.print(new DateTime()) + "/propvalue1/");
     }
 
 
@@ -116,7 +116,7 @@ public class TestPrefixFormatter {
         RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>() {});
         DateTimeFormatter format = DateTimeFormat.forPattern("YYYYMMDD");
         String answer = String.format("%s/eu-west-1/gps/", format.print(new DateTime()));
-        assertEquals(formatter.get(), answer);
+        assertEquals(formatter.get(null), answer);
     }
 
     @Test
@@ -132,6 +132,6 @@ public class TestPrefixFormatter {
         RemotePrefixFormatter formatter = mapper.readValue(spec, new TypeReference<RemotePrefixFormatter>() {});
         DateTimeFormatter format = DateTimeFormat.forPattern("YYYYMMDD");
         String answer = String.format("%s/us-east-1/normal/", format.print(new DateTime()));
-        assertEquals(formatter.get(), answer);
+        assertEquals(formatter.get(null), answer);
     }
 }
