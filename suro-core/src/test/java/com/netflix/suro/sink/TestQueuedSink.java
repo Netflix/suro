@@ -91,6 +91,41 @@ public class TestQueuedSink {
     }
 
     @Test
+    public void synchronizedQueue() throws InterruptedException {
+        final int queueCapacity = 0;
+        final MemoryQueue4Sink queue = new MemoryQueue4Sink(queueCapacity);
+        final List<Message> sentMessageList = new LinkedList<Message>();
+
+        QueuedSink sink = new QueuedSink() {
+            @Override
+            protected void beforePolling() throws IOException {
+            }
+
+            @Override
+            protected void write(List<Message> msgList) throws IOException {
+                sentMessageList.addAll(msgList);
+            }
+
+            @Override
+            protected void innerClose() throws IOException {
+            }
+        };
+        sink.initialize(queue, 100, 1000);
+        sink.start();
+
+        int msgCount = 1000;
+        int offered = 0;
+        for (int i = 0; i < msgCount; ++i) {
+            if (queue.offer(new Message("routingKey", ("message" + i).getBytes()))) {
+                offered++;
+            }
+        }
+        assertEquals(msgCount, offered);
+        assertEquals(sentMessageList.size(), offered);
+    }
+
+
+    @Test
     public void shouldNotPauseOnShortQueue() {
         QueuedSink sink = new QueuedSink() {
             @Override
